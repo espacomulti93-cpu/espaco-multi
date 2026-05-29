@@ -83,7 +83,7 @@ function Agenda() {
               </div>
             ))}
             {HOURS.map((h) => (
-              <FragmentRow key={h} h={h} days={days} ags={ags} onCellClick={(date) => setDialog({ open: true, defaults: { date, hour: h } })} onEdit={(a) => setDialog({ open: true, editing: a })} />
+              <FragmentRow key={h} h={h} days={days} ags={ags} onCellClick={(date: Date) => setDialog({ open: true, defaults: { date, hour: h } })} onEdit={(a: any) => setDialog({ open: true, editing: a })} />
             ))}
           </div>
         </CardContent>
