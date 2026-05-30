@@ -36,7 +36,7 @@ export function AppSidebar() {
             <Brain className="h-5 w-5" />
           </div>
           <div className="leading-tight group-data-[collapsible=icon]:hidden">
-            <div className="text-sm font-semibold">NeuroClin</div>
+            <div className="text-sm font-semibold">Espaço MULTI</div>
             <div className="text-xs text-muted-foreground">Agendamento</div>
           </div>
         </div>

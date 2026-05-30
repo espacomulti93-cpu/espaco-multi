@@ -57,7 +57,7 @@ function LoginPage() {
             <Brain className="h-7 w-7" />
           </div>
           <div>
-            <div className="text-xl font-semibold">NeuroClin</div>
+            <div className="text-xl font-semibold">Espaço MULTI</div>
             <div className="text-sm opacity-80">Sistema de Agendamento</div>
           </div>
         </div>
@@ -69,7 +69,7 @@ function LoginPage() {
             Organize a agenda, acompanhe pacientes e mantenha sua equipe alinhada num único lugar.
           </p>
         </div>
-        <div className="text-xs opacity-70">© NeuroClin</div>
+        <div className="text-xs opacity-70">© Espaço MULTI</div>
       </div>
 
       <div className="flex items-center justify-center p-6">
