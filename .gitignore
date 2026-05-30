@@ -31,6 +31,6 @@ dist-ssr
 *.sln
 *.sw?
 
-# Netlify build output
-.netlify
+# Vercel build output
+.vercel
 
