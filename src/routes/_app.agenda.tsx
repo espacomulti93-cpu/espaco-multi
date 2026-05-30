@@ -95,7 +95,7 @@ function Agenda() {
             editing={dialog.editing}
             defaults={dialog.defaults}
             onSaved={() => { setDialog({ open: false }); qc.invalidateQueries({ queryKey: ["ags"] }); }}
-            onCancel={(a) => { setDialog({ open: false }); setCancelTarget(a); }}
+            onCancel={(a: any) => { setDialog({ open: false }); setCancelTarget(a); }}
           />
         )}
       </Dialog>
