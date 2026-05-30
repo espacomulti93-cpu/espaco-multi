@@ -59,7 +59,7 @@ function FaturaDetail() {
 
   const updateStatus = useMutation({
     mutationFn: async (patch: Record<string, any>) => {
-      const { error } = await supabase.from("faturas").update(patch).eq("id", id);
+      const { error } = await supabase.from("faturas").update(patch as any).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
