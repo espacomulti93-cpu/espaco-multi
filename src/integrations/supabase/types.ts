@@ -132,6 +132,89 @@ export type Database = {
           },
         ]
       }
+      fatura_itens: {
+        Row: {
+          agendamento_id: string | null
+          created_at: string
+          descricao: string
+          fatura_id: string
+          id: string
+          quantidade: number
+          total: number
+          valor_unitario: number
+        }
+        Insert: {
+          agendamento_id?: string | null
+          created_at?: string
+          descricao: string
+          fatura_id: string
+          id?: string
+          quantidade?: number
+          total?: number
+          valor_unitario?: number
+        }
+        Update: {
+          agendamento_id?: string | null
+          created_at?: string
+          descricao?: string
+          fatura_id?: string
+          id?: string
+          quantidade?: number
+          total?: number
+          valor_unitario?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fatura_itens_fatura_id_fkey"
+            columns: ["fatura_id"]
+            isOneToOne: false
+            referencedRelation: "faturas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      faturas: {
+        Row: {
+          competencia: string
+          created_at: string
+          id: string
+          metodo: Database["public"]["Enums"]["metodo_pagamento"] | null
+          observacoes: string | null
+          paciente_id: string
+          pago_em: string | null
+          status: Database["public"]["Enums"]["fatura_status"]
+          updated_at: string
+          valor: number
+          vencimento: string | null
+        }
+        Insert: {
+          competencia: string
+          created_at?: string
+          id?: string
+          metodo?: Database["public"]["Enums"]["metodo_pagamento"] | null
+          observacoes?: string | null
+          paciente_id: string
+          pago_em?: string | null
+          status?: Database["public"]["Enums"]["fatura_status"]
+          updated_at?: string
+          valor?: number
+          vencimento?: string | null
+        }
+        Update: {
+          competencia?: string
+          created_at?: string
+          id?: string
+          metodo?: Database["public"]["Enums"]["metodo_pagamento"] | null
+          observacoes?: string | null
+          paciente_id?: string
+          pago_em?: string | null
+          status?: Database["public"]["Enums"]["fatura_status"]
+          updated_at?: string
+          valor?: number
+          vencimento?: string | null
+        }
+        Relationships: []
+      }
       pacientes: {
         Row: {
           cid_principal: string | null
@@ -377,6 +460,16 @@ export type Database = {
         | "realizado"
         | "falta"
       app_role: "admin" | "recepcionista" | "profissional"
+      fatura_status: "aberta" | "paga" | "vencida" | "cancelada"
+      metodo_pagamento:
+        | "pix"
+        | "dinheiro"
+        | "cartao_credito"
+        | "cartao_debito"
+        | "transferencia"
+        | "boleto"
+        | "convenio"
+        | "outro"
       paciente_status: "ativo" | "inativo" | "lista_espera"
       recorrencia_tipo: "unica" | "semanal" | "quinzenal" | "mensal"
       tipo_atendimento: "particular" | "convenio"
@@ -515,6 +608,17 @@ export const Constants = {
         "falta",
       ],
       app_role: ["admin", "recepcionista", "profissional"],
+      fatura_status: ["aberta", "paga", "vencida", "cancelada"],
+      metodo_pagamento: [
+        "pix",
+        "dinheiro",
+        "cartao_credito",
+        "cartao_debito",
+        "transferencia",
+        "boleto",
+        "convenio",
+        "outro",
+      ],
       paciente_status: ["ativo", "inativo", "lista_espera"],
       recorrencia_tipo: ["unica", "semanal", "quinzenal", "mensal"],
       tipo_atendimento: ["particular", "convenio"],
