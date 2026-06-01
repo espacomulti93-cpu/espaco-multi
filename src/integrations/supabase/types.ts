@@ -298,6 +298,7 @@ export type Database = {
           updated_at: string
           user_id: string | null
           valor_sessao: number | null
+          valores_config: Json | null
         }
         Insert: {
           ativo?: boolean
@@ -312,6 +313,7 @@ export type Database = {
           updated_at?: string
           user_id?: string | null
           valor_sessao?: number | null
+          valores_config?: Json | null
         }
         Update: {
           ativo?: boolean
@@ -326,6 +328,7 @@ export type Database = {
           updated_at?: string
           user_id?: string | null
           valor_sessao?: number | null
+          valores_config?: Json | null
         }
         Relationships: []
       }

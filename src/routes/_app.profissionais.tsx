@@ -8,8 +8,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, DollarSign } from "lucide-react";
 import { toast } from "sonner";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export const Route = createFileRoute("/_app/profissionais")({
   component: ProfissionaisPage,
@@ -21,6 +24,8 @@ function ProfissionaisPage() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);
+  const [valuesOpen, setValuesOpen] = useState(false);
+  const [editingValues, setEditingValues] = useState<any>(null);
 
   const { data = [] } = useQuery({
     queryKey: ["profissionais"],
@@ -45,7 +50,7 @@ function ProfissionaisPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-2">
         <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setEditing(null); }}>
           <DialogTrigger asChild>
             <Button className="gap-1.5"><Plus className="h-4 w-4" /> Novo profissional</Button>
@@ -56,6 +61,18 @@ function ProfissionaisPage() {
               onSaved={() => {
                 setOpen(false);
                 setEditing(null);
+                qc.invalidateQueries({ queryKey: ["profissionais"] });
+              }}
+            />
+          )}
+        </Dialog>
+        <Dialog open={valuesOpen} onOpenChange={(o) => { setValuesOpen(o); if (!o) setEditingValues(null); }}>
+          {valuesOpen && (
+            <ValoresDialog
+              prof={editingValues}
+              onSaved={() => {
+                setValuesOpen(false);
+                setEditingValues(null);
                 qc.invalidateQueries({ queryKey: ["profissionais"] });
               }}
             />
@@ -84,21 +101,46 @@ function ProfissionaisPage() {
                         <span className="text-xs text-muted-foreground">—</span>
                       )}
                     </div>
-                    <div className="mt-2 text-xs text-muted-foreground">
-                      {p.valor_sessao ? `R$ ${Number(p.valor_sessao).toFixed(2)}/sessão` : "Valor não definido"}
+                    <div className="mt-2 space-y-1">
+                      {p.valores_config && (p.valores_config as any).especialidades?.length > 0 ? (
+                        (p.valores_config as any).especialidades.map((esp: any) => (
+                          <div key={esp.nome} className="text-xs text-muted-foreground flex justify-between gap-4">
+                            <span>{esp.nome}:</span>
+                            <span className="font-medium text-foreground">
+                              Sessão R$ {Number(esp.valor_sessao).toFixed(2)} | Av. R$ {Number(esp.valor_avaliacao).toFixed(2)}
+                            </span>
+                          </div>
+                        ))
+                      ) : p.valor_sessao ? (
+                        <div className="text-xs text-muted-foreground">
+                          Geral: R$ {Number(p.valor_sessao).toFixed(2)}/sessão
+                        </div>
+                      ) : (
+                        <div className="text-xs text-muted-foreground">Valores não configurados</div>
+                      )}
                     </div>
                   </div>
                   <Badge variant={p.ativo ? "default" : "secondary"}>{p.ativo ? "Ativo" : "Inativo"}</Badge>
                 </div>
-                <div className="mt-3 flex justify-end gap-1">
-                  <Button size="icon" variant="ghost" onClick={() => { setEditing(p); setOpen(true); }}>
-                    <Pencil className="h-4 w-4" />
+                <div className="mt-4 flex justify-between items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-1 text-xs"
+                    onClick={() => { setEditingValues(p); setValuesOpen(true); }}
+                  >
+                    <DollarSign className="h-3.5 w-3.5" /> Valores
                   </Button>
-                  <Button size="icon" variant="ghost" onClick={() => {
-                    if (confirm(`Remover ${p.nome}?`)) del.mutate(p.id);
-                  }}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  <div className="flex gap-1">
+                    <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => { setEditing(p); setOpen(true); }}>
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => {
+                      if (confirm(`Remover ${p.nome}?`)) del.mutate(p.id);
+                    }}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -123,7 +165,7 @@ function ProfForm({ prof, onSaved }: { prof: any; onSaved: () => void }) {
     mutationFn: async () => {
       const payload: any = {
         nome: form.nome,
-        especialidade: form.especialidades.map(s => s.trim()).filter(Boolean).join(", ") || null,
+        especialidade: form.especialidades.map((s: string) => s.trim()).filter(Boolean).join(", ") || null,
         email: form.email || null,
         telefone: form.telefone || null,
         cor: form.cor,
@@ -151,7 +193,7 @@ function ProfForm({ prof, onSaved }: { prof: any; onSaved: () => void }) {
         <div className="space-y-1.5">
           <Label>Especialidades</Label>
           <div className="space-y-2">
-            {form.especialidades.map((esp, index) => (
+            {form.especialidades.map((esp: string, index: number) => (
               <div key={index} className="flex gap-2 items-center">
                 <Input
                   value={esp}
@@ -171,7 +213,7 @@ function ProfForm({ prof, onSaved }: { prof: any; onSaved: () => void }) {
                     onClick={() => {
                       setForm({
                         ...form,
-                        especialidades: form.especialidades.filter((_, i) => i !== index),
+                        especialidades: form.especialidades.filter((_: string, i: number) => i !== index),
                       });
                     }}
                   >
@@ -216,6 +258,258 @@ function ProfForm({ prof, onSaved }: { prof: any; onSaved: () => void }) {
           <Input type="number" step="0.01" value={form.valor_sessao} onChange={(e) => setForm({ ...form, valor_sessao: e.target.value })} /></div>
         <DialogFooter><Button type="submit" disabled={m.isPending}>Salvar</Button></DialogFooter>
       </form>
+    </DialogContent>
+  );
+}
+
+export function ValoresDialog({ prof, onSaved }: { prof: any; onSaved: () => void }) {
+  const { data: pacientes = [] } = useQuery({
+    queryKey: ["pacientes-min-prof"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("pacientes").select("id, nome").order("nome");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const specs = prof?.especialidade
+    ? prof.especialidade.split(",").map((s: string) => s.trim()).filter(Boolean)
+    : [];
+
+  const config = prof?.valores_config as any || { especialidades: [], descontos: [] };
+
+  const [valoresSpecs, setValoresSpecs] = useState(() => {
+    return specs.map((spec) => {
+      const existing = config.especialidades?.find((e: any) => e.nome === spec);
+      return {
+        nome: spec,
+        valor_sessao: existing?.valor_sessao ?? prof?.valor_sessao ?? 0,
+        valor_avaliacao: existing?.valor_avaliacao ?? (prof?.valor_sessao ? Number(prof.valor_sessao) * 1.3 : 0),
+      };
+    });
+  });
+
+  const [descontos, setDescontos] = useState(() => {
+    return config.descontos || [];
+  });
+
+  const [newDesc, setNewDesc] = useState({
+    paciente_id: "",
+    especialidade: specs[0] || "",
+    valor_sessao: "",
+    valor_avaliacao: "",
+  });
+
+  const mutation = useMutation({
+    mutationFn: async () => {
+      const payloadConfig = {
+        especialidades: valoresSpecs,
+        descontos: descontos,
+      };
+      const { error } = await supabase
+        .from("profissionais")
+        .update({ valores_config: payloadConfig })
+        .eq("id", prof.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Valores e descontos salvos");
+      onSaved();
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  return (
+    <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col p-6">
+      <DialogHeader>
+        <DialogTitle>Configurar Valores - {prof.nome}</DialogTitle>
+      </DialogHeader>
+      
+      {specs.length === 0 ? (
+        <div className="py-6 text-center text-sm text-muted-foreground">
+          Cadastre especialidades para este profissional antes de configurar os valores.
+        </div>
+      ) : (
+        <Tabs defaultValue="valores" className="flex-1 flex flex-col overflow-hidden">
+          <TabsList className="grid grid-cols-2">
+            <TabsTrigger value="valores">Valores por Especialidade</TabsTrigger>
+            <TabsTrigger value="descontos">Descontos por Paciente</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="valores" className="flex-1 overflow-y-auto py-4 space-y-4">
+            <p className="text-xs text-muted-foreground">
+              Defina o valor cobrado por sessão de tratamento e avaliação inicial para cada especialidade.
+            </p>
+            <div className="space-y-3">
+              {valoresSpecs.map((v, i) => (
+                <div key={v.nome} className="grid grid-cols-3 gap-4 items-end border p-3.5 rounded-lg bg-card shadow-sm">
+                  <div>
+                    <Label className="text-sm font-semibold">{v.nome}</Label>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Sessão Padrão (R$)</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={v.valor_sessao}
+                      onChange={(e) => {
+                        const copy = [...valoresSpecs];
+                        copy[i].valor_sessao = Number(e.target.value);
+                        setValoresSpecs(copy);
+                      }}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Avaliação Prévia (R$)</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={v.valor_avaliacao}
+                      onChange={(e) => {
+                        const copy = [...valoresSpecs];
+                        copy[i].valor_avaliacao = Number(e.target.value);
+                        setValoresSpecs(copy);
+                      }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </TabsContent>
+          
+          <TabsContent value="descontos" className="flex-1 overflow-y-auto py-4 space-y-4">
+            <p className="text-xs text-muted-foreground">
+              Configure descontos e valores especiais de sessões e avaliações para pacientes selecionados.
+            </p>
+            
+            <div className="grid grid-cols-2 gap-3 p-3 border border-dashed rounded-lg bg-muted/40">
+              <div className="space-y-1.5">
+                <Label>Paciente</Label>
+                <Select value={newDesc.paciente_id} onValueChange={(v) => setNewDesc({ ...newDesc, paciente_id: v })}>
+                  <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                  <SelectContent>
+                    {pacientes.map((p: any) => (
+                      <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Especialidade</Label>
+                <Select value={newDesc.especialidade} onValueChange={(v) => setNewDesc({ ...newDesc, especialidade: v })}>
+                  <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                  <SelectContent>
+                    {specs.map((s) => (
+                      <SelectItem key={s} value={s}>{s}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Valor Sessão (R$)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  placeholder="Ex.: 120"
+                  value={newDesc.valor_sessao}
+                  onChange={(e) => setNewDesc({ ...newDesc, valor_sessao: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Valor Avaliação (R$)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  placeholder="Ex.: 180"
+                  value={newDesc.valor_avaliacao}
+                  onChange={(e) => setNewDesc({ ...newDesc, valor_avaliacao: e.target.value })}
+                />
+              </div>
+              <div className="col-span-2 flex justify-end">
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => {
+                    if (!newDesc.paciente_id || !newDesc.especialidade || !newDesc.valor_sessao || !newDesc.valor_avaliacao) {
+                      toast.error("Preencha todos os campos do desconto");
+                      return;
+                    }
+                    const newRule = {
+                      paciente_id: newDesc.paciente_id,
+                      especialidade: newDesc.especialidade,
+                      valor_sessao: Number(newDesc.valor_sessao),
+                      valor_avaliacao: Number(newDesc.valor_avaliacao),
+                    };
+                    const exists = descontos.some(
+                      (d: any) => d.paciente_id === newRule.paciente_id && d.especialidade === newRule.especialidade
+                    );
+                    if (exists) {
+                      toast.error("Já existe desconto para este paciente nesta especialidade");
+                      return;
+                    }
+                    setDescontos([...descontos, newRule]);
+                    setNewDesc({ paciente_id: "", especialidade: specs[0] || "", valor_sessao: "", valor_avaliacao: "" });
+                  }}
+                >
+                  <Plus className="h-4 w-4 mr-1.5" /> Adicionar Desconto
+                </Button>
+              </div>
+            </div>
+            
+            <div className="border rounded-lg overflow-hidden">
+              <Table className="w-full">
+                <TableHeader className="bg-muted/50">
+                  <TableRow>
+                    <TableHead>Paciente</TableHead>
+                    <TableHead>Especialidade</TableHead>
+                    <TableHead>Sessão</TableHead>
+                    <TableHead>Avaliação</TableHead>
+                    <TableHead className="w-12"></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {descontos.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center text-xs text-muted-foreground py-6">
+                        Nenhum valor com desconto cadastrado para este profissional.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    descontos.map((d: any, idx: number) => {
+                      const pac = pacientes.find((p: any) => p.id === d.paciente_id);
+                      return (
+                        <TableRow key={idx}>
+                          <TableCell className="font-medium text-xs">{pac?.nome || "Carregando..."}</TableCell>
+                          <TableCell className="text-xs">{d.especialidade}</TableCell>
+                          <TableCell className="text-xs font-semibold text-primary">R$ {d.valor_sessao.toFixed(2)}</TableCell>
+                          <TableCell className="text-xs font-semibold text-primary">R$ {d.valor_avaliacao.toFixed(2)}</TableCell>
+                          <TableCell>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                              onClick={() => setDescontos(descontos.filter((_: any, i: number) => i !== idx))}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </TabsContent>
+        </Tabs>
+      )}
+      
+      <DialogFooter className="mt-4 shrink-0">
+        <Button onClick={() => mutation.mutate()} disabled={mutation.isPending}>
+          {mutation.isPending ? "Salvando..." : "Salvar Configuração"}
+        </Button>
+      </DialogFooter>
     </DialogContent>
   );
 }

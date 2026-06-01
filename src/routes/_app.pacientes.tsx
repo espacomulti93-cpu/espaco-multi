@@ -10,9 +10,26 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, User, Pencil } from "lucide-react";
+import { Plus, Search, User, Pencil, Trash2 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { differenceInYears, format } from "date-fns";
+
+const formatBirthDate = (value: string) => {
+  const nums = value.replace(/\D/g, "");
+  if (nums.length <= 2) return nums;
+  if (nums.length <= 4) return `${nums.substring(0, 2)}/${nums.substring(2)}`;
+  return `${nums.substring(0, 2)}/${nums.substring(2, 4)}/${nums.substring(4, 8)}`;
+};
+
+const formatBirthDateForDisplay = (dateStr: string | null | undefined) => {
+  if (!dateStr) return "";
+  const parts = dateStr.split("-");
+  if (parts.length === 3) {
+    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  }
+  return dateStr;
+};
 
 export const Route = createFileRoute("/_app/pacientes")({
   component: PacientesPage,
@@ -24,6 +41,7 @@ function PacientesPage() {
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   const { data: pacientes = [], isLoading } = useQuery({
     queryKey: ["pacientes"],
@@ -36,6 +54,49 @@ function PacientesPage() {
       return data;
     },
   });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      // 1. Delete fatura_itens for faturas belonging to these patients
+      const { data: faturas } = await supabase
+        .from("faturas")
+        .select("id")
+        .in("paciente_id", ids);
+      const faturaIds = faturas?.map(f => f.id) || [];
+      if (faturaIds.length > 0) {
+        await supabase.from("fatura_itens").delete().in("fatura_id", faturaIds);
+      }
+      // 2. Delete faturas
+      await supabase.from("faturas").delete().in("paciente_id", ids);
+      // 3. Delete agendamentos
+      await supabase.from("agendamentos").delete().in("paciente_id", ids);
+      // 4. Delete responsaveis
+      await supabase.from("responsaveis").delete().in("paciente_id", ids);
+      // 5. Delete patients
+      const { error } = await supabase.from("pacientes").delete().in("id", ids);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Paciente(s) excluído(s) com sucesso");
+      setSelectedIds([]);
+      qc.invalidateQueries({ queryKey: ["pacientes"] });
+    },
+    onError: (e: any) => {
+      toast.error("Erro ao excluir paciente(s): " + e.message);
+    },
+  });
+
+  const handleDeleteSingle = (p: any) => {
+    if (confirm(`Tem certeza que deseja excluir o paciente ${p.nome}?`)) {
+      deleteMutation.mutate([p.id]);
+    }
+  };
+
+  const handleDeleteMultiple = () => {
+    if (confirm(`Tem certeza que deseja excluir os ${selectedIds.length} pacientes selecionados?`)) {
+      deleteMutation.mutate(selectedIds);
+    }
+  };
 
   const filtered = pacientes.filter((p) =>
     p.nome.toLowerCase().includes(q.toLowerCase())
@@ -53,6 +114,38 @@ function PacientesPage() {
             className="pl-9"
           />
         </div>
+
+        {filtered.length > 0 && (
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="select-all"
+              checked={selectedIds.length === filtered.length && filtered.length > 0}
+              onCheckedChange={(checked) => {
+                if (checked) {
+                  setSelectedIds(filtered.map((p) => p.id));
+                } else {
+                  setSelectedIds([]);
+                }
+              }}
+            />
+            <Label htmlFor="select-all" className="text-xs cursor-pointer text-muted-foreground select-none">
+              Selecionar tudo
+            </Label>
+          </div>
+        )}
+
+        {selectedIds.length > 0 && (
+          <Button
+            variant="destructive"
+            size="sm"
+            className="gap-1.5"
+            onClick={handleDeleteMultiple}
+            disabled={deleteMutation.isPending}
+          >
+            <Trash2 className="h-4 w-4" /> Excluir selecionados ({selectedIds.length})
+          </Button>
+        )}
+
         <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setEditing(null); }}>
           <DialogTrigger asChild>
             <Button className="ml-auto gap-1.5">
@@ -83,65 +176,109 @@ function PacientesPage() {
         </Card>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map((p) => (
-            <div
-              key={p.id}
-              onClick={() => {
-                navigate({
-                  to: "/pacientes/$id",
-                  params: { id: p.id },
-                });
-              }}
-              className="cursor-pointer group relative rounded-xl border bg-card p-4 transition hover:border-primary/40 hover:shadow-sm"
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <div className="truncate font-medium">{p.nome}</div>
-                  <div className="text-xs text-muted-foreground">
-                    {p.data_nascimento
-                      ? `${differenceInYears(new Date(), new Date(p.data_nascimento))} anos`
-                      : "Idade não informada"}
-                    {p.cid_principal ? ` • ${p.cid_principal}` : ""}
+          {filtered.map((p) => {
+            const isSelected = selectedIds.includes(p.id);
+            return (
+              <div
+                key={p.id}
+                onClick={() => {
+                  navigate({
+                    to: "/pacientes/$id",
+                    params: { id: p.id },
+                  });
+                }}
+                className="cursor-pointer group relative rounded-xl border bg-card p-4 transition hover:border-primary/40 hover:shadow-sm"
+              >
+                <div className="flex items-start gap-3">
+                  <div 
+                    className="mt-1"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <Checkbox
+                      checked={isSelected}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setSelectedIds([...selectedIds, p.id]);
+                        } else {
+                          setSelectedIds(selectedIds.filter((id) => id !== p.id));
+                        }
+                      }}
+                    />
                   </div>
-                  {p.cids_secundarios && (p.cids_secundarios as string[]).length > 0 && (
-                    <div className="mt-1.5 flex flex-wrap gap-1">
-                      {(p.cids_secundarios as string[]).map((spec) => (
-                        <Badge key={spec} variant="outline" className="text-[10px] px-1.5 py-0">
-                          {spec}
-                        </Badge>
-                      ))}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="truncate font-medium">{p.nome}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {p.data_nascimento
+                            ? `Nasc.: ${formatBirthDateForDisplay(p.data_nascimento)}`
+                            : "Data de nascimento não informada"}
+                          {p.cid_principal ? ` • CID: ${p.cid_principal}` : ""}
+                        </div>
+                      </div>
+                      <Badge variant={p.status === "ativo" ? "default" : "secondary"}>
+                        {p.status.replace("_", " ")}
+                      </Badge>
                     </div>
-                  )}
+                    {p.cids_secundarios && (p.cids_secundarios as string[]).length > 0 && (
+                      <div className="mt-1.5 flex flex-wrap gap-1">
+                        {(p.cids_secundarios as string[]).map((cid) => (
+                          <Badge key={cid} variant="outline" className="text-[10px] px-1.5 py-0 bg-secondary/30">
+                            {cid}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                    <div className="mt-3 flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                      <div>
+                        {p.tipo_atendimento === "convenio" ? `Convênio: ${p.convenio_nome ?? "—"}` : "Particular"}
+                      </div>
+                      <div className="flex gap-1">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setEditing(p);
+                            setOpen(true);
+                          }}
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleDeleteSingle(p);
+                          }}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <Badge variant={p.status === "ativo" ? "default" : "secondary"}>
-                  {p.status.replace("_", " ")}
-                </Badge>
               </div>
-              <div className="mt-2 flex items-center justify-between gap-2 text-xs text-muted-foreground">
-                <div>
-                  {p.tipo_atendimento === "convenio" ? `Convênio: ${p.convenio_nome ?? "—"}` : "Particular"}
-                </div>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setEditing(p);
-                    setOpen(true);
-                  }}
-                >
-                  <Pencil className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
   );
 }
+
+const formatPhone = (value: string) => {
+  if (!value) return "";
+  const nums = value.replace(/\D/g, "");
+  if (nums.length <= 2) return nums;
+  if (nums.length <= 7) return `(${nums.substring(0, 2)}) ${nums.substring(2)}`;
+  return `(${nums.substring(0, 2)}) ${nums.substring(2, 7)}-${nums.substring(7, 11)}`;
+};
 
 export function PacienteFormDialog({
   paciente,
@@ -152,9 +289,7 @@ export function PacienteFormDialog({
 }) {
   const [form, setForm] = useState({
     nome: paciente?.nome ?? "",
-    idade: paciente?.data_nascimento
-      ? differenceInYears(new Date(), new Date(paciente.data_nascimento)).toString()
-      : "",
+    data_nascimento: paciente?.data_nascimento ? formatBirthDateForDisplay(paciente.data_nascimento) : "",
     cid_principal: paciente?.cid_principal ?? "",
     cids_secundarios: (paciente?.cids_secundarios as string[]) ?? [],
     tipo_atendimento: paciente?.tipo_atendimento ?? "particular",
@@ -163,6 +298,7 @@ export function PacienteFormDialog({
     status: paciente?.status ?? "ativo",
     observacoes: paciente?.observacoes ?? "",
     responsavel: "",
+    telefone: "",
   });
 
   const { data: profissionais = [] } = useQuery({
@@ -204,23 +340,33 @@ export function PacienteFormDialog({
 
   useEffect(() => {
     if (responsaveis.length > 0) {
-      setForm((f) => ({ ...f, responsavel: responsaveis[0].nome }));
+      setForm((f) => ({
+        ...f,
+        responsavel: responsaveis[0].nome,
+        telefone: formatPhone(responsaveis[0].telefone ?? ""),
+      }));
     }
   }, [responsaveis]);
 
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatPhone(e.target.value);
+    setForm((f) => ({ ...f, telefone: formatted }));
+  };
+
   const mutation = useMutation({
     mutationFn: async () => {
-      let data_nascimento = null;
-      if (form.idade) {
-        const ageNum = Number(form.idade);
-        const today = new Date();
-        today.setFullYear(today.getFullYear() - ageNum);
-        data_nascimento = today.toISOString().split("T")[0];
+      let dbBirthDate: string | null = null;
+      if (form.data_nascimento) {
+        const parts = form.data_nascimento.split("/");
+        if (parts.length !== 3 || parts[0].length !== 2 || parts[1].length !== 2 || parts[2].length !== 4) {
+          throw new Error("Data de nascimento inválida. Use o formato DD/MM/AAAA.");
+        }
+        dbBirthDate = `${parts[2]}-${parts[1]}-${parts[0]}`;
       }
 
       const payload: any = {
         nome: form.nome,
-        data_nascimento,
+        data_nascimento: dbBirthDate,
         cid_principal: form.cid_principal || null,
         cids_secundarios: form.cids_secundarios,
         tipo_atendimento: form.tipo_atendimento,
@@ -235,17 +381,24 @@ export function PacienteFormDialog({
         const { error } = await supabase.from("pacientes").update(payload).eq("id", paciente.id);
         if (error) throw error;
 
-        if (form.responsavel.trim()) {
+        if (form.responsavel.trim() || form.telefone.trim()) {
           if (responsaveis.length > 0) {
             const { error: rError } = await supabase
               .from("responsaveis")
-              .update({ nome: form.responsavel.trim() })
+              .update({
+                nome: form.responsavel.trim(),
+                telefone: form.telefone.trim() || null,
+              })
               .eq("id", responsaveis[0].id);
             if (rError) throw rError;
           } else {
             const { error: rError } = await supabase
               .from("responsaveis")
-              .insert({ paciente_id: paciente.id, nome: form.responsavel.trim() });
+              .insert({
+                paciente_id: paciente.id,
+                nome: form.responsavel.trim(),
+                telefone: form.telefone.trim() || null,
+              });
             if (rError) throw rError;
           }
         }
@@ -258,10 +411,14 @@ export function PacienteFormDialog({
           .single();
         if (error) throw error;
 
-        if (form.responsavel.trim() && newPaciente) {
+        if ((form.responsavel.trim() || form.telefone.trim()) && newPaciente) {
           const { error: rError } = await supabase
             .from("responsaveis")
-            .insert({ paciente_id: newPaciente.id, nome: form.responsavel.trim() });
+            .insert({
+              paciente_id: newPaciente.id,
+              nome: form.responsavel.trim(),
+              telefone: form.telefone.trim() || null,
+            });
           if (rError) throw rError;
         }
       }
@@ -291,59 +448,53 @@ export function PacienteFormDialog({
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
-            <Label>IDADE</Label>
+            <Label>Data de Nascimento</Label>
             <Input
-              type="number"
-              min="0"
-              max="120"
-              value={form.idade}
-              onChange={(e) => setForm({ ...form, idade: e.target.value })}
-              placeholder="ex.: 8"
+              type="text"
+              value={form.data_nascimento}
+              onChange={(e) => setForm({ ...form, data_nascimento: formatBirthDate(e.target.value) })}
+              placeholder="DD/MM/AAAA"
+              maxLength={10}
             />
           </div>
           <div className="space-y-1.5">
-            <Label>Tratamento desejado</Label>
+            <Label>CID Principal</Label>
             <Input
               value={form.cid_principal}
               onChange={(e) => setForm({ ...form, cid_principal: e.target.value })}
-              placeholder="ex.: Autismo - Regulação"
+              placeholder="ex.: F84.0"
             />
           </div>
         </div>
         <div className="space-y-1.5">
-          <Label>Especialidades desejadas</Label>
-          <div className="flex flex-wrap gap-2">
-            {availableSpecialties.map((spec) => {
-              const selected = form.cids_secundarios.includes(spec);
-              return (
-                <button
-                  type="button"
-                  key={spec}
-                  onClick={() => {
-                    const next = selected
-                      ? form.cids_secundarios.filter((s) => s !== spec)
-                      : [...form.cids_secundarios, spec];
-                    setForm({ ...form, cids_secundarios: next });
-                  }}
-                  className={`rounded-full px-3 py-1 text-[11px] font-medium border transition ${
-                    selected
-                      ? "bg-primary text-primary-foreground border-primary"
-                      : "bg-background text-muted-foreground border-input hover:bg-accent hover:text-accent-foreground"
-                  }`}
-                >
-                  {spec}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-        <div className="space-y-1.5">
-          <Label>Responsável</Label>
+          <Label>CIDs Secundários (separados por vírgula)</Label>
           <Input
-            value={form.responsavel}
-            onChange={(e) => setForm({ ...form, responsavel: e.target.value })}
-            placeholder="Nome do pai, mãe ou responsável legal"
+            value={form.cids_secundarios.join(", ")}
+            onChange={(e) => {
+              const value = e.target.value;
+              const list = value.split(",").map((s) => s.trim()).filter(Boolean);
+              setForm({ ...form, cids_secundarios: list });
+            }}
+            placeholder="ex.: F84.5, F90.0"
           />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <Label>Responsável</Label>
+            <Input
+              value={form.responsavel}
+              onChange={(e) => setForm({ ...form, responsavel: e.target.value })}
+              placeholder="Nome do pai, mãe ou responsável legal"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Telefone</Label>
+            <Input
+              value={form.telefone}
+              onChange={handlePhoneChange}
+              placeholder="(XX) XXXXX-XXXX"
+            />
+          </div>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">

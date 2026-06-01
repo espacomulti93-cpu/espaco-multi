@@ -86,7 +86,10 @@ function PacienteDetail() {
             <CardTitle className="text-xl">{paciente.nome}</CardTitle>
             <div className="mt-1 text-sm text-muted-foreground">
               {paciente.data_nascimento
-                ? `${differenceInYears(new Date(), new Date(paciente.data_nascimento))} anos • Nasc. ${format(new Date(paciente.data_nascimento), "dd/MM/yyyy")}`
+                ? `Nasc. ${(() => {
+                    const parts = paciente.data_nascimento.split("-");
+                    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+                  })()}`
                 : "Data de nascimento não informada"}
             </div>
           </div>
@@ -114,14 +117,14 @@ function PacienteDetail() {
           </div>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
-          <Info label="Tratamento desejado" value={paciente.cid_principal} />
+          <Info label="CID Principal" value={paciente.cid_principal} />
           <div className="sm:col-span-1">
-            <div className="text-xs text-muted-foreground">Especialidades desejadas</div>
+            <div className="text-xs text-muted-foreground">CIDs Secundários</div>
             <div className="mt-1 flex flex-wrap gap-1">
               {paciente.cids_secundarios && (paciente.cids_secundarios as string[]).length > 0 ? (
-                (paciente.cids_secundarios as string[]).map((spec: string) => (
-                  <Badge key={spec} variant="secondary">
-                    {spec}
+                (paciente.cids_secundarios as string[]).map((cid: string) => (
+                  <Badge key={cid} variant="secondary">
+                    {cid}
                   </Badge>
                 ))
               ) : (
