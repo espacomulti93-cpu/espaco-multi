@@ -177,7 +177,7 @@ export function PacienteFormDialog({
   const availableSpecialties = Array.from(
     new Set(
       [
-        ...profissionais.map((p) => p.especialidade).filter(Boolean),
+        ...profissionais.flatMap((p) => p.especialidade ? p.especialidade.split(",").map(s => s.trim()) : []).filter(Boolean),
         "Psicologia",
         "Fonoaudiologia",
         "Terapia Ocupacional",

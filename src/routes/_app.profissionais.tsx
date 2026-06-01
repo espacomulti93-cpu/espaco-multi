@@ -73,9 +73,18 @@ function ProfissionaisPage() {
                   <div className="h-12 w-12 shrink-0 rounded-full" style={{ background: p.cor }} />
                   <div className="min-w-0 flex-1">
                     <div className="truncate font-medium">{p.nome}</div>
-                    <div className="text-xs text-muted-foreground">{p.especialidade ?? "—"}</div>
-                    <div className="mt-1 text-xs text-muted-foreground">
-                      {p.registro && <>Registro: {p.registro} • </>}
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      {p.especialidade ? (
+                        p.especialidade.split(", ").map((esp: string) => (
+                          <Badge key={esp} variant="outline" className="text-[10px] px-1.5 py-0 font-normal">
+                            {esp}
+                          </Badge>
+                        ))
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </div>
+                    <div className="mt-2 text-xs text-muted-foreground">
                       {p.valor_sessao ? `R$ ${Number(p.valor_sessao).toFixed(2)}/sessão` : "Valor não definido"}
                     </div>
                   </div>
@@ -103,8 +112,7 @@ function ProfissionaisPage() {
 function ProfForm({ prof, onSaved }: { prof: any; onSaved: () => void }) {
   const [form, setForm] = useState({
     nome: prof?.nome ?? "",
-    especialidade: prof?.especialidade ?? "",
-    registro: prof?.registro ?? "",
+    especialidades: prof?.especialidade ? prof.especialidade.split(", ").filter(Boolean) : [""],
     email: prof?.email ?? "",
     telefone: prof?.telefone ?? "",
     cor: prof?.cor ?? CORES[0],
@@ -113,7 +121,15 @@ function ProfForm({ prof, onSaved }: { prof: any; onSaved: () => void }) {
   });
   const m = useMutation({
     mutationFn: async () => {
-      const payload: any = { ...form, valor_sessao: form.valor_sessao ? Number(form.valor_sessao) : null };
+      const payload: any = {
+        nome: form.nome,
+        especialidade: form.especialidades.map(s => s.trim()).filter(Boolean).join(", ") || null,
+        email: form.email || null,
+        telefone: form.telefone || null,
+        cor: form.cor,
+        valor_sessao: form.valor_sessao ? Number(form.valor_sessao) : null,
+        ativo: form.ativo,
+      };
       if (prof) {
         const { error } = await supabase.from("profissionais").update(payload).eq("id", prof.id);
         if (error) throw error;
@@ -131,12 +147,51 @@ function ProfForm({ prof, onSaved }: { prof: any; onSaved: () => void }) {
       <form onSubmit={(e) => { e.preventDefault(); m.mutate(); }} className="space-y-3">
         <div className="space-y-1.5"><Label>Nome *</Label>
           <Input required value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} /></div>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5"><Label>Especialidade</Label>
-            <Input value={form.especialidade} onChange={(e) => setForm({ ...form, especialidade: e.target.value })} /></div>
-          <div className="space-y-1.5"><Label>Registro (CRP/CRM)</Label>
-            <Input value={form.registro} onChange={(e) => setForm({ ...form, registro: e.target.value })} /></div>
+        
+        <div className="space-y-1.5">
+          <Label>Especialidades</Label>
+          <div className="space-y-2">
+            {form.especialidades.map((esp, index) => (
+              <div key={index} className="flex gap-2 items-center">
+                <Input
+                  value={esp}
+                  onChange={(e) => {
+                    const next = [...form.especialidades];
+                    next[index] = e.target.value;
+                    setForm({ ...form, especialidades: next });
+                  }}
+                  placeholder={`Especialidade ${index + 1}`}
+                />
+                {form.especialidades.length > 1 && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-9 w-9 shrink-0 text-muted-foreground hover:text-destructive"
+                    onClick={() => {
+                      setForm({
+                        ...form,
+                        especialidades: form.especialidades.filter((_, i) => i !== index),
+                      });
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+            ))}
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="mt-1"
+            onClick={() => setForm({ ...form, especialidades: [...form.especialidades, ""] })}
+          >
+            <Plus className="h-4 w-4 mr-1.5" /> Adicionar especialidade
+          </Button>
         </div>
+
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5"><Label>E-mail</Label>
             <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
