@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, User } from "lucide-react";
+import { Plus, Search, User, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { differenceInYears, format } from "date-fns";
 
@@ -22,6 +22,7 @@ function PacientesPage() {
   const qc = useQueryClient();
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<any>(null);
 
   const { data: pacientes = [], isLoading } = useQuery({
     queryKey: ["pacientes"],
@@ -51,18 +52,22 @@ function PacientesPage() {
             className="pl-9"
           />
         </div>
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setEditing(null); }}>
           <DialogTrigger asChild>
             <Button className="ml-auto gap-1.5">
               <Plus className="h-4 w-4" /> Novo paciente
             </Button>
           </DialogTrigger>
-          <PacienteFormDialog
-            onSaved={() => {
-              setOpen(false);
-              qc.invalidateQueries({ queryKey: ["pacientes"] });
-            }}
-          />
+          {open && (
+            <PacienteFormDialog
+              paciente={editing}
+              onSaved={() => {
+                setOpen(false);
+                setEditing(null);
+                qc.invalidateQueries({ queryKey: ["pacientes"] });
+              }}
+            />
+          )}
         </Dialog>
       </div>
 
@@ -78,13 +83,16 @@ function PacientesPage() {
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((p) => (
-            <Link
+            <div
               key={p.id}
-              to="/pacientes/$id"
-              params={{ id: p.id }}
-              className="rounded-xl border bg-card p-4 transition hover:border-primary/40 hover:shadow-sm"
+              className="group relative rounded-xl border bg-card p-4 transition hover:border-primary/40 hover:shadow-sm"
             >
-              <div className="flex items-start justify-between gap-2">
+              <Link
+                to="/pacientes/$id"
+                params={{ id: p.id }}
+                className="absolute inset-0 z-0"
+              />
+              <div className="relative z-10 flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   <div className="truncate font-medium">{p.nome}</div>
                   <div className="text-xs text-muted-foreground">
@@ -98,10 +106,25 @@ function PacientesPage() {
                   {p.status.replace("_", " ")}
                 </Badge>
               </div>
-              <div className="mt-2 text-xs text-muted-foreground">
-                {p.tipo_atendimento === "convenio" ? `Convênio: ${p.convenio_nome ?? "—"}` : "Particular"}
+              <div className="relative z-10 mt-2 flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                <div>
+                  {p.tipo_atendimento === "convenio" ? `Convênio: ${p.convenio_nome ?? "—"}` : "Particular"}
+                </div>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setEditing(p);
+                    setOpen(true);
+                  }}
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </Button>
               </div>
-            </Link>
+            </div>
           ))}
         </div>
       )}
@@ -118,28 +141,94 @@ export function PacienteFormDialog({
 }) {
   const [form, setForm] = useState({
     nome: paciente?.nome ?? "",
-    data_nascimento: paciente?.data_nascimento ?? "",
+    idade: paciente?.data_nascimento
+      ? differenceInYears(new Date(), new Date(paciente.data_nascimento)).toString()
+      : "",
     cid_principal: paciente?.cid_principal ?? "",
     tipo_atendimento: paciente?.tipo_atendimento ?? "particular",
     convenio_nome: paciente?.convenio_nome ?? "",
     valor_mensal: paciente?.valor_mensal ?? "",
     status: paciente?.status ?? "ativo",
     observacoes: paciente?.observacoes ?? "",
+    responsavel: "",
   });
+
+  const { data: responsaveis = [] } = useQuery({
+    queryKey: ["responsaveis", paciente?.id],
+    queryFn: async () => {
+      if (!paciente?.id) return [];
+      const { data, error } = await supabase
+        .from("responsaveis")
+        .select("*")
+        .eq("paciente_id", paciente.id)
+        .order("created_at");
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!paciente?.id,
+  });
+
+  useEffect(() => {
+    if (responsaveis.length > 0) {
+      setForm((f) => ({ ...f, responsavel: responsaveis[0].nome }));
+    }
+  }, [responsaveis]);
 
   const mutation = useMutation({
     mutationFn: async () => {
+      let data_nascimento = null;
+      if (form.idade) {
+        const ageNum = Number(form.idade);
+        const today = new Date();
+        today.setFullYear(today.getFullYear() - ageNum);
+        data_nascimento = today.toISOString().split("T")[0];
+      }
+
       const payload: any = {
-        ...form,
-        data_nascimento: form.data_nascimento || null,
+        nome: form.nome,
+        data_nascimento,
+        cid_principal: form.cid_principal || null,
+        tipo_atendimento: form.tipo_atendimento,
+        convenio_nome: form.tipo_atendimento === "convenio" ? form.convenio_nome : null,
         valor_mensal: form.valor_mensal ? Number(form.valor_mensal) : null,
+        status: form.status,
+        observacoes: form.observacoes || null,
       };
+
       if (paciente) {
+        // Edit mode
         const { error } = await supabase.from("pacientes").update(payload).eq("id", paciente.id);
         if (error) throw error;
+
+        if (form.responsavel.trim()) {
+          if (responsaveis.length > 0) {
+            const { error: rError } = await supabase
+              .from("responsaveis")
+              .update({ nome: form.responsavel.trim() })
+              .eq("id", responsaveis[0].id);
+            if (rError) throw rError;
+          } else {
+            const { error: rError } = await supabase
+              .from("responsaveis")
+              .insert({ paciente_id: paciente.id, nome: form.responsavel.trim() });
+            if (rError) throw rError;
+          }
+        }
       } else {
-        const { error } = await supabase.from("pacientes").insert(payload);
+        // Create mode
+        const { data: newPaciente, error } = await supabase
+          .from("pacientes")
+          .insert(payload)
+          .select()
+          .single();
         if (error) throw error;
+
+        if (form.responsavel.trim() && newPaciente) {
+          const { error: rError } = await supabase
+            .from("responsaveis")
+            .insert({ paciente_id: newPaciente.id, nome: form.responsavel.trim() });
+          if (rError) throw rError;
+        }
       }
     },
     onSuccess: () => {
@@ -167,11 +256,14 @@ export function PacienteFormDialog({
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
-            <Label>Data de nascimento</Label>
+            <Label>IDADE</Label>
             <Input
-              type="date"
-              value={form.data_nascimento}
-              onChange={(e) => setForm({ ...form, data_nascimento: e.target.value })}
+              type="number"
+              min="0"
+              max="120"
+              value={form.idade}
+              onChange={(e) => setForm({ ...form, idade: e.target.value })}
+              placeholder="ex.: 8"
             />
           </div>
           <div className="space-y-1.5">
@@ -182,6 +274,14 @@ export function PacienteFormDialog({
               placeholder="ex.: F84.0"
             />
           </div>
+        </div>
+        <div className="space-y-1.5">
+          <Label>Responsável</Label>
+          <Input
+            value={form.responsavel}
+            onChange={(e) => setForm({ ...form, responsavel: e.target.value })}
+            placeholder="Nome do pai, mãe ou responsável legal"
+          />
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
