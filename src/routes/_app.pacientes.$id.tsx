@@ -100,14 +100,16 @@ function PacienteDetail() {
                   <Pencil className="h-4 w-4" /> Editar
                 </Button>
               </DialogTrigger>
-              <PacienteFormDialog
-                paciente={paciente}
-                onSaved={() => {
-                  setEditOpen(false);
-                  qc.invalidateQueries({ queryKey: ["paciente", id] });
-                  qc.invalidateQueries({ queryKey: ["pacientes"] });
-                }}
-              />
+              {editOpen && (
+                <PacienteFormDialog
+                  paciente={paciente}
+                  onSaved={() => {
+                    setEditOpen(false);
+                    qc.invalidateQueries({ queryKey: ["paciente", id] });
+                    qc.invalidateQueries({ queryKey: ["pacientes"] });
+                  }}
+                />
+              )}
             </Dialog>
           </div>
         </CardHeader>

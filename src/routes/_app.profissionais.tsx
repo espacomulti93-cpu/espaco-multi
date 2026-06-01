@@ -50,14 +50,16 @@ function ProfissionaisPage() {
           <DialogTrigger asChild>
             <Button className="gap-1.5"><Plus className="h-4 w-4" /> Novo profissional</Button>
           </DialogTrigger>
-          <ProfForm
-            prof={editing}
-            onSaved={() => {
-              setOpen(false);
-              setEditing(null);
-              qc.invalidateQueries({ queryKey: ["profissionais"] });
-            }}
-          />
+          {open && (
+            <ProfForm
+              prof={editing}
+              onSaved={() => {
+                setOpen(false);
+                setEditing(null);
+                qc.invalidateQueries({ queryKey: ["profissionais"] });
+              }}
+            />
+          )}
         </Dialog>
       </div>
       {data.length === 0 ? (
