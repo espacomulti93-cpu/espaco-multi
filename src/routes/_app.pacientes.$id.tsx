@@ -117,14 +117,14 @@ function PacienteDetail() {
           </div>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
-          <Info label="CID Principal" value={paciente.cid_principal} />
+          <Info label="CID(s)" value={paciente.cid_principal} />
           <div className="sm:col-span-1">
-            <div className="text-xs text-muted-foreground">CIDs Secundários</div>
+            <div className="text-xs text-muted-foreground">Especialidades desejadas</div>
             <div className="mt-1 flex flex-wrap gap-1">
               {paciente.cids_secundarios && (paciente.cids_secundarios as string[]).length > 0 ? (
-                (paciente.cids_secundarios as string[]).map((cid: string) => (
-                  <Badge key={cid} variant="secondary">
-                    {cid}
+                (paciente.cids_secundarios as string[]).map((spec: string) => (
+                  <Badge key={spec} variant="secondary">
+                    {spec}
                   </Badge>
                 ))
               ) : (

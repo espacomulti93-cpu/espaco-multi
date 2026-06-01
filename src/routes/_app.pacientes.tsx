@@ -458,25 +458,40 @@ export function PacienteFormDialog({
             />
           </div>
           <div className="space-y-1.5">
-            <Label>CID Principal</Label>
+            <Label>CID(s)</Label>
             <Input
               value={form.cid_principal}
               onChange={(e) => setForm({ ...form, cid_principal: e.target.value })}
-              placeholder="ex.: F84.0"
+              placeholder="ex.: F84.0, F84.5"
             />
           </div>
         </div>
         <div className="space-y-1.5">
-          <Label>CIDs Secundários (separados por vírgula)</Label>
-          <Input
-            value={form.cids_secundarios.join(", ")}
-            onChange={(e) => {
-              const value = e.target.value;
-              const list = value.split(",").map((s) => s.trim()).filter(Boolean);
-              setForm({ ...form, cids_secundarios: list });
-            }}
-            placeholder="ex.: F84.5, F90.0"
-          />
+          <Label>Especialidades desejadas</Label>
+          <div className="flex flex-wrap gap-2">
+            {availableSpecialties.map((spec) => {
+              const selected = form.cids_secundarios.includes(spec);
+              return (
+                <button
+                  type="button"
+                  key={spec}
+                  onClick={() => {
+                    const next = selected
+                      ? form.cids_secundarios.filter((s) => s !== spec)
+                      : [...form.cids_secundarios, spec];
+                    setForm({ ...form, cids_secundarios: next });
+                  }}
+                  className={`rounded-full px-3 py-1 text-[11px] font-medium border transition ${
+                    selected
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-background text-muted-foreground border-input hover:bg-accent hover:text-accent-foreground"
+                  }`}
+                >
+                  {spec}
+                </button>
+              );
+            })}
+          </div>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">

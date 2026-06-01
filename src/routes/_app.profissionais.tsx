@@ -283,8 +283,8 @@ export function ValoresDialog({ prof, onSaved }: { prof: any; onSaved: () => voi
       const existing = config.especialidades?.find((e: any) => e.nome === spec);
       return {
         nome: spec,
-        valor_sessao: existing?.valor_sessao ?? prof?.valor_sessao ?? 0,
-        valor_avaliacao: existing?.valor_avaliacao ?? (prof?.valor_sessao ? Number(prof.valor_sessao) * 1.3 : 0),
+        valor_sessao: existing?.valor_sessao !== undefined ? String(existing.valor_sessao) : "",
+        valor_avaliacao: existing?.valor_avaliacao !== undefined ? String(existing.valor_avaliacao) : "",
       };
     });
   });
@@ -303,8 +303,17 @@ export function ValoresDialog({ prof, onSaved }: { prof: any; onSaved: () => voi
   const mutation = useMutation({
     mutationFn: async () => {
       const payloadConfig = {
-        especialidades: valoresSpecs,
-        descontos: descontos,
+        especialidades: valoresSpecs.map((v) => ({
+          nome: v.nome,
+          valor_sessao: v.valor_sessao ? Number(v.valor_sessao) : null,
+          valor_avaliacao: v.valor_avaliacao ? Number(v.valor_avaliacao) : null,
+        })),
+        descontos: descontos.map((d: any) => ({
+          paciente_id: d.paciente_id,
+          especialidade: d.especialidade,
+          valor_sessao: Number(d.valor_sessao),
+          valor_avaliacao: Number(d.valor_avaliacao),
+        })),
       };
       const { error } = await supabase
         .from("profissionais")
@@ -349,12 +358,12 @@ export function ValoresDialog({ prof, onSaved }: { prof: any; onSaved: () => voi
                   <div className="space-y-1.5">
                     <Label className="text-xs text-muted-foreground">Sessão Padrão (R$)</Label>
                     <Input
-                      type="number"
-                      step="0.01"
+                      type="text"
+                      placeholder="Ex.: 150.00"
                       value={v.valor_sessao}
                       onChange={(e) => {
                         const copy = [...valoresSpecs];
-                        copy[i].valor_sessao = Number(e.target.value);
+                        copy[i].valor_sessao = e.target.value;
                         setValoresSpecs(copy);
                       }}
                     />
@@ -362,12 +371,12 @@ export function ValoresDialog({ prof, onSaved }: { prof: any; onSaved: () => voi
                   <div className="space-y-1.5">
                     <Label className="text-xs text-muted-foreground">Avaliação Prévia (R$)</Label>
                     <Input
-                      type="number"
-                      step="0.01"
+                      type="text"
+                      placeholder="Ex.: 200.00"
                       value={v.valor_avaliacao}
                       onChange={(e) => {
                         const copy = [...valoresSpecs];
-                        copy[i].valor_avaliacao = Number(e.target.value);
+                        copy[i].valor_avaliacao = e.target.value;
                         setValoresSpecs(copy);
                       }}
                     />
