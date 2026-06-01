@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -20,6 +20,7 @@ export const Route = createFileRoute("/_app/pacientes")({
 
 function PacientesPage() {
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);
@@ -85,14 +86,15 @@ function PacientesPage() {
           {filtered.map((p) => (
             <div
               key={p.id}
-              className="group relative rounded-xl border bg-card p-4 transition hover:border-primary/40 hover:shadow-sm"
+              onClick={() => {
+                navigate({
+                  to: "/pacientes/$id",
+                  params: { id: p.id },
+                });
+              }}
+              className="cursor-pointer group relative rounded-xl border bg-card p-4 transition hover:border-primary/40 hover:shadow-sm"
             >
-              <Link
-                to="/pacientes/$id"
-                params={{ id: p.id }}
-                className="absolute inset-0 z-0"
-              />
-              <div className="relative z-10 flex items-start justify-between gap-2">
+              <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   <div className="truncate font-medium">{p.nome}</div>
                   <div className="text-xs text-muted-foreground">
@@ -115,7 +117,7 @@ function PacientesPage() {
                   {p.status.replace("_", " ")}
                 </Badge>
               </div>
-              <div className="relative z-10 mt-2 flex items-center justify-between gap-2 text-xs text-muted-foreground">
+              <div className="mt-2 flex items-center justify-between gap-2 text-xs text-muted-foreground">
                 <div>
                   {p.tipo_atendimento === "convenio" ? `Convênio: ${p.convenio_nome ?? "—"}` : "Particular"}
                 </div>
