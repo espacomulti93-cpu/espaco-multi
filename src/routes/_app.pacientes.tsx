@@ -101,6 +101,15 @@ function PacientesPage() {
                       : "Idade não informada"}
                     {p.cid_principal ? ` • ${p.cid_principal}` : ""}
                   </div>
+                  {p.cids_secundarios && (p.cids_secundarios as string[]).length > 0 && (
+                    <div className="mt-1.5 flex flex-wrap gap-1">
+                      {(p.cids_secundarios as string[]).map((spec) => (
+                        <Badge key={spec} variant="outline" className="text-[10px] px-1.5 py-0">
+                          {spec}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <Badge variant={p.status === "ativo" ? "default" : "secondary"}>
                   {p.status.replace("_", " ")}
@@ -145,6 +154,7 @@ export function PacienteFormDialog({
       ? differenceInYears(new Date(), new Date(paciente.data_nascimento)).toString()
       : "",
     cid_principal: paciente?.cid_principal ?? "",
+    cids_secundarios: (paciente?.cids_secundarios as string[]) ?? [],
     tipo_atendimento: paciente?.tipo_atendimento ?? "particular",
     convenio_nome: paciente?.convenio_nome ?? "",
     valor_mensal: paciente?.valor_mensal ?? "",
@@ -152,6 +162,28 @@ export function PacienteFormDialog({
     observacoes: paciente?.observacoes ?? "",
     responsavel: "",
   });
+
+  const { data: profissionais = [] } = useQuery({
+    queryKey: ["profissionais"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("profissionais").select("especialidade");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const availableSpecialties = Array.from(
+    new Set(
+      [
+        ...profissionais.map((p) => p.especialidade).filter(Boolean),
+        "Psicologia",
+        "Fonoaudiologia",
+        "Terapia Ocupacional",
+        "Psicopedagogia",
+        "Fisioterapia",
+      ]
+    )
+  ) as string[];
 
   const { data: responsaveis = [] } = useQuery({
     queryKey: ["responsaveis", paciente?.id],
@@ -188,6 +220,7 @@ export function PacienteFormDialog({
         nome: form.nome,
         data_nascimento,
         cid_principal: form.cid_principal || null,
+        cids_secundarios: form.cids_secundarios,
         tipo_atendimento: form.tipo_atendimento,
         convenio_nome: form.tipo_atendimento === "convenio" ? form.convenio_nome : null,
         valor_mensal: form.valor_mensal ? Number(form.valor_mensal) : null,
@@ -267,12 +300,39 @@ export function PacienteFormDialog({
             />
           </div>
           <div className="space-y-1.5">
-            <Label>CID principal</Label>
+            <Label>Tratamento desejado</Label>
             <Input
               value={form.cid_principal}
               onChange={(e) => setForm({ ...form, cid_principal: e.target.value })}
-              placeholder="ex.: F84.0"
+              placeholder="ex.: Autismo - Regulação"
             />
+          </div>
+        </div>
+        <div className="space-y-1.5">
+          <Label>Especialidades desejadas</Label>
+          <div className="flex flex-wrap gap-2">
+            {availableSpecialties.map((spec) => {
+              const selected = form.cids_secundarios.includes(spec);
+              return (
+                <button
+                  type="button"
+                  key={spec}
+                  onClick={() => {
+                    const next = selected
+                      ? form.cids_secundarios.filter((s) => s !== spec)
+                      : [...form.cids_secundarios, spec];
+                    setForm({ ...form, cids_secundarios: next });
+                  }}
+                  className={`rounded-full px-3 py-1 text-[11px] font-medium border transition ${
+                    selected
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-background text-muted-foreground border-input hover:bg-accent hover:text-accent-foreground"
+                  }`}
+                >
+                  {spec}
+                </button>
+              );
+            })}
           </div>
         </div>
         <div className="space-y-1.5">

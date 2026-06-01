@@ -114,7 +114,21 @@ function PacienteDetail() {
           </div>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
-          <Info label="CID principal" value={paciente.cid_principal} />
+          <Info label="Tratamento desejado" value={paciente.cid_principal} />
+          <div className="sm:col-span-1">
+            <div className="text-xs text-muted-foreground">Especialidades desejadas</div>
+            <div className="mt-1 flex flex-wrap gap-1">
+              {paciente.cids_secundarios && (paciente.cids_secundarios as string[]).length > 0 ? (
+                (paciente.cids_secundarios as string[]).map((spec: string) => (
+                  <Badge key={spec} variant="secondary">
+                    {spec}
+                  </Badge>
+                ))
+              ) : (
+                <span className="text-sm font-medium">—</span>
+              )}
+            </div>
+          </div>
           <Info label="Atendimento" value={paciente.tipo_atendimento === "convenio" ? `Convênio: ${paciente.convenio_nome ?? "—"}` : "Particular"} />
           <Info label="Valor mensal" value={paciente.valor_mensal ? `R$ ${Number(paciente.valor_mensal).toFixed(2)}` : "—"} />
           <Info label="Cadastrado em" value={format(new Date(paciente.created_at), "dd/MM/yyyy")} />
