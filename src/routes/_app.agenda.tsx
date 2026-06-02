@@ -52,7 +52,7 @@ function Agenda() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("agendamentos")
-        .select("*, pacientes(nome), profissionais(nome, cor, especialidade), servicos(nome)")
+        .select("*, pacientes(nome), profissionais(nome, cor), servicos(nome)")
         .gte("data_inicio", weekStart.toISOString())
         .lt("data_inicio", addDays(weekEnd, 1).toISOString())
         .order("data_inicio");
@@ -139,10 +139,10 @@ function FragmentRow({ h, days, ags, onCellClick, onEdit }: any) {
               >
                 <div className="truncate font-medium">{a.pacientes?.nome}</div>
                 <div className="truncate text-[10px] text-muted-foreground">
-                  {format(new Date(a.data_inicio), "HH:mm")} {a.servicos?.nome ? `• ${a.servicos.nome}` : ""}
+                  {format(new Date(a.data_inicio), "HH:mm")}
                 </div>
                 <div className="truncate text-[9px] text-muted-foreground">
-                  {a.profissionais?.nome} {a.profissionais?.especialidade && `(${a.profissionais.especialidade})`}
+                  {a.profissionais?.nome} {a.servicos?.nome && `(${a.servicos.nome})`}
                 </div>
                 {a.status !== "pendente" && (
                   <Badge variant="secondary" className="mt-1 h-4 px-1 text-[9px]">{STATUS_LABEL[a.status]}</Badge>
