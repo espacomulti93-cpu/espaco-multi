@@ -50,7 +50,7 @@ function PacienteDetail() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("agendamentos")
-        .select("*, profissionais(nome, cor), servicos(nome)")
+        .select("*, profissionais(nome, cor, especialidade), servicos(nome)")
         .eq("paciente_id", id)
         .order("data_inicio", { ascending: false })
         .limit(20);
@@ -199,7 +199,7 @@ function PacienteDetail() {
                     {format(new Date(a.data_inicio), "dd/MM/yyyy HH:mm")}
                   </div>
                   <div className="flex-1 text-muted-foreground">
-                    {a.servicos?.nome} • {a.profissionais?.nome}
+                    {a.servicos?.nome} • {a.profissionais?.nome} {a.profissionais?.especialidade && `(${a.profissionais.especialidade})`}
                   </div>
                   <Badge variant="secondary">{a.status}</Badge>
                 </div>

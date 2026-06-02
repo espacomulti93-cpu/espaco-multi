@@ -29,7 +29,7 @@ function Dashboard() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("agendamentos")
-        .select("*, pacientes(nome), profissionais(nome, cor), servicos(nome)")
+        .select("*, pacientes(nome), profissionais(nome, cor, especialidade), servicos(nome)")
         .gte("data_inicio", startOfDay)
         .lte("data_inicio", endOfDay)
         .order("data_inicio");
@@ -99,7 +99,7 @@ function Dashboard() {
                   <div className="flex-1">
                     <div className="text-sm font-medium">{a.pacientes?.nome}</div>
                     <div className="text-xs text-muted-foreground">
-                      {a.servicos?.nome} • {a.profissionais?.nome}
+                      {a.servicos?.nome} • {a.profissionais?.nome} {a.profissionais?.especialidade && `(${a.profissionais.especialidade})`}
                     </div>
                   </div>
                   <Badge className={statusColors[a.status] ?? ""} variant="secondary">
