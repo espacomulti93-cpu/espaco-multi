@@ -200,7 +200,7 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
   });
   const { data: profissionais = [] } = useQuery({
     queryKey: ["prof-min"],
-    queryFn: async () => (await supabase.from("profissionais").select("id, nome, especialidade, valores_config").eq("ativo", true).order("nome")).data ?? [],
+    queryFn: async () => (await supabase.from("profissionais").select("id, nome, especialidade, valor_sessao, valores_config").eq("ativo", true).order("nome")).data ?? [],
   });
   const { data: servicos = [] } = useQuery({
     queryKey: ["serv-min"],
@@ -208,20 +208,14 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
   });
 
   const displayedPacientes = useMemo(() => {
-    if (!form.profissional_id) return [];
-    const prof = profissionais.find((p: any) => p.id === form.profissional_id);
-    if (!prof) return [];
-
-    const profSpecs = prof.especialidade
-      ? prof.especialidade.split(",").map((s: string) => s.trim().toLowerCase()).filter(Boolean)
-      : [];
+    if (!form.profissional_id || !selectedSpecialty) return [];
 
     return pacientes.filter((pac: any) => {
       if (pac.id === editing?.paciente_id) return true;
       const pacSpecs = (pac.cids_secundarios as string[] || []).map((s: string) => s.toLowerCase());
-      return pacSpecs.some((spec) => profSpecs.includes(spec));
+      return pacSpecs.includes(selectedSpecialty.toLowerCase());
     });
-  }, [pacientes, form.profissional_id, profissionais, editing]);
+  }, [pacientes, form.profissional_id, selectedSpecialty, editing]);
 
   const selectedPaciente = pacientes.find((p: any) => p.id === form.paciente_id);
 
@@ -342,23 +336,11 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
       ...prev,
       paciente_id: pacId,
     }));
-    setSelectedSpecialty("");
   };
 
   const handleProfissionalChange = (profId: string) => {
-    const prof = profissionais.find((p: any) => p.id === profId);
-    const profSpecs = prof?.especialidade
-      ? prof.especialidade.split(",").map((s: string) => s.trim().toLowerCase()).filter(Boolean)
-      : [];
-
     setForm((prev) => {
-      const currentPac = pacientes.find((pac: any) => pac.id === prev.paciente_id);
-      const pacSpecs = (currentPac?.cids_secundarios as string[] || []).map((s: string) => s.toLowerCase());
-      const isAssociated = pacSpecs.some((spec) => profSpecs.includes(spec));
-
-      const newPacienteId = (isAssociated || prev.paciente_id === editing?.paciente_id)
-        ? prev.paciente_id
-        : "";
+      const newPacienteId = prev.paciente_id === editing?.paciente_id ? prev.paciente_id : "";
       return {
         ...prev,
         profissional_id: profId,
@@ -373,7 +355,19 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
     const s: any = servicos.find((x: any) => x.nome.toLowerCase() === spec.toLowerCase());
     const duration = s ? s.duracao_minutos : 50;
     const newEnd = format(new Date(new Date(form.data_inicio).getTime() + duration * 60000), "yyyy-MM-dd'T'HH:mm");
-    setForm((prev) => ({ ...prev, data_fim: newEnd }));
+    setForm((prev) => {
+      const currentPac = pacientes.find((pac: any) => pac.id === prev.paciente_id);
+      const pacSpecs = (currentPac?.cids_secundarios as string[] || []).map((s: string) => s.toLowerCase());
+      const hasSpec = pacSpecs.includes(spec.toLowerCase());
+      const newPacienteId = (hasSpec || prev.paciente_id === editing?.paciente_id)
+        ? prev.paciente_id
+        : "";
+      return {
+        ...prev,
+        paciente_id: newPacienteId,
+        data_fim: newEnd,
+      };
+    });
   };
 
   const save = useMutation({
@@ -460,6 +454,20 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
 
         {form.profissional_id && (
           <div className="space-y-1.5 animate-in fade-in duration-200">
+            <Label>Especialidade *</Label>
+            <Select value={selectedSpecialty} onValueChange={handleSpecialtyChange}>
+              <SelectTrigger><SelectValue placeholder="Selecione a especialidade…" /></SelectTrigger>
+              <SelectContent>
+                {professionalSpecialties.map((s: string) => (
+                  <SelectItem key={s} value={s}>{s}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
+        {form.profissional_id && selectedSpecialty && (
+          <div className="space-y-1.5 animate-in fade-in duration-200">
             <Label>Paciente *</Label>
             <Popover open={pacienteOpen} onOpenChange={setPacienteOpen}>
               <PopoverTrigger asChild>
@@ -502,20 +510,6 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
                 </Command>
               </PopoverContent>
             </Popover>
-          </div>
-        )}
-
-        {form.profissional_id && form.paciente_id && (
-          <div className="space-y-1.5 animate-in fade-in duration-200">
-            <Label>Especialidade *</Label>
-            <Select value={selectedSpecialty} onValueChange={handleSpecialtyChange}>
-              <SelectTrigger><SelectValue placeholder="Selecione a especialidade…" /></SelectTrigger>
-              <SelectContent>
-                {professionalSpecialties.map((s: string) => (
-                  <SelectItem key={s} value={s}>{s}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
         )}
 
