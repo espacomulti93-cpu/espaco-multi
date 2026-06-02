@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -176,13 +176,20 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
 
   const [pacienteOpen, setPacienteOpen] = useState(false);
 
+  const [selectedSpecialty, setSelectedSpecialty] = useState(() => {
+    if (editing?.servicos?.nome) {
+      return editing.servicos.nome;
+    }
+    return "";
+  });
+
   const { data: pacientes = [] } = useQuery({
     queryKey: ["pac-min"],
     queryFn: async () => (await supabase.from("pacientes").select("id, nome").order("nome")).data ?? [],
   });
   const { data: profissionais = [] } = useQuery({
     queryKey: ["prof-min"],
-    queryFn: async () => (await supabase.from("profissionais").select("id, nome").eq("ativo", true).order("nome")).data ?? [],
+    queryFn: async () => (await supabase.from("profissionais").select("id, nome, especialidade, valores_config").eq("ativo", true).order("nome")).data ?? [],
   });
   const { data: servicos = [] } = useQuery({
     queryKey: ["serv-min"],
@@ -194,12 +201,94 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
   const formDate = form.data_inicio ? form.data_inicio.split("T")[0] : "";
   const formTime = form.data_inicio ? form.data_inicio.split("T")[1] : "";
 
+  // 1. Filter professionals registered on patient's file (having custom discounts)
+  const patientProfessionals = useMemo(() => {
+    if (!form.paciente_id) return [];
+    return profissionais.filter((prof: any) => {
+      const config = prof.valores_config as any;
+      return config?.descontos?.some((d: any) => d.paciente_id === form.paciente_id);
+    });
+  }, [profissionais, form.paciente_id]);
+
+  // Fallback to all active professionals if none are configured on the patient's card
+  const displayedProfessionals = useMemo(() => {
+    if (patientProfessionals.length > 0) {
+      return patientProfessionals;
+    }
+    return profissionais;
+  }, [patientProfessionals, profissionais]);
+
+  // 2. Parse specialties registered on selected professional's file
+  const professionalSpecialties = useMemo(() => {
+    if (!form.profissional_id) return [];
+    const prof = profissionais.find((p: any) => p.id === form.profissional_id);
+    if (!prof || !prof.especialidade) return [];
+    return prof.especialidade.split(",").map((s: string) => s.trim()).filter(Boolean);
+  }, [profissionais, form.profissional_id]);
+
+  // Auto-select specialty if only one is available
+  useEffect(() => {
+    if (professionalSpecialties.length === 1) {
+      setSelectedSpecialty(professionalSpecialties[0]);
+    } else if (professionalSpecialties.length > 0) {
+      if (!professionalSpecialties.includes(selectedSpecialty)) {
+        setSelectedSpecialty("");
+      }
+    } else {
+      setSelectedSpecialty("");
+    }
+  }, [professionalSpecialties]);
+
+  // 3. Find configured rates/plans
+  const currentPricing = useMemo(() => {
+    if (!form.profissional_id || !selectedSpecialty) return null;
+    const prof = profissionais.find((p: any) => p.id === form.profissional_id);
+    if (!prof) return null;
+
+    const config = prof.valores_config as any || { especialidades: [], descontos: [] };
+
+    // Check custom patient discount
+    const discount = config.descontos?.find(
+      (d: any) => d.paciente_id === form.paciente_id && d.especialidade === selectedSpecialty
+    );
+
+    if (discount) {
+      return {
+        type: "Paciente (Desconto)",
+        valor_sessao: discount.valor_sessao,
+        valor_avaliacao: discount.valor_avaliacao,
+      };
+    }
+
+    // Check standard specialty rates
+    const specConfig = config.especialidades?.find((e: any) => e.nome === selectedSpecialty);
+    if (specConfig) {
+      return {
+        type: "Padrão Especialidade",
+        valor_sessao: selectedSpecialty.toUpperCase() === "AP" ? null : (specConfig.valor_sessao ?? prof.valor_sessao),
+        valor_avaliacao: specConfig.valor_avaliacao,
+        plano_mensal: specConfig.plano_mensal,
+      };
+    }
+
+    // Default professional rate
+    return {
+      type: "Padrão Profissional",
+      valor_sessao: prof.valor_sessao,
+      valor_avaliacao: null,
+    };
+  }, [form.profissional_id, form.paciente_id, selectedSpecialty, profissionais]);
+
+  const getSelectedSpecialtyDuration = () => {
+    const s: any = servicos.find((x: any) => x.nome.toLowerCase() === selectedSpecialty.toLowerCase());
+    return s ? s.duracao_minutos : 50;
+  };
+
   const handleDateChange = (dateVal: string) => {
     if (!dateVal) return;
     const timeVal = form.data_inicio ? form.data_inicio.split("T")[1] || "09:00" : "09:00";
     const newStart = `${dateVal}T${timeVal}`;
-    const s: any = servicos.find((x: any) => x.id === form.servico_id);
-    const duration = s ? s.duracao_minutos : 50;
+    const duration = getSelectedSpecialtyDuration();
     const newEnd = format(new Date(new Date(newStart).getTime() + duration * 60000), "yyyy-MM-dd'T'HH:mm");
     setForm({
       ...form,
@@ -212,14 +301,38 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
     if (!timeVal) return;
     const dateVal = form.data_inicio ? form.data_inicio.split("T")[0] || format(new Date(), "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd");
     const newStart = `${dateVal}T${timeVal}`;
-    const s: any = servicos.find((x: any) => x.id === form.servico_id);
-    const duration = s ? s.duracao_minutos : 50;
+    const duration = getSelectedSpecialtyDuration();
     const newEnd = format(new Date(new Date(newStart).getTime() + duration * 60000), "yyyy-MM-dd'T'HH:mm");
     setForm({
       ...form,
       data_inicio: newStart,
       data_fim: newEnd,
     });
+  };
+
+  const handlePacienteChange = (pacId: string) => {
+    setForm((prev) => ({
+      ...prev,
+      paciente_id: pacId,
+      profissional_id: "",
+    }));
+    setSelectedSpecialty("");
+  };
+
+  const handleProfissionalChange = (profId: string) => {
+    setForm((prev) => ({
+      ...prev,
+      profissional_id: profId,
+    }));
+    setSelectedSpecialty("");
+  };
+
+  const handleSpecialtyChange = (spec: string) => {
+    setSelectedSpecialty(spec);
+    const s: any = servicos.find((x: any) => x.nome.toLowerCase() === spec.toLowerCase());
+    const duration = s ? s.duracao_minutos : 50;
+    const newEnd = format(new Date(new Date(form.data_inicio).getTime() + duration * 60000), "yyyy-MM-dd'T'HH:mm");
+    setForm((prev) => ({ ...prev, data_fim: newEnd }));
   };
 
   const save = useMutation({
@@ -241,10 +354,14 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
         if (!ok) throw new Error("Cancelado pelo usuário");
       }
 
+      const matchingServico = servicos.find(
+        (s: any) => s.nome.toLowerCase() === selectedSpecialty.toLowerCase()
+      );
+
       const payload: any = {
         ...form,
         sala_id: null,
-        servico_id: form.servico_id || null,
+        servico_id: matchingServico ? matchingServico.id : null,
         data_inicio: start,
         data_fim: end,
       };
@@ -259,13 +376,6 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
     onSuccess: () => { toast.success(editing ? "Agendamento atualizado" : "Agendamento criado"); onSaved(); },
     onError: (e: any) => e.message !== "Cancelado pelo usuário" && toast.error(e.message),
   });
-
-  function onServicoChange(id: string) {
-    const s: any = servicos.find((x: any) => x.id === id);
-    const duration = s ? s.duracao_minutos : 50;
-    const newEnd = format(new Date(new Date(form.data_inicio).getTime() + duration * 60000), "yyyy-MM-dd'T'HH:mm");
-    setForm({ ...form, servico_id: id, data_fim: newEnd });
-  }
 
   return (
     <DialogContent className="max-w-lg">
@@ -298,7 +408,7 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
                         key={p.id}
                         value={p.nome}
                         onSelect={() => {
-                          setForm({ ...form, paciente_id: p.id });
+                          handlePacienteChange(p.id);
                           setPacienteOpen(false);
                         }}
                       >
@@ -317,68 +427,129 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
             </PopoverContent>
           </Popover>
         </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5">
+
+        {form.paciente_id && (
+          <div className="space-y-1.5 animate-in fade-in duration-200">
             <Label>Profissional *</Label>
-            <Select value={form.profissional_id} onValueChange={(v) => setForm({ ...form, profissional_id: v })}>
-              <SelectTrigger><SelectValue placeholder="Selecione…" /></SelectTrigger>
+            <Select value={form.profissional_id} onValueChange={handleProfissionalChange}>
+              <SelectTrigger><SelectValue placeholder="Selecione o profissional…" /></SelectTrigger>
               <SelectContent>
-                {profissionais.map((p: any) => <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>)}
+                {displayedProfessionals.map((p: any) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {p.nome} {patientProfessionals.includes(p) && "★"}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {patientProfessionals.length > 0 && (
+              <span className="text-[10px] text-muted-foreground block">
+                ★ Profissionais com descontos/valores especiais configurados para este paciente.
+              </span>
+            )}
+          </div>
+        )}
+
+        {form.paciente_id && form.profissional_id && (
+          <div className="space-y-1.5 animate-in fade-in duration-200">
+            <Label>Especialidade *</Label>
+            <Select value={selectedSpecialty} onValueChange={handleSpecialtyChange}>
+              <SelectTrigger><SelectValue placeholder="Selecione a especialidade…" /></SelectTrigger>
+              <SelectContent>
+                {professionalSpecialties.map((s: string) => (
+                  <SelectItem key={s} value={s}>{s}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
-          <div className="space-y-1.5">
-            <Label>Serviço</Label>
-            <Select value={form.servico_id} onValueChange={onServicoChange}>
-              <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
-              <SelectContent>
-                {servicos.map((s: any) => <SelectItem key={s.id} value={s.id}>{s.nome}</SelectItem>)}
-              </SelectContent>
-            </Select>
+        )}
+
+        {form.paciente_id && form.profissional_id && selectedSpecialty && (
+          <div className="space-y-3 animate-in fade-in duration-200">
+            {currentPricing && (
+              <div className="rounded-lg border bg-accent/20 p-3 text-xs space-y-1.5 shadow-inner">
+                <div className="font-semibold text-muted-foreground flex justify-between">
+                  <span>Valores Configurados</span>
+                  <span className="text-[10px] uppercase tracking-wider text-primary font-bold">
+                    {currentPricing.type}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-2 mt-1">
+                  {selectedSpecialty.toUpperCase() === "AP" && currentPricing.plano_mensal ? (
+                    <div className="col-span-2">
+                      <span className="text-muted-foreground">Plano Mensal (AP): </span>
+                      <span className="font-semibold text-foreground">{currentPricing.plano_mensal}</span>
+                    </div>
+                  ) : (
+                    <>
+                      <div>
+                        <span className="text-muted-foreground">Sessão: </span>
+                        <span className="font-semibold text-foreground font-mono">
+                          {currentPricing.valor_sessao !== null && currentPricing.valor_sessao !== undefined
+                            ? `R$ ${Number(currentPricing.valor_sessao).toFixed(2)}`
+                            : "—"}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Avaliação/Anamnese: </span>
+                        <span className="font-semibold text-foreground font-mono">
+                          {currentPricing.valor_avaliacao !== null && currentPricing.valor_avaliacao !== undefined
+                            ? `R$ ${Number(currentPricing.valor_avaliacao).toFixed(2)}`
+                            : "—"}
+                        </span>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-1.5">
+              <Label>Data *</Label>
+              <div className="grid grid-cols-2 gap-3">
+                <Input type="date" required value={formDate} onChange={(e) => handleDateChange(e.target.value)} />
+                <Input type="time" required value={formTime} onChange={(e) => handleTimeChange(e.target.value)} />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Status</Label>
+                <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v as any })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(STATUS_LABEL).map(([v, l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Recorrência</Label>
+                <Select value={form.recorrencia} onValueChange={(v) => setForm({ ...form, recorrencia: v as any })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="unica">Única</SelectItem>
+                    <SelectItem value="semanal">Semanal</SelectItem>
+                    <SelectItem value="quinzenal">Quinzenal</SelectItem>
+                    <SelectItem value="mensal">Mensal</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>Observações</Label>
+              <Textarea rows={2} value={form.observacoes} onChange={(e) => setForm({ ...form, observacoes: e.target.value })} />
+            </div>
+
+            <DialogFooter className="gap-2 pt-2 border-t mt-4">
+              {editing && editing.status !== "cancelado" && (
+                <Button type="button" variant="outline" className="mr-auto gap-1.5 text-destructive hover:text-destructive" onClick={() => onCancel(editing)}>
+                  <X className="h-4 w-4" /> Cancelar agendamento
+                </Button>
+              )}
+              <Button type="submit" disabled={save.isPending}>{save.isPending ? "Salvando…" : "Salvar"}</Button>
+            </DialogFooter>
           </div>
-        </div>
-        <div className="space-y-1.5">
-          <Label>Data *</Label>
-          <div className="grid grid-cols-2 gap-3">
-            <Input type="date" required value={formDate} onChange={(e) => handleDateChange(e.target.value)} />
-            <Input type="time" required value={formTime} onChange={(e) => handleTimeChange(e.target.value)} />
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5">
-            <Label>Status</Label>
-            <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v as any })}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {Object.entries(STATUS_LABEL).map(([v, l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1.5">
-            <Label>Recorrência</Label>
-            <Select value={form.recorrencia} onValueChange={(v) => setForm({ ...form, recorrencia: v as any })}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="unica">Única</SelectItem>
-                <SelectItem value="semanal">Semanal</SelectItem>
-                <SelectItem value="quinzenal">Quinzenal</SelectItem>
-                <SelectItem value="mensal">Mensal</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-        <div className="space-y-1.5">
-          <Label>Observações</Label>
-          <Textarea rows={2} value={form.observacoes} onChange={(e) => setForm({ ...form, observacoes: e.target.value })} />
-        </div>
-        <DialogFooter className="gap-2">
-          {editing && editing.status !== "cancelado" && (
-            <Button type="button" variant="outline" className="mr-auto gap-1.5 text-destructive hover:text-destructive" onClick={() => onCancel(editing)}>
-              <X className="h-4 w-4" /> Cancelar agendamento
-            </Button>
-          )}
-          <Button type="submit" disabled={save.isPending}>{save.isPending ? "Salvando…" : "Salvar"}</Button>
-        </DialogFooter>
+        )}
       </form>
     </DialogContent>
   );

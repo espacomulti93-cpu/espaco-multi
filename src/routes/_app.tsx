@@ -3,7 +3,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Calendar } from "lucide-react";
 
 export const Route = createFileRoute("/_app")({
   component: AppLayout,
@@ -42,7 +42,7 @@ function AppLayout() {
             <div className="ml-auto flex items-center gap-2">
               <Button asChild size="sm" className="gap-1.5">
                 <Link to="/agenda">
-                  <Plus className="h-4 w-4" /> Novo agendamento
+                  <Calendar className="h-4 w-4" /> Acessar Agenda
                 </Link>
               </Button>
             </div>
