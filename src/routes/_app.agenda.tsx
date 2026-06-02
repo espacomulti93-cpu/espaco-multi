@@ -196,7 +196,7 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
 
   const { data: pacientes = [] } = useQuery({
     queryKey: ["pac-min"],
-    queryFn: async () => (await supabase.from("pacientes").select("id, nome").order("nome")).data ?? [],
+    queryFn: async () => (await supabase.from("pacientes").select("id, nome, cids_secundarios").order("nome")).data ?? [],
   });
   const { data: profissionais = [] } = useQuery({
     queryKey: ["prof-min"],
@@ -207,36 +207,21 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
     queryFn: async () => (await supabase.from("servicos").select("id, nome, duracao_minutos").eq("ativo", true).order("nome")).data ?? [],
   });
 
-  const { data: ags = [] } = useQuery({
-    queryKey: ["ags-dialog"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("agendamentos")
-        .select("paciente_id, profissional_id")
-        .neq("status", "cancelado");
-      if (error) throw error;
-      return data ?? [];
-    },
-  });
-
   const displayedPacientes = useMemo(() => {
     if (!form.profissional_id) return [];
     const prof = profissionais.find((p: any) => p.id === form.profissional_id);
     if (!prof) return [];
-    const config = prof.valores_config as any || {};
-    const associatedIds = new Set(config.descontos?.map((d: any) => d.paciente_id) || []);
-    
-    // Also include patients who have/had agendamentos with this professional
-    const activePatientIds = ags
-      .filter((a: any) => a.profissional_id === form.profissional_id)
-      .map((a: any) => a.paciente_id);
-    
-    const allAssociatedIds = new Set([...associatedIds, ...activePatientIds]);
 
-    return pacientes.filter((pac: any) => 
-      allAssociatedIds.has(pac.id) || pac.id === editing?.paciente_id
-    );
-  }, [pacientes, form.profissional_id, profissionais, ags, editing]);
+    const profSpecs = prof.especialidade
+      ? prof.especialidade.split(",").map((s: string) => s.trim().toLowerCase()).filter(Boolean)
+      : [];
+
+    return pacientes.filter((pac: any) => {
+      if (pac.id === editing?.paciente_id) return true;
+      const pacSpecs = (pac.cids_secundarios as string[] || []).map((s: string) => s.toLowerCase());
+      return pacSpecs.some((spec) => profSpecs.includes(spec));
+    });
+  }, [pacientes, form.profissional_id, profissionais, editing]);
 
   const selectedPaciente = pacientes.find((p: any) => p.id === form.paciente_id);
 
@@ -362,17 +347,16 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
 
   const handleProfissionalChange = (profId: string) => {
     const prof = profissionais.find((p: any) => p.id === profId);
-    const config = prof?.valores_config as any || {};
-    const associatedIds = new Set(config.descontos?.map((d: any) => d.paciente_id) || []);
-    
-    const activePatientIds = ags
-      .filter((a: any) => a.profissional_id === profId)
-      .map((a: any) => a.paciente_id);
-      
-    const allAssociatedIds = new Set([...associatedIds, ...activePatientIds]);
+    const profSpecs = prof?.especialidade
+      ? prof.especialidade.split(",").map((s: string) => s.trim().toLowerCase()).filter(Boolean)
+      : [];
 
     setForm((prev) => {
-      const newPacienteId = (allAssociatedIds.has(prev.paciente_id) || prev.paciente_id === editing?.paciente_id)
+      const currentPac = pacientes.find((pac: any) => pac.id === prev.paciente_id);
+      const pacSpecs = (currentPac?.cids_secundarios as string[] || []).map((s: string) => s.toLowerCase());
+      const isAssociated = pacSpecs.some((spec) => profSpecs.includes(spec));
+
+      const newPacienteId = (isAssociated || prev.paciente_id === editing?.paciente_id)
         ? prev.paciente_id
         : "";
       return {
