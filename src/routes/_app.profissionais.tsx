@@ -195,7 +195,7 @@ function ProfissionaisPage() {
                               <div key={esp.nome} className="text-xs text-muted-foreground flex justify-between gap-4">
                                 <span>{esp.nome}:</span>
                                 <span className="font-medium text-foreground">
-                                  Sessão R$ {Number(p.valor_sessao ?? esp.valor_sessao ?? 0).toFixed(2)} | Anamnese R$ {Number(esp.valor_avaliacao ?? 0).toFixed(2)}
+                                  Sessão R$ {Number(esp.valor_sessao ?? 0).toFixed(2)} | Anamnese R$ {Number(esp.valor_avaliacao ?? 0).toFixed(2)}
                                 </span>
                               </div>
                             );
@@ -261,7 +261,6 @@ function ProfForm({ prof, onSaved }: { prof: any; onSaved: () => void }) {
     email: prof?.email ?? "",
     telefone: prof?.telefone ?? "",
     cor: prof?.cor ?? CORES[0],
-    valor_sessao: prof?.valor_sessao ?? "",
     ativo: prof?.ativo ?? true,
   });
   const m = useMutation({
@@ -272,7 +271,6 @@ function ProfForm({ prof, onSaved }: { prof: any; onSaved: () => void }) {
         email: form.email || null,
         telefone: form.telefone || null,
         cor: form.cor,
-        valor_sessao: form.valor_sessao ? Number(form.valor_sessao) : null,
         ativo: form.ativo,
       };
       if (prof) {
@@ -357,8 +355,6 @@ function ProfForm({ prof, onSaved }: { prof: any; onSaved: () => void }) {
             ))}
           </div>
         </div>
-        <div className="space-y-1.5"><Label>Valor por sessão (R$)</Label>
-          <Input type="number" step="0.01" value={form.valor_sessao} onChange={(e) => setForm({ ...form, valor_sessao: e.target.value })} /></div>
         <DialogFooter><Button type="submit" disabled={m.isPending}>Salvar</Button></DialogFooter>
       </form>
     </DialogContent>
@@ -416,7 +412,7 @@ export function ValoresDialog({ prof, onSaved }: { prof: any; onSaved: () => voi
       const payloadConfig = {
         especialidades: valoresSpecs.map((v: any) => ({
           nome: v.nome,
-          valor_sessao: v.nome.toUpperCase() === "AP" ? null : (prof?.valor_sessao !== undefined && prof?.valor_sessao !== null ? parseMoneyValue(prof.valor_sessao) : null),
+          valor_sessao: v.nome.toUpperCase() === "AP" ? null : parseMoneyValue(v.valor_sessao),
           valor_avaliacao: v.nome.toUpperCase() === "AP" ? null : parseMoneyValue(v.valor_avaliacao),
           plano_mensal: v.nome.toUpperCase() === "AP" ? (v.plano_mensal || null) : null,
         })),
@@ -495,11 +491,15 @@ export function ValoresDialog({ prof, onSaved }: { prof: any; onSaved: () => voi
                       <div className="space-y-1.5">
                         <Label className="text-xs text-muted-foreground">Sessão Padrão (R$)</Label>
                         <Input
-                          type="text"
-                          disabled
-                          placeholder="Não definido"
-                          value={prof?.valor_sessao !== undefined && prof?.valor_sessao !== null ? Number(prof.valor_sessao).toFixed(2) : ""}
-                          className="bg-muted text-muted-foreground cursor-not-allowed"
+                          type="number"
+                          step="0.01"
+                          placeholder="Ex.: 150.00"
+                          value={v.valor_sessao}
+                          onChange={(e) => {
+                            const copy = [...valoresSpecs];
+                            copy[i].valor_sessao = e.target.value;
+                            setValoresSpecs(copy);
+                          }}
                         />
                       </div>
                       <div className="space-y-1.5">
