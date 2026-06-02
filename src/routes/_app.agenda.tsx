@@ -137,7 +137,9 @@ function FragmentRow({ h, days, ags, onCellClick, onEdit }: any) {
                 className="mb-1 block w-full rounded-md border-l-4 bg-card px-2 py-1 text-left text-xs shadow-sm transition hover:shadow"
                 style={{ borderLeftColor: a.profissionais?.cor ?? "var(--primary)" }}
               >
-                <div className="truncate font-medium">{a.pacientes?.nome}</div>
+                <div className="truncate font-medium">
+                  {a.pacientes?.nome} {a.servicos?.nome && `(${a.servicos.nome})`}
+                </div>
                 <div className="truncate text-[10px] text-muted-foreground">
                   {format(new Date(a.data_inicio), "HH:mm")}
                 </div>
