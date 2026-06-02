@@ -111,7 +111,7 @@ function LoginPage() {
                   </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="passUp">Senha</Label>
-                    <Input id="passUp" type="password" minLength={6} required value={passUp} onChange={(e) => setPassUp(e.target.value)} />
+                    <Input id="passUp" type="password" required value={passUp} onChange={(e) => setPassUp(e.target.value)} />
                   </div>
                   <Button type="submit" disabled={loading} className="w-full">
                     {loading ? "Criando…" : "Criar conta"}

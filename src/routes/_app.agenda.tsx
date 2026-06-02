@@ -163,6 +163,17 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
     ? format(new Date(editing.data_fim), "yyyy-MM-dd'T'HH:mm")
     : format(new Date(new Date(initialStart).getTime() + 50 * 60000), "yyyy-MM-dd'T'HH:mm");
 
+  const [tipoAgendamento, setTipoAgendamento] = useState<"sessao" | "anamnese">(() => {
+    if (editing?.observacoes?.startsWith("[Tipo: Anamnese]")) {
+      return "anamnese";
+    }
+    return "sessao";
+  });
+
+  const initialObservacoes = editing?.observacoes
+    ? editing.observacoes.replace(/^\[Tipo: (Anamnese|Sessão Padrão)\]\n?/, "")
+    : "";
+
   const [form, setForm] = useState({
     paciente_id: editing?.paciente_id ?? "",
     profissional_id: editing?.profissional_id ?? "",
@@ -171,7 +182,7 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
     data_fim: initialEnd,
     status: editing?.status ?? "pendente",
     recorrencia: editing?.recorrencia ?? "unica",
-    observacoes: editing?.observacoes ?? "",
+    observacoes: initialObservacoes,
   });
 
   const [pacienteOpen, setPacienteOpen] = useState(false);
@@ -195,6 +206,37 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
     queryKey: ["serv-min"],
     queryFn: async () => (await supabase.from("servicos").select("id, nome, duracao_minutos").eq("ativo", true).order("nome")).data ?? [],
   });
+
+  const { data: ags = [] } = useQuery({
+    queryKey: ["ags-dialog"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("agendamentos")
+        .select("paciente_id, profissional_id")
+        .neq("status", "cancelado");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const displayedPacientes = useMemo(() => {
+    if (!form.profissional_id) return [];
+    const prof = profissionais.find((p: any) => p.id === form.profissional_id);
+    if (!prof) return [];
+    const config = prof.valores_config as any || {};
+    const associatedIds = new Set(config.descontos?.map((d: any) => d.paciente_id) || []);
+    
+    // Also include patients who have/had agendamentos with this professional
+    const activePatientIds = ags
+      .filter((a: any) => a.profissional_id === form.profissional_id)
+      .map((a: any) => a.paciente_id);
+    
+    const allAssociatedIds = new Set([...associatedIds, ...activePatientIds]);
+
+    return pacientes.filter((pac: any) => 
+      allAssociatedIds.has(pac.id) || pac.id === editing?.paciente_id
+    );
+  }, [pacientes, form.profissional_id, profissionais, ags, editing]);
 
   const selectedPaciente = pacientes.find((p: any) => p.id === form.paciente_id);
 
@@ -314,16 +356,31 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
     setForm((prev) => ({
       ...prev,
       paciente_id: pacId,
-      profissional_id: "",
     }));
     setSelectedSpecialty("");
   };
 
   const handleProfissionalChange = (profId: string) => {
-    setForm((prev) => ({
-      ...prev,
-      profissional_id: profId,
-    }));
+    const prof = profissionais.find((p: any) => p.id === profId);
+    const config = prof?.valores_config as any || {};
+    const associatedIds = new Set(config.descontos?.map((d: any) => d.paciente_id) || []);
+    
+    const activePatientIds = ags
+      .filter((a: any) => a.profissional_id === profId)
+      .map((a: any) => a.paciente_id);
+      
+    const allAssociatedIds = new Set([...associatedIds, ...activePatientIds]);
+
+    setForm((prev) => {
+      const newPacienteId = (allAssociatedIds.has(prev.paciente_id) || prev.paciente_id === editing?.paciente_id)
+        ? prev.paciente_id
+        : "";
+      return {
+        ...prev,
+        profissional_id: profId,
+        paciente_id: newPacienteId,
+      };
+    });
     setSelectedSpecialty("");
   };
 
@@ -358,12 +415,17 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
         (s: any) => s.nome.toLowerCase() === selectedSpecialty.toLowerCase()
       );
 
+      const typePrefix = selectedSpecialty.toUpperCase() !== "AP"
+        ? (tipoAgendamento === "anamnese" ? "[Tipo: Anamnese]\n" : "[Tipo: Sessão Padrão]\n")
+        : "";
+
       const payload: any = {
         ...form,
         sala_id: null,
         servico_id: matchingServico ? matchingServico.id : null,
         data_inicio: start,
         data_fim: end,
+        observacoes: typePrefix + form.observacoes,
       };
       if (editing) {
         const { error } = await supabase.from("agendamentos").update(payload).eq("id", editing.id);
@@ -399,72 +461,67 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
       </DialogHeader>
       <form onSubmit={(e) => { e.preventDefault(); save.mutate(); }} className="space-y-3">
         <div className="space-y-1.5">
-          <Label>Paciente *</Label>
-          <Popover open={pacienteOpen} onOpenChange={setPacienteOpen}>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                role="combobox"
-                aria-expanded={pacienteOpen}
-                className="w-full justify-between font-normal text-left px-3"
-              >
-                {selectedPaciente ? selectedPaciente.nome : "Selecione o paciente..."}
-                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
-              <Command>
-                <CommandInput placeholder="Pesquisar paciente..." className="h-9" />
-                <CommandList>
-                  <CommandEmpty>Nenhum paciente encontrado.</CommandEmpty>
-                  <CommandGroup>
-                    {pacientes.map((p: any) => (
-                      <CommandItem
-                        key={p.id}
-                        value={p.nome}
-                        onSelect={() => {
-                          handlePacienteChange(p.id);
-                          setPacienteOpen(false);
-                        }}
-                      >
-                        <Check
-                          className={cn(
-                            "mr-2 h-4 w-4",
-                            form.paciente_id === p.id ? "opacity-100" : "opacity-0"
-                          )}
-                        />
-                        {p.nome}
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                </CommandList>
-              </Command>
-            </PopoverContent>
-          </Popover>
+          <Label>Profissional *</Label>
+          <Select value={form.profissional_id} onValueChange={handleProfissionalChange}>
+            <SelectTrigger><SelectValue placeholder="Selecione o profissional…" /></SelectTrigger>
+            <SelectContent>
+              {profissionais.map((p: any) => (
+                <SelectItem key={p.id} value={p.id}>
+                  {p.nome}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
-        {form.paciente_id && (
+        {form.profissional_id && (
           <div className="space-y-1.5 animate-in fade-in duration-200">
-            <Label>Profissional *</Label>
-            <Select value={form.profissional_id} onValueChange={handleProfissionalChange}>
-              <SelectTrigger><SelectValue placeholder="Selecione o profissional…" /></SelectTrigger>
-              <SelectContent>
-                {displayedProfessionals.map((p: any) => (
-                  <SelectItem key={p.id} value={p.id}>
-                    {p.nome} {patientProfessionals.includes(p) && "★"}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {patientProfessionals.length > 0 && (
-              <span className="text-[10px] text-muted-foreground block">
-                ★ Profissionais com descontos/valores especiais configurados para este paciente.
-              </span>
-            )}
+            <Label>Paciente *</Label>
+            <Popover open={pacienteOpen} onOpenChange={setPacienteOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={pacienteOpen}
+                  className="w-full justify-between font-normal text-left px-3"
+                >
+                  {selectedPaciente ? selectedPaciente.nome : "Selecione o paciente..."}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+                <Command>
+                  <CommandInput placeholder="Pesquisar paciente..." className="h-9" />
+                  <CommandList>
+                    <CommandEmpty>Nenhum paciente encontrado.</CommandEmpty>
+                    <CommandGroup>
+                      {displayedPacientes.map((p: any) => (
+                        <CommandItem
+                          key={p.id}
+                          value={p.nome}
+                          onSelect={() => {
+                            handlePacienteChange(p.id);
+                            setPacienteOpen(false);
+                          }}
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              form.paciente_id === p.id ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          {p.nome}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
           </div>
         )}
 
-        {form.paciente_id && form.profissional_id && (
+        {form.profissional_id && form.paciente_id && (
           <div className="space-y-1.5 animate-in fade-in duration-200">
             <Label>Especialidade *</Label>
             <Select value={selectedSpecialty} onValueChange={handleSpecialtyChange}>
@@ -478,41 +535,53 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
           </div>
         )}
 
-        {form.paciente_id && form.profissional_id && selectedSpecialty && (
+        {form.profissional_id && form.paciente_id && selectedSpecialty && (
           <div className="space-y-3 animate-in fade-in duration-200">
+            {selectedSpecialty.toUpperCase() !== "AP" && (
+              <div className="space-y-1.5 animate-in fade-in duration-200">
+                <Label>Tipo de Agendamento *</Label>
+                <Select value={tipoAgendamento} onValueChange={(v: any) => setTipoAgendamento(v)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="sessao">Sessão Padrão</SelectItem>
+                    <SelectItem value="anamnese">Anamnese</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
             {currentPricing && (
               <div className="rounded-lg border bg-accent/20 p-3 text-xs space-y-1.5 shadow-inner">
                 <div className="font-semibold text-muted-foreground flex justify-between">
-                  <span>Valores Configurados</span>
+                  <span>Valor do Agendamento</span>
                   <span className="text-[10px] uppercase tracking-wider text-primary font-bold">
                     {currentPricing.type}
                   </span>
                 </div>
-                <div className="grid grid-cols-2 gap-2 mt-1">
+                <div className="mt-1">
                   {selectedSpecialty.toUpperCase() === "AP" && currentPricing.plano_mensal ? (
-                    <div className="col-span-2">
+                    <div>
                       <span className="text-muted-foreground">Plano Mensal (AP): </span>
                       <span className="font-semibold text-foreground">{currentPricing.plano_mensal}</span>
                     </div>
                   ) : (
-                    <>
-                      <div>
-                        <span className="text-muted-foreground">Sessão: </span>
-                        <span className="font-semibold text-foreground font-mono">
-                          {currentPricing.valor_sessao !== null && currentPricing.valor_sessao !== undefined
-                            ? `R$ ${Number(currentPricing.valor_sessao).toFixed(2)}`
-                            : "—"}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Avaliação/Anamnese: </span>
-                        <span className="font-semibold text-foreground font-mono">
-                          {currentPricing.valor_avaliacao !== null && currentPricing.valor_avaliacao !== undefined
-                            ? `R$ ${Number(currentPricing.valor_avaliacao).toFixed(2)}`
-                            : "—"}
-                        </span>
-                      </div>
-                    </>
+                    <div>
+                      <span className="text-muted-foreground">
+                        {tipoAgendamento === "sessao" ? "Sessão Padrão: " : "Anamnese: "}
+                      </span>
+                      <span className="font-bold text-foreground text-sm font-mono">
+                        {tipoAgendamento === "sessao"
+                          ? (currentPricing.valor_sessao !== null && currentPricing.valor_sessao !== undefined
+                              ? `R$ ${Number(currentPricing.valor_sessao).toFixed(2)}`
+                              : "—")
+                          : (currentPricing.valor_avaliacao !== null && currentPricing.valor_avaliacao !== undefined
+                              ? `R$ ${Number(currentPricing.valor_avaliacao).toFixed(2)}`
+                              : "—")
+                        }
+                      </span>
+                    </div>
                   )}
                 </div>
               </div>
