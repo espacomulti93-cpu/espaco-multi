@@ -55,7 +55,6 @@ export function AppSidebar() {
                       <Link 
                         to={item.url}
                         onClick={() => {
-                          setOpen(false);
                           setOpenMobile(false);
                         }}
                       >

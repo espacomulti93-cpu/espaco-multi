@@ -290,8 +290,8 @@ export function ValoresDialog({ prof, onSaved }: { prof: any; onSaved: () => voi
       const existing = config.especialidades?.find((e: any) => e.nome === spec);
       return {
         nome: spec,
-        valor_sessao: existing?.valor_sessao !== undefined ? String(existing.valor_sessao) : "",
-        valor_avaliacao: existing?.valor_avaliacao !== undefined ? String(existing.valor_avaliacao) : "",
+        valor_sessao: existing?.valor_sessao !== undefined && existing?.valor_sessao !== null ? String(existing.valor_sessao) : "",
+        valor_avaliacao: existing?.valor_avaliacao !== undefined && existing?.valor_avaliacao !== null ? String(existing.valor_avaliacao) : "",
       };
     });
   });
@@ -495,8 +495,8 @@ export function ValoresDialog({ prof, onSaved }: { prof: any; onSaved: () => voi
                         <TableRow key={idx}>
                           <TableCell className="font-medium text-xs">{pac?.nome || "Carregando..."}</TableCell>
                           <TableCell className="text-xs">{d.especialidade}</TableCell>
-                          <TableCell className="text-xs font-semibold text-primary">R$ {d.valor_sessao.toFixed(2)}</TableCell>
-                          <TableCell className="text-xs font-semibold text-primary">R$ {d.valor_avaliacao.toFixed(2)}</TableCell>
+                          <TableCell className="text-xs font-semibold text-primary">R$ {Number(d.valor_sessao ?? 0).toFixed(2)}</TableCell>
+                          <TableCell className="text-xs font-semibold text-primary">R$ {Number(d.valor_avaliacao ?? 0).toFixed(2)}</TableCell>
                           <TableCell>
                             <Button
                               type="button"
