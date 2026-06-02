@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { ChevronLeft, ChevronRight, Plus, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, X, Check, ChevronsUpDown } from "lucide-react";
 import { toast } from "sonner";
 import {
   addDays,
@@ -21,6 +21,9 @@ import {
   startOfWeek,
 } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { cn } from "@/lib/utils";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from "@/components/ui/command";
 
 export const Route = createFileRoute("/_app/agenda")({
   component: Agenda,
@@ -164,13 +167,14 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
     paciente_id: editing?.paciente_id ?? "",
     profissional_id: editing?.profissional_id ?? "",
     servico_id: editing?.servico_id ?? "",
-    sala_id: editing?.sala_id ?? "",
     data_inicio: initialStart,
     data_fim: initialEnd,
     status: editing?.status ?? "pendente",
     recorrencia: editing?.recorrencia ?? "unica",
     observacoes: editing?.observacoes ?? "",
   });
+
+  const [pacienteOpen, setPacienteOpen] = useState(false);
 
   const { data: pacientes = [] } = useQuery({
     queryKey: ["pac-min"],
@@ -184,16 +188,44 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
     queryKey: ["serv-min"],
     queryFn: async () => (await supabase.from("servicos").select("id, nome, duracao_minutos").eq("ativo", true).order("nome")).data ?? [],
   });
-  const { data: salas = [] } = useQuery({
-    queryKey: ["salas-min"],
-    queryFn: async () => (await supabase.from("salas").select("id, nome").eq("ativo", true).order("nome")).data ?? [],
-  });
+
+  const selectedPaciente = pacientes.find((p: any) => p.id === form.paciente_id);
+
+  const formDate = form.data_inicio ? form.data_inicio.split("T")[0] : "";
+  const formTime = form.data_inicio ? form.data_inicio.split("T")[1] : "";
+
+  const handleDateChange = (dateVal: string) => {
+    if (!dateVal) return;
+    const timeVal = form.data_inicio ? form.data_inicio.split("T")[1] || "09:00" : "09:00";
+    const newStart = `${dateVal}T${timeVal}`;
+    const s: any = servicos.find((x: any) => x.id === form.servico_id);
+    const duration = s ? s.duracao_minutos : 50;
+    const newEnd = format(new Date(new Date(newStart).getTime() + duration * 60000), "yyyy-MM-dd'T'HH:mm");
+    setForm({
+      ...form,
+      data_inicio: newStart,
+      data_fim: newEnd,
+    });
+  };
+
+  const handleTimeChange = (timeVal: string) => {
+    if (!timeVal) return;
+    const dateVal = form.data_inicio ? form.data_inicio.split("T")[0] || format(new Date(), "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd");
+    const newStart = `${dateVal}T${timeVal}`;
+    const s: any = servicos.find((x: any) => x.id === form.servico_id);
+    const duration = s ? s.duracao_minutos : 50;
+    const newEnd = format(new Date(new Date(newStart).getTime() + duration * 60000), "yyyy-MM-dd'T'HH:mm");
+    setForm({
+      ...form,
+      data_inicio: newStart,
+      data_fim: newEnd,
+    });
+  };
 
   const save = useMutation({
     mutationFn: async () => {
       if (!form.paciente_id || !form.profissional_id) throw new Error("Selecione paciente e profissional");
 
-      // Check conflicts for this professional
       const start = new Date(form.data_inicio).toISOString();
       const end = new Date(form.data_fim).toISOString();
       const { data: conflicts } = await supabase
@@ -211,7 +243,7 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
 
       const payload: any = {
         ...form,
-        sala_id: form.sala_id || null,
+        sala_id: null,
         servico_id: form.servico_id || null,
         data_inicio: start,
         data_fim: end,
@@ -230,12 +262,9 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
 
   function onServicoChange(id: string) {
     const s: any = servicos.find((x: any) => x.id === id);
-    if (s && !editing) {
-      const newEnd = new Date(new Date(form.data_inicio).getTime() + s.duracao_minutos * 60000);
-      setForm({ ...form, servico_id: id, data_fim: format(newEnd, "yyyy-MM-dd'T'HH:mm") });
-    } else {
-      setForm({ ...form, servico_id: id });
-    }
+    const duration = s ? s.duracao_minutos : 50;
+    const newEnd = format(new Date(new Date(form.data_inicio).getTime() + duration * 60000), "yyyy-MM-dd'T'HH:mm");
+    setForm({ ...form, servico_id: id, data_fim: newEnd });
   }
 
   return (
@@ -246,12 +275,47 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
       <form onSubmit={(e) => { e.preventDefault(); save.mutate(); }} className="space-y-3">
         <div className="space-y-1.5">
           <Label>Paciente *</Label>
-          <Select value={form.paciente_id} onValueChange={(v) => setForm({ ...form, paciente_id: v })}>
-            <SelectTrigger><SelectValue placeholder="Selecione…" /></SelectTrigger>
-            <SelectContent>
-              {pacientes.map((p: any) => <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>)}
-            </SelectContent>
-          </Select>
+          <Popover open={pacienteOpen} onOpenChange={setPacienteOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                role="combobox"
+                aria-expanded={pacienteOpen}
+                className="w-full justify-between font-normal text-left px-3"
+              >
+                {selectedPaciente ? selectedPaciente.nome : "Selecione o paciente..."}
+                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+              <Command>
+                <CommandInput placeholder="Pesquisar paciente..." className="h-9" />
+                <CommandList>
+                  <CommandEmpty>Nenhum paciente encontrado.</CommandEmpty>
+                  <CommandGroup>
+                    {pacientes.map((p: any) => (
+                      <CommandItem
+                        key={p.id}
+                        value={p.nome}
+                        onSelect={() => {
+                          setForm({ ...form, paciente_id: p.id });
+                          setPacienteOpen(false);
+                        }}
+                      >
+                        <Check
+                          className={cn(
+                            "mr-2 h-4 w-4",
+                            form.paciente_id === p.id ? "opacity-100" : "opacity-0"
+                          )}
+                        />
+                        {p.nome}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
@@ -273,26 +337,14 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
             </Select>
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5">
-            <Label>Início *</Label>
-            <Input type="datetime-local" required value={form.data_inicio} onChange={(e) => setForm({ ...form, data_inicio: e.target.value })} />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Fim *</Label>
-            <Input type="datetime-local" required value={form.data_fim} onChange={(e) => setForm({ ...form, data_fim: e.target.value })} />
+        <div className="space-y-1.5">
+          <Label>Data *</Label>
+          <div className="grid grid-cols-2 gap-3">
+            <Input type="date" required value={formDate} onChange={(e) => handleDateChange(e.target.value)} />
+            <Input type="time" required value={formTime} onChange={(e) => handleTimeChange(e.target.value)} />
           </div>
         </div>
-        <div className="grid grid-cols-3 gap-3">
-          <div className="space-y-1.5">
-            <Label>Sala</Label>
-            <Select value={form.sala_id} onValueChange={(v) => setForm({ ...form, sala_id: v })}>
-              <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
-              <SelectContent>
-                {salas.map((s: any) => <SelectItem key={s.id} value={s.id}>{s.nome}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
+        <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
             <Label>Status</Label>
             <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v as any })}>
