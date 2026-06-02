@@ -177,11 +177,21 @@ function ProfissionaisPage() {
                                 </div>
                               );
                             }
+                            const isSupervisorABA = esp.nome.toLowerCase() === "supervisor aba";
+                            const isAtABA = esp.nome.toLowerCase() === "at aba";
+                            let valStr = "";
+                            if (isSupervisorABA) {
+                              valStr = `Anamnese R$ ${Number(esp.valor_avaliacao ?? 0).toFixed(2)}`;
+                            } else if (isAtABA) {
+                              valStr = `Sessão R$ ${Number(esp.valor_sessao ?? 0).toFixed(2)}`;
+                            } else {
+                              valStr = `Sessão R$ ${Number(esp.valor_sessao ?? 0).toFixed(2)} | Anamnese R$ ${Number(esp.valor_avaliacao ?? 0).toFixed(2)}`;
+                            }
                             return (
                               <div key={esp.nome} className="text-xs text-muted-foreground flex justify-between gap-4">
                                 <span>{esp.nome}:</span>
                                 <span className="font-medium text-foreground">
-                                  Sessão R$ {Number(esp.valor_sessao ?? 0).toFixed(2)} | Anamnese R$ {Number(esp.valor_avaliacao ?? 0).toFixed(2)}
+                                  {valStr}
                                 </span>
                               </div>
                             );
@@ -199,10 +209,13 @@ function ProfissionaisPage() {
                         <span className="font-semibold text-foreground block">Descontos ativos:</span>
                         {(p.valores_config as any).descontos.map((d: any, idx: number) => {
                           const pac = pacientes.find((pac: any) => pac.id === d.paciente_id);
+                          const isSupervisorABA = d.especialidade?.toLowerCase() === "supervisor aba";
+                          const val = isSupervisorABA ? d.valor_avaliacao : d.valor_sessao;
+                          const prefix = isSupervisorABA ? "Ana.: " : "";
                           return (
                             <div key={idx} className="flex justify-between text-[10px] text-muted-foreground">
                               <span>{pac?.nome || "Carregando..."} ({d.especialidade})</span>
-                              <span>R$ {Number(d.valor_sessao ?? 0).toFixed(2)}</span>
+                              <span>{prefix}R$ {Number(val ?? 0).toFixed(2)}</span>
                             </div>
                           );
                         })}
@@ -295,18 +308,29 @@ function ProfForm({ prof, onSaved }: { prof: any; onSaved: () => void }) {
       const activeSpecs = form.especialidades.filter((e: any) => e.nome.trim());
 
       const payloadConfig = {
-        especialidades: activeSpecs.map((v: any) => ({
-          nome: v.nome.trim(),
-          valor_sessao: v.nome.toUpperCase() === "AP" ? null : parseMoneyValue(v.valor_sessao),
-          valor_avaliacao: v.nome.toUpperCase() === "AP" ? null : parseMoneyValue(v.valor_avaliacao),
-          plano_mensal: v.nome.toUpperCase() === "AP" ? (v.plano_mensal || null) : null,
-        })),
-        descontos: descontos.map((d: any) => ({
-          paciente_id: d.paciente_id,
-          especialidade: d.especialidade,
-          valor_sessao: parseMoneyValue(d.valor_sessao),
-          valor_avaliacao: parseMoneyValue(d.valor_avaliacao),
-        })),
+        especialidades: activeSpecs.map((v: any) => {
+          const nomeLower = v.nome.trim().toLowerCase();
+          const isAP = nomeLower === "ap";
+          const isSupervisorABA = nomeLower === "supervisor aba";
+          const isAtABA = nomeLower === "at aba";
+          return {
+            nome: v.nome.trim(),
+            valor_sessao: (isAP || isSupervisorABA) ? null : parseMoneyValue(v.valor_sessao),
+            valor_avaliacao: (isAP || isAtABA) ? null : parseMoneyValue(v.valor_avaliacao),
+            plano_mensal: isAP ? (v.plano_mensal || null) : null,
+          };
+        }),
+        descontos: descontos.map((d: any) => {
+          const specLower = d.especialidade?.toLowerCase();
+          const isSupervisorABA = specLower === "supervisor aba";
+          const isAtABA = specLower === "at aba";
+          return {
+            paciente_id: d.paciente_id,
+            especialidade: d.especialidade,
+            valor_sessao: isSupervisorABA ? null : parseMoneyValue(d.valor_sessao),
+            valor_avaliacao: isAtABA ? null : parseMoneyValue(d.valor_avaliacao),
+          };
+        }),
       };
 
       const payload: any = {
@@ -400,36 +424,40 @@ function ProfForm({ prof, onSaved }: { prof: any; onSaved: () => void }) {
                     </div>
                   ) : (
                     <>
-                      <div className="space-y-1">
-                        <Label className="text-[11px] text-muted-foreground">Sessão Padrão (R$)</Label>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          placeholder="Ex.: 150.00"
-                          value={esp.valor_sessao}
-                          onChange={(e) => {
-                            const next = [...form.especialidades];
-                            next[index].valor_sessao = e.target.value;
-                            setForm({ ...form, especialidades: next });
-                          }}
-                          className="h-8 text-xs"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-[11px] text-muted-foreground">Anamnese (R$)</Label>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          placeholder="Ex.: 200.00"
-                          value={esp.valor_avaliacao}
-                          onChange={(e) => {
-                            const next = [...form.especialidades];
-                            next[index].valor_avaliacao = e.target.value;
-                            setForm({ ...form, especialidades: next });
-                          }}
-                          className="h-8 text-xs"
-                        />
-                      </div>
+                      {esp.nome.toLowerCase() !== "supervisor aba" && (
+                        <div className={`space-y-1 ${esp.nome.toLowerCase() === "at aba" ? "col-span-2" : ""}`}>
+                          <Label className="text-[11px] text-muted-foreground">Sessão Padrão (R$)</Label>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            placeholder="Ex.: 150.00"
+                            value={esp.valor_sessao}
+                            onChange={(e) => {
+                              const next = [...form.especialidades];
+                              next[index].valor_sessao = e.target.value;
+                              setForm({ ...form, especialidades: next });
+                            }}
+                            className="h-8 text-xs"
+                          />
+                        </div>
+                      )}
+                      {esp.nome.toLowerCase() !== "at aba" && (
+                        <div className={`space-y-1 ${esp.nome.toLowerCase() === "supervisor aba" ? "col-span-2" : ""}`}>
+                          <Label className="text-[11px] text-muted-foreground">Anamnese (R$)</Label>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            placeholder="Ex.: 200.00"
+                            value={esp.valor_avaliacao}
+                            onChange={(e) => {
+                              const next = [...form.especialidades];
+                              next[index].valor_avaliacao = e.target.value;
+                              setForm({ ...form, especialidades: next });
+                            }}
+                            className="h-8 text-xs"
+                          />
+                        </div>
+                      )}
                     </>
                   )}
                 </div>
@@ -528,40 +556,59 @@ function ProfForm({ prof, onSaved }: { prof: any; onSaved: () => void }) {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-1.5">
-                <Label>Valor Sessão (R$)</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  placeholder="Ex.: 120"
-                  value={newDesc.valor_sessao}
-                  onChange={(e) => setNewDesc({ ...newDesc, valor_sessao: e.target.value })}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Valor Anamnese (R$)</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  placeholder="Ex.: 180"
-                  value={newDesc.valor_avaliacao}
-                  onChange={(e) => setNewDesc({ ...newDesc, valor_avaliacao: e.target.value })}
-                />
-              </div>
+              {newDesc.especialidade.toLowerCase() !== "supervisor aba" && (
+                <div className={`space-y-1.5 ${newDesc.especialidade.toLowerCase() === "at aba" ? "col-span-2" : ""}`}>
+                  <Label>Valor Sessão (R$)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    placeholder="Ex.: 120"
+                    value={newDesc.valor_sessao}
+                    onChange={(e) => setNewDesc({ ...newDesc, valor_sessao: e.target.value })}
+                  />
+                </div>
+              )}
+              {newDesc.especialidade.toLowerCase() !== "at aba" && (
+                <div className={`space-y-1.5 ${newDesc.especialidade.toLowerCase() === "supervisor aba" ? "col-span-2" : ""}`}>
+                  <Label>Valor Anamnese (R$)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    placeholder="Ex.: 180"
+                    value={newDesc.valor_avaliacao}
+                    onChange={(e) => setNewDesc({ ...newDesc, valor_avaliacao: e.target.value })}
+                  />
+                </div>
+              )}
               <div className="col-span-2 flex justify-end">
                 <Button
                   type="button"
                   size="sm"
                   onClick={() => {
-                    if (!newDesc.paciente_id || !newDesc.especialidade || !newDesc.valor_sessao || !newDesc.valor_avaliacao) {
-                      toast.error("Preencha todos os campos do desconto");
+                    const specLower = newDesc.especialidade.toLowerCase();
+                    const isSupervisorABA = specLower === "supervisor aba";
+                    const isAtABA = specLower === "at aba";
+                    const needsSession = !isSupervisorABA;
+                    const needsAnamnese = !isAtABA;
+
+                    if (!newDesc.paciente_id || !newDesc.especialidade) {
+                      toast.error("Selecione o paciente e a especialidade");
                       return;
                     }
+                    if (needsSession && !newDesc.valor_sessao) {
+                      toast.error("Preencha o valor da sessão");
+                      return;
+                    }
+                    if (needsAnamnese && !newDesc.valor_avaliacao) {
+                      toast.error("Preencha o valor da anamnese");
+                      return;
+                    }
+
                     const newRule = {
                       paciente_id: newDesc.paciente_id,
                       especialidade: newDesc.especialidade,
-                      valor_sessao: parseMoneyValue(newDesc.valor_sessao) ?? 0,
-                      valor_avaliacao: parseMoneyValue(newDesc.valor_avaliacao) ?? 0,
+                      valor_sessao: needsSession ? (parseMoneyValue(newDesc.valor_sessao) ?? 0) : null,
+                      valor_avaliacao: needsAnamnese ? (parseMoneyValue(newDesc.valor_avaliacao) ?? 0) : null,
                     };
                     const exists = descontos.some(
                       (d: any) => d.paciente_id === newRule.paciente_id && d.especialidade === newRule.especialidade
@@ -604,8 +651,16 @@ function ProfForm({ prof, onSaved }: { prof: any; onSaved: () => void }) {
                         <TableRow key={idx}>
                           <TableCell className="font-medium text-xs">{pac?.nome || "Carregando..."}</TableCell>
                           <TableCell className="text-xs">{d.especialidade}</TableCell>
-                          <TableCell className="text-xs font-semibold text-primary">R$ {Number(d.valor_sessao ?? 0).toFixed(2)}</TableCell>
-                          <TableCell className="text-xs font-semibold text-primary">R$ {Number(d.valor_avaliacao ?? 0).toFixed(2)}</TableCell>
+                          <TableCell className="text-xs font-semibold text-primary">
+                            {d.especialidade?.toLowerCase() === "supervisor aba"
+                              ? "—"
+                              : `R$ ${Number(d.valor_sessao ?? 0).toFixed(2)}`}
+                          </TableCell>
+                          <TableCell className="text-xs font-semibold text-primary">
+                            {d.especialidade?.toLowerCase() === "at aba"
+                              ? "—"
+                              : `R$ ${Number(d.valor_avaliacao ?? 0).toFixed(2)}`}
+                          </TableCell>
                           <TableCell>
                             <Button
                               type="button"
