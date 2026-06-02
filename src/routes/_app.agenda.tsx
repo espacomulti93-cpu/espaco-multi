@@ -52,7 +52,7 @@ function Agenda() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("agendamentos")
-        .select("*, pacientes(nome), profissionais(nome, cor), servicos(nome)")
+        .select("*, pacientes(nome, cids_secundarios), profissionais(nome, cor, especialidade), servicos(nome)")
         .gte("data_inicio", weekStart.toISOString())
         .lt("data_inicio", addDays(weekEnd, 1).toISOString())
         .order("data_inicio");
@@ -115,6 +115,20 @@ function Agenda() {
   );
 }
 
+const getEspecialidade = (a: any) => {
+  if (a.servicos?.nome) return a.servicos.nome;
+  const pacSpecs = a.pacientes?.cids_secundarios || [];
+  const profSpecs = a.profissionais?.especialidade
+    ? a.profissionais.especialidade.split(",").map((s: string) => s.trim())
+    : [];
+  const intersection = pacSpecs.filter((s: string) =>
+    profSpecs.some((ps: string) => ps.toLowerCase() === s.toLowerCase())
+  );
+  if (intersection.length > 0) return intersection[0];
+  if (profSpecs.length > 0) return profSpecs[0];
+  return null;
+};
+
 function FragmentRow({ h, days, ags, onCellClick, onEdit }: any) {
   return (
     <>
@@ -137,15 +151,20 @@ function FragmentRow({ h, days, ags, onCellClick, onEdit }: any) {
                 className="mb-1 block w-full rounded-md border-l-4 bg-card px-2 py-1 text-left text-xs shadow-sm transition hover:shadow"
                 style={{ borderLeftColor: a.profissionais?.cor ?? "var(--primary)" }}
               >
-                <div className="truncate font-medium">
-                  {a.pacientes?.nome} {a.servicos?.nome && `(${a.servicos.nome})`}
+                <div className="truncate font-medium text-foreground">
+                  {a.pacientes?.nome}
                 </div>
                 <div className="truncate text-[10px] text-muted-foreground">
                   {format(new Date(a.data_inicio), "HH:mm")}
                 </div>
                 <div className="truncate text-[9px] text-muted-foreground">
-                  {a.profissionais?.nome} {a.servicos?.nome && `(${a.servicos.nome})`}
+                  {a.profissionais?.nome}
                 </div>
+                {getEspecialidade(a) && (
+                  <div className="truncate text-[9px] font-medium text-primary">
+                    {getEspecialidade(a)}
+                  </div>
+                )}
                 {a.status !== "pendente" && (
                   <Badge variant="secondary" className="mt-1 h-4 px-1 text-[9px]">{STATUS_LABEL[a.status]}</Badge>
                 )}
@@ -159,6 +178,7 @@ function FragmentRow({ h, days, ags, onCellClick, onEdit }: any) {
 }
 
 function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
+  const qc = useQueryClient();
   const initialStart = editing
     ? format(new Date(editing.data_inicio), "yyyy-MM-dd'T'HH:mm")
     : defaults
@@ -394,9 +414,20 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
         if (!ok) throw new Error("Cancelado pelo usuário");
       }
 
-      const matchingServico = servicos.find(
+      let matchingServico = servicos.find(
         (s: any) => s.nome.toLowerCase() === selectedSpecialty.toLowerCase()
       );
+
+      if (!matchingServico && selectedSpecialty) {
+        const { data: newServ, error: servError } = await supabase
+          .from("servicos")
+          .insert({ nome: selectedSpecialty, duracao_minutos: 50 })
+          .select()
+          .single();
+        if (servError) throw servError;
+        matchingServico = newServ;
+        qc.invalidateQueries({ queryKey: ["serv-min"] });
+      }
 
       const typePrefix = selectedSpecialty.toUpperCase() !== "AP"
         ? (tipoAgendamento === "anamnese" ? "[Tipo: Anamnese]\n" : "[Tipo: Sessão Padrão]\n")
