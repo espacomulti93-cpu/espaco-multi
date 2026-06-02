@@ -36,6 +36,23 @@ function ProfissionaisPage() {
     },
   });
 
+  const grouped = data.reduce((acc: Record<string, any[]>, p) => {
+    const specs = p.especialidade
+      ? p.especialidade.split(",").map((s: string) => s.trim()).filter(Boolean)
+      : ["Sem Especialidade"];
+    specs.forEach((spec: string) => {
+      if (!acc[spec]) acc[spec] = [];
+      acc[spec].push(p);
+    });
+    return acc;
+  }, {});
+
+  const sortedSpecs = Object.keys(grouped).sort((a, b) => {
+    if (a === "Sem Especialidade") return 1;
+    if (b === "Sem Especialidade") return -1;
+    return a.localeCompare(b);
+  });
+
   const del = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase.from("profissionais").delete().eq("id", id);
@@ -82,68 +99,77 @@ function ProfissionaisPage() {
       {data.length === 0 ? (
         <Card><CardContent className="py-12 text-center text-sm text-muted-foreground">Nenhum profissional cadastrado.</CardContent></Card>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {data.map((p) => (
-            <Card key={p.id}>
-              <CardContent className="p-4">
-                <div className="flex items-start gap-3">
-                  <div className="h-12 w-12 shrink-0 rounded-full" style={{ background: p.cor }} />
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate font-medium">{p.nome}</div>
-                    <div className="mt-1 flex flex-wrap gap-1">
-                      {p.especialidade ? (
-                        p.especialidade.split(", ").map((esp: string) => (
-                          <Badge key={esp} variant="outline" className="text-[10px] px-1.5 py-0 font-normal">
-                            {esp}
-                          </Badge>
-                        ))
-                      ) : (
-                        <span className="text-xs text-muted-foreground">—</span>
-                      )}
-                    </div>
-                    <div className="mt-2 space-y-1">
-                      {p.valores_config && (p.valores_config as any).especialidades?.length > 0 ? (
-                        (p.valores_config as any).especialidades.map((esp: any) => (
-                          <div key={esp.nome} className="text-xs text-muted-foreground flex justify-between gap-4">
-                            <span>{esp.nome}:</span>
-                            <span className="font-medium text-foreground">
-                              Sessão R$ {Number(p.valor_sessao ?? esp.valor_sessao ?? 0).toFixed(2)} | Anamnese R$ {Number(esp.valor_avaliacao ?? 0).toFixed(2)}
-                            </span>
+        <div className="space-y-8">
+          {sortedSpecs.map((spec) => (
+            <div key={spec} className="space-y-3">
+              <h3 className="text-sm font-semibold text-muted-foreground tracking-wider uppercase border-b pb-1">
+                {spec}
+              </h3>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {grouped[spec].map((p) => (
+                  <Card key={`${spec}-${p.id}`}>
+                    <CardContent className="p-4">
+                      <div className="flex items-start gap-3">
+                        <div className="h-12 w-12 shrink-0 rounded-full" style={{ background: p.cor }} />
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate font-medium">{p.nome}</div>
+                          <div className="mt-1 flex flex-wrap gap-1">
+                            {p.especialidade ? (
+                              p.especialidade.split(",").map((s: string) => s.trim()).filter(Boolean).map((esp: string) => (
+                                <Badge key={esp} variant="outline" className="text-[10px] px-1.5 py-0 font-normal">
+                                  {esp}
+                                </Badge>
+                              ))
+                            ) : (
+                              <span className="text-xs text-muted-foreground">—</span>
+                            )}
                           </div>
-                        ))
-                      ) : p.valor_sessao ? (
-                        <div className="text-xs text-muted-foreground">
-                          Geral: R$ {Number(p.valor_sessao).toFixed(2)}/sessão
+                          <div className="mt-2 space-y-1">
+                            {p.valores_config && (p.valores_config as any).especialidades?.length > 0 ? (
+                              (p.valores_config as any).especialidades.map((esp: any) => (
+                                <div key={esp.nome} className="text-xs text-muted-foreground flex justify-between gap-4">
+                                  <span>{esp.nome}:</span>
+                                  <span className="font-medium text-foreground">
+                                    Sessão R$ {Number(p.valor_sessao ?? esp.valor_sessao ?? 0).toFixed(2)} | Anamnese R$ {Number(esp.valor_avaliacao ?? 0).toFixed(2)}
+                                  </span>
+                                </div>
+                              ))
+                            ) : p.valor_sessao ? (
+                              <div className="text-xs text-muted-foreground">
+                                Geral: R$ {Number(p.valor_sessao).toFixed(2)}/sessão
+                              </div>
+                            ) : (
+                              <div className="text-xs text-muted-foreground">Valores não configurados</div>
+                            )}
+                          </div>
                         </div>
-                      ) : (
-                        <div className="text-xs text-muted-foreground">Valores não configurados</div>
-                      )}
-                    </div>
-                  </div>
-                  <Badge variant={p.ativo ? "default" : "secondary"}>{p.ativo ? "Ativo" : "Inativo"}</Badge>
-                </div>
-                <div className="mt-4 flex justify-between items-center gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="gap-1 text-xs"
-                    onClick={() => { setEditingValues(p); setValuesOpen(true); }}
-                  >
-                    <DollarSign className="h-3.5 w-3.5" /> Valores
-                  </Button>
-                  <div className="flex gap-1">
-                    <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => { setEditing(p); setOpen(true); }}>
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => {
-                      if (confirm(`Remover ${p.nome}?`)) del.mutate(p.id);
-                    }}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                        <Badge variant={p.ativo ? "default" : "secondary"}>{p.ativo ? "Ativo" : "Inativo"}</Badge>
+                      </div>
+                      <div className="mt-4 flex justify-between items-center gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="gap-1 text-xs"
+                          onClick={() => { setEditingValues(p); setValuesOpen(true); }}
+                        >
+                          <DollarSign className="h-3.5 w-3.5" /> Valores
+                        </Button>
+                        <div className="flex gap-1">
+                          <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => { setEditing(p); setOpen(true); }}>
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => {
+                            if (confirm(`Remover ${p.nome}?`)) del.mutate(p.id);
+                          }}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
           ))}
         </div>
       )}
