@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { ChevronLeft, ChevronRight, Plus, X, Check, ChevronsUpDown } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, X, Check, ChevronsUpDown, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   addDays,
@@ -377,6 +377,21 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
     onError: (e: any) => e.message !== "Cancelado pelo usuário" && toast.error(e.message),
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase
+        .from("agendamentos")
+        .delete()
+        .eq("id", editing.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Agendamento excluído com sucesso");
+      onSaved();
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
   return (
     <DialogContent className="max-w-lg">
       <DialogHeader>
@@ -540,12 +555,34 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
               <Textarea rows={2} value={form.observacoes} onChange={(e) => setForm({ ...form, observacoes: e.target.value })} />
             </div>
 
-            <DialogFooter className="gap-2 pt-2 border-t mt-4">
-              {editing && editing.status !== "cancelado" && (
-                <Button type="button" variant="outline" className="mr-auto gap-1.5 text-destructive hover:text-destructive" onClick={() => onCancel(editing)}>
-                  <X className="h-4 w-4" /> Cancelar agendamento
-                </Button>
-              )}
+            <DialogFooter className="gap-2 pt-2 border-t mt-4 justify-between flex-wrap">
+              <div className="flex gap-2">
+                {editing && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="gap-1.5 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    disabled={deleteMutation.isPending}
+                    onClick={() => {
+                      if (confirm("Tem certeza que deseja excluir permanentemente este agendamento? Esta ação não pode ser desfeita.")) {
+                        deleteMutation.mutate();
+                      }
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4" /> Excluir
+                  </Button>
+                )}
+                {editing && editing.status !== "cancelado" && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="gap-1.5 text-muted-foreground hover:text-destructive"
+                    onClick={() => onCancel(editing)}
+                  >
+                    <X className="h-4 w-4" /> Cancelar agendamento
+                  </Button>
+                )}
+              </div>
               <Button type="submit" disabled={save.isPending}>{save.isPending ? "Salvando…" : "Salvar"}</Button>
             </DialogFooter>
           </div>
