@@ -46,7 +46,7 @@ function LoginPage() {
     const { error } = await signUp(nome, emailUp, passUp);
     setLoading(false);
     if (error) toast.error(error);
-    else toast.success("Conta criada! Verifique seu e-mail se necessário.");
+    else toast.success("Conta criada com sucesso!");
   }
 
   return (
