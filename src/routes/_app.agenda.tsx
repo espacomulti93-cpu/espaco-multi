@@ -398,6 +398,13 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
         : "";
 
       if (editing) {
+        let updateAllFuture = false;
+        if (editing.recorrencia_grupo) {
+          updateAllFuture = confirm(
+            "Este agendamento faz parte de uma série recorrente. Deseja aplicar estas alterações também para todas as datas futuras da série?"
+          );
+        }
+
         const payload: any = {
           ...form,
           sala_id: null,
@@ -406,8 +413,42 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
           data_fim: end,
           observacoes: typePrefix + form.observacoes,
         };
-        const { error } = await supabase.from("agendamentos").update(payload).eq("id", editing.id);
-        if (error) throw error;
+
+        if (updateAllFuture) {
+          const { data: futureAgs, error: fetchError } = await supabase
+            .from("agendamentos")
+            .select("id, data_inicio, data_fim")
+            .eq("recorrencia_grupo", editing.recorrencia_grupo)
+            .gte("data_inicio", editing.data_inicio);
+
+          if (fetchError) throw fetchError;
+
+          const startDiff = new Date(form.data_inicio).getTime() - new Date(editing.data_inicio).getTime();
+          const endDiff = new Date(form.data_fim).getTime() - new Date(editing.data_fim).getTime();
+
+          const updates = (futureAgs ?? []).map((occ) => {
+            const occStart = new Date(new Date(occ.data_inicio).getTime() + startDiff).toISOString();
+            const occEnd = new Date(new Date(occ.data_fim).getTime() + endDiff).toISOString();
+            return supabase
+              .from("agendamentos")
+              .update({
+                paciente_id: form.paciente_id,
+                profissional_id: form.profissional_id,
+                servico_id: matchingServico ? matchingServico.id : null,
+                data_inicio: occStart,
+                data_fim: occEnd,
+                status: form.status,
+                recorrencia: form.recorrencia,
+                observacoes: typePrefix + form.observacoes,
+              })
+              .eq("id", occ.id);
+          });
+
+          await Promise.all(updates);
+        } else {
+          const { error } = await supabase.from("agendamentos").update(payload).eq("id", editing.id);
+          if (error) throw error;
+        }
       } else {
         if (form.recorrencia !== "unica") {
           const occurrences: any[] = [];
@@ -465,12 +506,21 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async () => {
-      const { error } = await supabase
-        .from("agendamentos")
-        .delete()
-        .eq("id", editing.id);
-      if (error) throw error;
+    mutationFn: async (deleteAllFuture: boolean) => {
+      if (deleteAllFuture && editing?.recorrencia_grupo) {
+        const { error } = await supabase
+          .from("agendamentos")
+          .delete()
+          .eq("recorrencia_grupo", editing.recorrencia_grupo)
+          .gte("data_inicio", editing.data_inicio);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from("agendamentos")
+          .delete()
+          .eq("id", editing.id);
+        if (error) throw error;
+      }
     },
     onSuccess: () => {
       toast.success("Agendamento excluído com sucesso");
@@ -659,7 +709,14 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
                     disabled={deleteMutation.isPending}
                     onClick={() => {
                       if (confirm("Tem certeza que deseja excluir permanentemente este agendamento? Esta ação não pode ser desfeita.")) {
-                        deleteMutation.mutate();
+                        const hasFuture = editing?.recorrencia_grupo;
+                        let deleteAllFuture = false;
+                        if (hasFuture) {
+                          deleteAllFuture = confirm(
+                            "Este agendamento faz parte de uma série recorrente. Deseja excluir também todos os agendamentos futuros desta série?"
+                          );
+                        }
+                        deleteMutation.mutate(deleteAllFuture);
                       }
                     }}
                   >
@@ -689,13 +746,22 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
 function CancelDialog({ ag, onDone }: any) {
   const [motivo, setMotivo] = useState("");
   const m = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (cancelAllFuture: boolean) => {
       if (!motivo.trim()) throw new Error("Informe o motivo");
-      const { error } = await supabase
-        .from("agendamentos")
-        .update({ status: "cancelado", motivo_cancelamento: motivo })
-        .eq("id", ag.id);
-      if (error) throw error;
+      if (cancelAllFuture && ag.recorrencia_grupo) {
+        const { error } = await supabase
+          .from("agendamentos")
+          .update({ status: "cancelado", motivo_cancelamento: motivo })
+          .eq("recorrencia_grupo", ag.recorrencia_grupo)
+          .gte("data_inicio", ag.data_inicio);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from("agendamentos")
+          .update({ status: "cancelado", motivo_cancelamento: motivo })
+          .eq("id", ag.id);
+        if (error) throw error;
+      }
     },
     onSuccess: () => { toast.success("Agendamento cancelado"); onDone(); },
     onError: (e: any) => toast.error(e.message),
@@ -703,7 +769,16 @@ function CancelDialog({ ag, onDone }: any) {
   return (
     <DialogContent>
       <DialogHeader><DialogTitle>Cancelar agendamento</DialogTitle></DialogHeader>
-      <form onSubmit={(e) => { e.preventDefault(); m.mutate(); }} className="space-y-3">
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          const cancelAllFuture = ag.recorrencia_grupo
+            ? confirm("Este agendamento faz parte de uma série recorrente. Deseja cancelar também todos os agendamentos futuros desta série?")
+            : false;
+          m.mutate(cancelAllFuture);
+        }}
+        className="space-y-3"
+      >
         <p className="text-sm text-muted-foreground">Informe o motivo do cancelamento. Esta ação não pode ser desfeita.</p>
         <Textarea required value={motivo} onChange={(e) => setMotivo(e.target.value)} placeholder="Motivo…" />
         <DialogFooter>
