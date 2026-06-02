@@ -30,8 +30,6 @@ function ProfissionaisPage() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);
-  const [valuesOpen, setValuesOpen] = useState(false);
-  const [editingValues, setEditingValues] = useState<any>(null);
 
   const { data = [] } = useQuery({
     queryKey: ["profissionais"],
@@ -125,18 +123,6 @@ function ProfissionaisPage() {
             />
           )}
         </Dialog>
-        <Dialog open={valuesOpen} onOpenChange={(o) => { setValuesOpen(o); if (!o) setEditingValues(null); }}>
-          {valuesOpen && (
-            <ValoresDialog
-              prof={editingValues}
-              onSaved={() => {
-                setValuesOpen(false);
-                setEditingValues(null);
-                qc.invalidateQueries({ queryKey: ["profissionais"] });
-              }}
-            />
-          )}
-        </Dialog>
       </div>
       {data.length === 0 ? (
         <Card><CardContent className="py-12 text-center text-sm text-muted-foreground">Nenhum profissional cadastrado.</CardContent></Card>
@@ -225,15 +211,7 @@ function ProfissionaisPage() {
                   </div>
                   <Badge variant={p.ativo ? "default" : "secondary"} onDragStart={(e) => e.stopPropagation()}>{p.ativo ? "Ativo" : "Inativo"}</Badge>
                 </div>
-                <div className="mt-4 flex justify-between items-center gap-2" onDragStart={(e) => e.stopPropagation()}>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="gap-1 text-xs"
-                    onClick={() => { setEditingValues(p); setValuesOpen(true); }}
-                  >
-                    <DollarSign className="h-3.5 w-3.5" /> Valores
-                  </Button>
+                <div className="mt-4 flex justify-end items-center gap-2" onDragStart={(e) => e.stopPropagation()}>
                   <div className="flex gap-1">
                     <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => { setEditing(p); setOpen(true); }}>
                       <Pencil className="h-4 w-4" />
@@ -254,113 +232,6 @@ function ProfissionaisPage() {
   );
 }
 
-function ProfForm({ prof, onSaved }: { prof: any; onSaved: () => void }) {
-  const [form, setForm] = useState({
-    nome: prof?.nome ?? "",
-    especialidades: prof?.especialidade ? prof.especialidade.split(", ").filter(Boolean) : [""],
-    email: prof?.email ?? "",
-    telefone: prof?.telefone ?? "",
-    cor: prof?.cor ?? CORES[0],
-    ativo: prof?.ativo ?? true,
-  });
-  const m = useMutation({
-    mutationFn: async () => {
-      const payload: any = {
-        nome: form.nome,
-        especialidade: form.especialidades.map((s: string) => s.trim()).filter(Boolean).join(", ") || null,
-        email: form.email || null,
-        telefone: form.telefone || null,
-        cor: form.cor,
-        ativo: form.ativo,
-      };
-      if (prof) {
-        const { error } = await supabase.from("profissionais").update(payload).eq("id", prof.id);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.from("profissionais").insert(payload);
-        if (error) throw error;
-      }
-    },
-    onSuccess: () => { toast.success(prof ? "Atualizado" : "Cadastrado"); onSaved(); },
-    onError: (e: any) => toast.error(e.message),
-  });
-  return (
-    <DialogContent>
-      <DialogHeader><DialogTitle>{prof ? "Editar profissional" : "Novo profissional"}</DialogTitle></DialogHeader>
-      <form onSubmit={(e) => { e.preventDefault(); m.mutate(); }} className="space-y-3">
-        <div className="space-y-1.5"><Label>Nome *</Label>
-          <Input required value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} /></div>
-        
-        <div className="space-y-1.5">
-          <Label>Especialidades</Label>
-          <div className="space-y-2">
-            {form.especialidades.map((esp: string, index: number) => (
-              <div key={index} className="flex gap-2 items-center">
-                <Input
-                  value={esp}
-                  onChange={(e) => {
-                    const next = [...form.especialidades];
-                    next[index] = e.target.value;
-                    setForm({ ...form, especialidades: next });
-                  }}
-                  placeholder={`Especialidade ${index + 1}`}
-                />
-                {form.especialidades.length > 1 && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="h-9 w-9 shrink-0 text-muted-foreground hover:text-destructive"
-                    onClick={() => {
-                      setForm({
-                        ...form,
-                        especialidades: form.especialidades.filter((_: string, i: number) => i !== index),
-                      });
-                    }}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                )}
-              </div>
-            ))}
-          </div>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="mt-1"
-            onClick={() => setForm({ ...form, especialidades: [...form.especialidades, ""] })}
-          >
-            <Plus className="h-4 w-4 mr-1.5" /> Adicionar especialidade
-          </Button>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5"><Label>E-mail</Label>
-            <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
-          <div className="space-y-1.5"><Label>Telefone</Label>
-            <Input value={form.telefone} onChange={(e) => setForm({ ...form, telefone: e.target.value })} /></div>
-        </div>
-        <div className="space-y-1.5">
-          <Label>Cor da agenda</Label>
-          <div className="flex flex-wrap gap-2">
-            {CORES.map((c) => (
-              <button
-                type="button"
-                key={c}
-                onClick={() => setForm({ ...form, cor: c })}
-                className={`h-7 w-7 rounded-full ring-offset-2 transition ${form.cor === c ? "ring-2 ring-foreground" : ""}`}
-                style={{ background: c }}
-              />
-            ))}
-          </div>
-        </div>
-        <DialogFooter><Button type="submit" disabled={m.isPending}>Salvar</Button></DialogFooter>
-      </form>
-    </DialogContent>
-  );
-}
-
 const parseMoneyValue = (val: any) => {
   if (val === undefined || val === null || val === "") return null;
   const cleaned = String(val).replace(",", ".").trim();
@@ -368,7 +239,7 @@ const parseMoneyValue = (val: any) => {
   return isNaN(num) ? null : num;
 };
 
-export function ValoresDialog({ prof, onSaved }: { prof: any; onSaved: () => void }) {
+function ProfForm({ prof, onSaved }: { prof: any; onSaved: () => void }) {
   const { data: pacientes = [] } = useQuery({
     queryKey: ["pacientes-min-prof"],
     queryFn: async () => {
@@ -378,40 +249,54 @@ export function ValoresDialog({ prof, onSaved }: { prof: any; onSaved: () => voi
     },
   });
 
-  const specs = prof?.especialidade
-    ? prof.especialidade.split(",").map((s: string) => s.trim()).filter(Boolean)
-    : [];
-
   const config = prof?.valores_config as any || { especialidades: [], descontos: [] };
 
-  const [valoresSpecs, setValoresSpecs] = useState(() => {
-    return specs.map((spec: string) => {
-      const existing = config.especialidades?.find((e: any) => e.nome === spec);
-      return {
-        nome: spec,
-        valor_sessao: existing?.valor_sessao !== undefined && existing?.valor_sessao !== null ? String(existing.valor_sessao) : "",
-        valor_avaliacao: existing?.valor_avaliacao !== undefined && existing?.valor_avaliacao !== null ? String(existing.valor_avaliacao) : "",
-        plano_mensal: existing?.plano_mensal !== undefined && existing?.plano_mensal !== null ? String(existing.plano_mensal) : "",
-      };
-    });
+  const [form, setForm] = useState(() => {
+    const initialSpecs = prof?.especialidade
+      ? prof.especialidade.split(", ").filter(Boolean).map((s: string) => {
+          const existing = config.especialidades?.find((e: any) => e.nome.toLowerCase() === s.toLowerCase());
+          return {
+            nome: s,
+            valor_sessao: existing?.valor_sessao !== undefined && existing?.valor_sessao !== null ? String(existing.valor_sessao) : "",
+            valor_avaliacao: existing?.valor_avaliacao !== undefined && existing?.valor_avaliacao !== null ? String(existing.valor_avaliacao) : "",
+            plano_mensal: existing?.plano_mensal !== undefined && existing?.plano_mensal !== null ? String(existing.plano_mensal) : "",
+          };
+        })
+      : [{ nome: "", valor_sessao: "", valor_avaliacao: "", plano_mensal: "" }];
+
+    return {
+      nome: prof?.nome ?? "",
+      especialidades: initialSpecs,
+      email: prof?.email ?? "",
+      telefone: prof?.telefone ?? "",
+      cor: prof?.cor ?? CORES[0],
+      ativo: prof?.ativo ?? true,
+    };
   });
 
-  const [descontos, setDescontos] = useState(() => {
-    return config.descontos || [];
-  });
-
+  const [descontos, setDescontos] = useState<any[]>(() => config.descontos || []);
   const [newDesc, setNewDesc] = useState({
     paciente_id: "",
-    especialidade: specs[0] || "",
+    especialidade: "",
     valor_sessao: "",
     valor_avaliacao: "",
   });
 
-  const mutation = useMutation({
+  // Set default specialty for new discount when specialties change
+  useEffect(() => {
+    const activeSpecs = form.especialidades.map((e: any) => e.nome.trim()).filter(Boolean);
+    if (activeSpecs.length > 0 && !activeSpecs.includes(newDesc.especialidade)) {
+      setNewDesc((prev) => ({ ...prev, especialidade: activeSpecs[0] }));
+    }
+  }, [form.especialidades]);
+
+  const m = useMutation({
     mutationFn: async () => {
+      const activeSpecs = form.especialidades.filter((e: any) => e.nome.trim());
+
       const payloadConfig = {
-        especialidades: valoresSpecs.map((v: any) => ({
-          nome: v.nome,
+        especialidades: activeSpecs.map((v: any) => ({
+          nome: v.nome.trim(),
           valor_sessao: v.nome.toUpperCase() === "AP" ? null : parseMoneyValue(v.valor_sessao),
           valor_avaliacao: v.nome.toUpperCase() === "AP" ? null : parseMoneyValue(v.valor_avaliacao),
           plano_mensal: v.nome.toUpperCase() === "AP" ? (v.plano_mensal || null) : null,
@@ -423,58 +308,85 @@ export function ValoresDialog({ prof, onSaved }: { prof: any; onSaved: () => voi
           valor_avaliacao: parseMoneyValue(d.valor_avaliacao),
         })),
       };
-      const { error } = await supabase
-        .from("profissionais")
-        .update({ valores_config: payloadConfig })
-        .eq("id", prof.id);
-      if (error) throw error;
+
+      const payload: any = {
+        nome: form.nome,
+        especialidade: activeSpecs.map((e: any) => e.nome.trim()).join(", ") || null,
+        email: form.email || null,
+        telefone: form.telefone || null,
+        cor: form.cor,
+        ativo: form.ativo,
+        valores_config: payloadConfig,
+      };
+
+      if (prof) {
+        const { error } = await supabase.from("profissionais").update(payload).eq("id", prof.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("profissionais").insert(payload);
+        if (error) throw error;
+      }
     },
-    onSuccess: () => {
-      toast.success("Valores e descontos salvos");
-      onSaved();
-    },
+    onSuccess: () => { toast.success(prof ? "Atualizado" : "Cadastrado"); onSaved(); },
     onError: (e: any) => toast.error(e.message),
   });
 
-  return (
-    <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col p-6">
-      <DialogHeader>
-        <DialogTitle>Configurar Valores - {prof.nome}</DialogTitle>
-      </DialogHeader>
-      
-      {specs.length === 0 ? (
-        <div className="py-6 text-center text-sm text-muted-foreground">
-          Cadastre especialidades para este profissional antes de configurar os valores.
-        </div>
-      ) : (
-        <Tabs defaultValue="valores" className="flex-1 flex flex-col overflow-hidden">
-          <TabsList className="grid grid-cols-2">
-            <TabsTrigger value="valores">Valores por Especialidade</TabsTrigger>
-            <TabsTrigger value="descontos">Descontos por Paciente</TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="valores" className="flex-1 overflow-y-auto py-4 space-y-4">
-            <p className="text-xs text-muted-foreground">
-              Defina o valor cobrado por anamnese para cada especialidade. O valor da sessão padrão é obtido do cadastro do profissional.
-            </p>
-            <div className="space-y-3">
-              {valoresSpecs.map((v: any, i: number) => (
-                <div key={v.nome} className="grid grid-cols-3 gap-4 items-end border p-3.5 rounded-lg bg-card shadow-sm">
-                  <div>
-                    <Label className="text-sm font-semibold">{v.nome}</Label>
-                  </div>
-                  {v.nome.toUpperCase() === "AP" ? (
-                    <div className="col-span-2 space-y-1.5">
-                      <Label className="text-xs text-muted-foreground">Plano Mensal (AP)</Label>
+  const renderGeralForm = () => (
+    <div className="space-y-3">
+      <div className="space-y-1.5">
+        <Label>Nome *</Label>
+        <Input required value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} />
+      </div>
+
+      <div className="space-y-1.5">
+        <Label>Especialidades & Valores</Label>
+        <div className="space-y-3">
+          {form.especialidades.map((esp: any, index: number) => (
+            <div key={index} className="border p-3.5 rounded-lg bg-accent/10 space-y-2.5 relative group">
+              <div className="flex gap-2 items-center">
+                <Input
+                  required
+                  value={esp.nome}
+                  onChange={(e) => {
+                    const next = [...form.especialidades];
+                    next[index].nome = e.target.value;
+                    setForm({ ...form, especialidades: next });
+                  }}
+                  placeholder={`Especialidade ${index + 1}`}
+                  className="font-semibold text-sm"
+                />
+                {form.especialidades.length > 1 && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-9 w-9 shrink-0 text-muted-foreground hover:text-destructive"
+                    onClick={() => {
+                      setForm({
+                        ...form,
+                        especialidades: form.especialidades.filter((_: any, i: number) => i !== index),
+                      });
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+
+              {esp.nome.trim() && (
+                <div className="grid grid-cols-2 gap-3 animate-in fade-in duration-200">
+                  {esp.nome.toUpperCase() === "AP" ? (
+                    <div className="col-span-2 space-y-1">
+                      <Label className="text-[11px] text-muted-foreground">Plano Mensal (AP)</Label>
                       <Select
-                        value={v.plano_mensal}
+                        value={esp.plano_mensal}
                         onValueChange={(val) => {
-                          const copy = [...valoresSpecs];
-                          copy[i].plano_mensal = val;
-                          setValoresSpecs(copy);
+                          const next = [...form.especialidades];
+                          next[index].plano_mensal = val;
+                          setForm({ ...form, especialidades: next });
                         }}
                       >
-                        <SelectTrigger className="w-full">
+                        <SelectTrigger className="w-full h-8 text-xs">
                           <SelectValue placeholder="Selecione um plano..." />
                         </SelectTrigger>
                         <SelectContent>
@@ -488,46 +400,111 @@ export function ValoresDialog({ prof, onSaved }: { prof: any; onSaved: () => voi
                     </div>
                   ) : (
                     <>
-                      <div className="space-y-1.5">
-                        <Label className="text-xs text-muted-foreground">Sessão Padrão (R$)</Label>
+                      <div className="space-y-1">
+                        <Label className="text-[11px] text-muted-foreground">Sessão Padrão (R$)</Label>
                         <Input
                           type="number"
                           step="0.01"
                           placeholder="Ex.: 150.00"
-                          value={v.valor_sessao}
+                          value={esp.valor_sessao}
                           onChange={(e) => {
-                            const copy = [...valoresSpecs];
-                            copy[i].valor_sessao = e.target.value;
-                            setValoresSpecs(copy);
+                            const next = [...form.especialidades];
+                            next[index].valor_sessao = e.target.value;
+                            setForm({ ...form, especialidades: next });
                           }}
+                          className="h-8 text-xs"
                         />
                       </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-xs text-muted-foreground">Anamnese (R$)</Label>
+                      <div className="space-y-1">
+                        <Label className="text-[11px] text-muted-foreground">Anamnese (R$)</Label>
                         <Input
                           type="number"
                           step="0.01"
                           placeholder="Ex.: 200.00"
-                          value={v.valor_avaliacao}
+                          value={esp.valor_avaliacao}
                           onChange={(e) => {
-                            const copy = [...valoresSpecs];
-                            copy[i].valor_avaliacao = e.target.value;
-                            setValoresSpecs(copy);
+                            const next = [...form.especialidades];
+                            next[index].valor_avaliacao = e.target.value;
+                            setForm({ ...form, especialidades: next });
                           }}
+                          className="h-8 text-xs"
                         />
                       </div>
                     </>
                   )}
                 </div>
-              ))}
+              )}
             </div>
-          </TabsContent>
-          
-          <TabsContent value="descontos" className="flex-1 overflow-y-auto py-4 space-y-4">
-            <p className="text-xs text-muted-foreground">
-              Configure descontos e valores especiais de sessões e anamneses para pacientes selecionados.
-            </p>
-            
+          ))}
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="mt-1"
+          onClick={() => setForm({ 
+            ...form, 
+            especialidades: [...form.especialidades, { nome: "", valor_sessao: "", valor_avaliacao: "", plano_mensal: "" }] 
+          })}
+        >
+          <Plus className="h-4 w-4 mr-1.5" /> Adicionar especialidade
+        </Button>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1.5">
+          <Label>E-mail</Label>
+          <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+        </div>
+        <div className="space-y-1.5">
+          <Label>Telefone</Label>
+          <Input value={form.telefone} onChange={(e) => setForm({ ...form, telefone: e.target.value })} />
+        </div>
+      </div>
+
+      <div className="space-y-1.5">
+        <Label>Cor da agenda</Label>
+        <div className="flex flex-wrap gap-2">
+          {CORES.map((c) => (
+            <button
+              type="button"
+              key={c}
+              onClick={() => setForm({ ...form, cor: c })}
+              className={`h-7 w-7 rounded-full ring-offset-2 transition ${form.cor === c ? "ring-2 ring-foreground" : ""}`}
+              style={{ background: c }}
+            />
+          ))}
+        </div>
+      </div>
+      
+      <div className="flex items-center space-x-2 pt-2">
+        <input
+          type="checkbox"
+          id="ativo"
+          checked={form.ativo}
+          onChange={(e) => setForm({ ...form, ativo: e.target.checked })}
+          className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+        />
+        <Label htmlFor="ativo" className="text-sm font-medium leading-none cursor-pointer">Ativo</Label>
+      </div>
+    </div>
+  );
+
+  const renderDescontosForm = () => {
+    const activeSpecs = form.especialidades.map((e: any) => e.nome.trim()).filter(Boolean);
+    
+    return (
+      <div className="space-y-4">
+        <p className="text-xs text-muted-foreground">
+          Configure descontos e valores especiais de sessões e anamneses para pacientes selecionados.
+        </p>
+        
+        {activeSpecs.length === 0 ? (
+          <div className="py-6 text-center text-sm text-muted-foreground border rounded-lg">
+            Adicione e salve especialidades na aba "Dados Gerais & Valores" primeiro.
+          </div>
+        ) : (
+          <>
             <div className="grid grid-cols-2 gap-3 p-3 border border-dashed rounded-lg bg-muted/40">
               <div className="space-y-1.5">
                 <Label>Paciente</Label>
@@ -545,7 +522,7 @@ export function ValoresDialog({ prof, onSaved }: { prof: any; onSaved: () => voi
                 <Select value={newDesc.especialidade} onValueChange={(v) => setNewDesc({ ...newDesc, especialidade: v })}>
                   <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
                   <SelectContent>
-                    {specs.map((s: string) => (
+                    {activeSpecs.map((s: string) => (
                       <SelectItem key={s} value={s}>{s}</SelectItem>
                     ))}
                   </SelectContent>
@@ -594,7 +571,7 @@ export function ValoresDialog({ prof, onSaved }: { prof: any; onSaved: () => voi
                       return;
                     }
                     setDescontos([...descontos, newRule]);
-                    setNewDesc({ paciente_id: "", especialidade: specs[0] || "", valor_sessao: "", valor_avaliacao: "" });
+                    setNewDesc({ paciente_id: "", especialidade: activeSpecs[0] || "", valor_sessao: "", valor_avaliacao: "" });
                   }}
                 >
                   <Plus className="h-4 w-4 mr-1.5" /> Adicionar Desconto
@@ -647,15 +624,42 @@ export function ValoresDialog({ prof, onSaved }: { prof: any; onSaved: () => voi
                 </TableBody>
               </Table>
             </div>
-          </TabsContent>
-        </Tabs>
-      )}
-      
-      <DialogFooter className="mt-4 shrink-0">
-        <Button onClick={() => mutation.mutate()} disabled={mutation.isPending}>
-          {mutation.isPending ? "Salvando..." : "Salvar Configuração"}
-        </Button>
-      </DialogFooter>
+          </>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col p-6">
+      <DialogHeader>
+        <DialogTitle>{prof ? "Editar profissional" : "Novo profissional"}</DialogTitle>
+      </DialogHeader>
+      <form onSubmit={(e) => { e.preventDefault(); m.mutate(); }} className="flex-1 flex flex-col overflow-hidden space-y-3">
+        {prof ? (
+          <Tabs defaultValue="geral" className="flex-1 flex flex-col overflow-hidden">
+            <TabsList className="grid grid-cols-2 shrink-0">
+              <TabsTrigger value="geral">Dados Gerais & Valores</TabsTrigger>
+              <TabsTrigger value="descontos">Descontos por Paciente</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="geral" className="flex-1 overflow-y-auto py-2 pr-1 space-y-3">
+              {renderGeralForm()}
+            </TabsContent>
+            
+            <TabsContent value="descontos" className="flex-1 overflow-y-auto py-2 pr-1 space-y-3">
+              {renderDescontosForm()}
+            </TabsContent>
+          </Tabs>
+        ) : (
+          <div className="flex-1 overflow-y-auto py-2 pr-1 space-y-3">
+            {renderGeralForm()}
+          </div>
+        )}
+        <DialogFooter className="shrink-0 pt-2 border-t">
+          <Button type="submit" disabled={m.isPending}>Salvar</Button>
+        </DialogFooter>
+      </form>
     </DialogContent>
   );
 }
