@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Pencil, Trash2, DollarSign } from "lucide-react";
+import { Plus, Pencil, Trash2, DollarSign, GripVertical } from "lucide-react";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -19,6 +19,12 @@ export const Route = createFileRoute("/_app/profissionais")({
 });
 
 const CORES = ["#3b82f6", "#fb923c", "#10b981", "#a78bfa", "#ec4899", "#f59e0b", "#06b6d4", "#ef4444"];
+
+const PLANOS_AP = [
+  { label: "1x na semana: R$ 240,00", value: "240" },
+  { label: "2x na semana: R$ 360,00", value: "360" },
+  { label: "Semana inteira: R$ 450,00", value: "450" },
+];
 
 function ProfissionaisPage() {
   const qc = useQueryClient();
@@ -35,6 +41,54 @@ function ProfissionaisPage() {
       return data;
     },
   });
+
+  const [orderedData, setOrderedData] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (data.length > 0) {
+      const savedOrder = localStorage.getItem("profissionais_ordem");
+      if (savedOrder) {
+        const orderIds = JSON.parse(savedOrder);
+        const sorted = [...data].sort((a, b) => {
+          const idxA = orderIds.indexOf(a.id);
+          const idxB = orderIds.indexOf(b.id);
+          if (idxA === -1 && idxB === -1) return 0;
+          if (idxA === -1) return 1;
+          if (idxB === -1) return -1;
+          return idxA - idxB;
+        });
+        setOrderedData(sorted);
+      } else {
+        setOrderedData(data);
+      }
+    } else {
+      setOrderedData([]);
+    }
+  }, [data]);
+
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    e.dataTransfer.setData("text/plain", index.toString());
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = (e: React.DragEvent, targetIndex: number) => {
+    e.preventDefault();
+    const sourceIndexStr = e.dataTransfer.getData("text/plain");
+    if (!sourceIndexStr) return;
+    const sourceIndex = parseInt(sourceIndexStr, 10);
+    if (sourceIndex === targetIndex) return;
+
+    const items = [...orderedData];
+    const [reorderedItem] = items.splice(sourceIndex, 1);
+    items.splice(targetIndex, 0, reorderedItem);
+
+    setOrderedData(items);
+    const orderIds = items.map((p) => p.id);
+    localStorage.setItem("profissionais_ordem", JSON.stringify(orderIds));
+  };
 
   const del = useMutation({
     mutationFn: async (id: string) => {
@@ -83,9 +137,19 @@ function ProfissionaisPage() {
         <Card><CardContent className="py-12 text-center text-sm text-muted-foreground">Nenhum profissional cadastrado.</CardContent></Card>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {data.map((p) => (
-            <Card key={p.id}>
+          {orderedData.map((p, idx) => (
+            <Card 
+              key={p.id}
+              draggable
+              onDragStart={(e) => handleDragStart(e, idx)}
+              onDragOver={handleDragOver}
+              onDrop={(e) => handleDrop(e, idx)}
+              className="cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow relative group"
+            >
               <CardContent className="p-4">
+                <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab">
+                  <GripVertical className="h-4 w-4 text-muted-foreground" />
+                </div>
                 <div className="flex items-start gap-3">
                   <div className="h-12 w-12 shrink-0 rounded-full" style={{ background: p.cor }} />
                   <div className="min-w-0 flex-1">
@@ -103,14 +167,27 @@ function ProfissionaisPage() {
                     </div>
                     <div className="mt-2 space-y-1">
                       {p.valores_config && (p.valores_config as any).especialidades?.length > 0 ? (
-                        (p.valores_config as any).especialidades.map((esp: any) => (
-                          <div key={esp.nome} className="text-xs text-muted-foreground flex justify-between gap-4">
-                            <span>{esp.nome}:</span>
-                            <span className="font-medium text-foreground">
-                              Sessão R$ {Number(p.valor_sessao ?? esp.valor_sessao ?? 0).toFixed(2)} | Anamnese R$ {Number(esp.valor_avaliacao ?? 0).toFixed(2)}
-                            </span>
-                          </div>
-                        ))
+                        (p.valores_config as any).especialidades.map((esp: any) => {
+                          if (esp.nome.toUpperCase() === "AP") {
+                            const plano = PLANOS_AP.find((pl) => pl.value === String(esp.plano_mensal));
+                            return (
+                              <div key={esp.nome} className="text-xs text-muted-foreground flex justify-between gap-4">
+                                <span className="font-semibold">AP:</span>
+                                <span className="font-medium text-foreground">
+                                  {plano ? plano.label : "Plano não configurado"}
+                                </span>
+                              </div>
+                            );
+                          }
+                          return (
+                            <div key={esp.nome} className="text-xs text-muted-foreground flex justify-between gap-4">
+                              <span>{esp.nome}:</span>
+                              <span className="font-medium text-foreground">
+                                Sessão R$ {Number(p.valor_sessao ?? esp.valor_sessao ?? 0).toFixed(2)} | Anamnese R$ {Number(esp.valor_avaliacao ?? 0).toFixed(2)}
+                              </span>
+                            </div>
+                          );
+                        })
                       ) : p.valor_sessao ? (
                         <div className="text-xs text-muted-foreground">
                           Geral: R$ {Number(p.valor_sessao).toFixed(2)}/sessão
@@ -120,9 +197,9 @@ function ProfissionaisPage() {
                       )}
                     </div>
                   </div>
-                  <Badge variant={p.ativo ? "default" : "secondary"}>{p.ativo ? "Ativo" : "Inativo"}</Badge>
+                  <Badge variant={p.ativo ? "default" : "secondary"} onDragStart={(e) => e.stopPropagation()}>{p.ativo ? "Ativo" : "Inativo"}</Badge>
                 </div>
-                <div className="mt-4 flex justify-between items-center gap-2">
+                <div className="mt-4 flex justify-between items-center gap-2" onDragStart={(e) => e.stopPropagation()}>
                   <Button
                     size="sm"
                     variant="outline"
@@ -292,6 +369,7 @@ export function ValoresDialog({ prof, onSaved }: { prof: any; onSaved: () => voi
         nome: spec,
         valor_sessao: existing?.valor_sessao !== undefined && existing?.valor_sessao !== null ? String(existing.valor_sessao) : "",
         valor_avaliacao: existing?.valor_avaliacao !== undefined && existing?.valor_avaliacao !== null ? String(existing.valor_avaliacao) : "",
+        plano_mensal: existing?.plano_mensal !== undefined && existing?.plano_mensal !== null ? String(existing.plano_mensal) : "",
       };
     });
   });
@@ -312,8 +390,9 @@ export function ValoresDialog({ prof, onSaved }: { prof: any; onSaved: () => voi
       const payloadConfig = {
         especialidades: valoresSpecs.map((v) => ({
           nome: v.nome,
-          valor_sessao: prof?.valor_sessao !== undefined && prof?.valor_sessao !== null ? parseMoneyValue(prof.valor_sessao) : null,
-          valor_avaliacao: parseMoneyValue(v.valor_avaliacao),
+          valor_sessao: v.nome.toUpperCase() === "AP" ? null : (prof?.valor_sessao !== undefined && prof?.valor_sessao !== null ? parseMoneyValue(prof.valor_sessao) : null),
+          valor_avaliacao: v.nome.toUpperCase() === "AP" ? null : parseMoneyValue(v.valor_avaliacao),
+          plano_mensal: v.nome.toUpperCase() === "AP" ? (v.plano_mensal || null) : null,
         })),
         descontos: descontos.map((d: any) => ({
           paciente_id: d.paciente_id,
@@ -362,30 +441,57 @@ export function ValoresDialog({ prof, onSaved }: { prof: any; onSaved: () => voi
                   <div>
                     <Label className="text-sm font-semibold">{v.nome}</Label>
                   </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs text-muted-foreground">Sessão Padrão (R$)</Label>
-                    <Input
-                      type="text"
-                      disabled
-                      placeholder="Não definido"
-                      value={prof?.valor_sessao !== undefined && prof?.valor_sessao !== null ? Number(prof.valor_sessao).toFixed(2) : ""}
-                      className="bg-muted text-muted-foreground cursor-not-allowed"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs text-muted-foreground">Anamnese (R$)</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      placeholder="Ex.: 200.00"
-                      value={v.valor_avaliacao}
-                      onChange={(e) => {
-                        const copy = [...valoresSpecs];
-                        copy[i].valor_avaliacao = e.target.value;
-                        setValoresSpecs(copy);
-                      }}
-                    />
-                  </div>
+                  {v.nome.toUpperCase() === "AP" ? (
+                    <div className="col-span-2 space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">Plano Mensal (AP)</Label>
+                      <Select
+                        value={v.plano_mensal}
+                        onValueChange={(val) => {
+                          const copy = [...valoresSpecs];
+                          copy[i].plano_mensal = val;
+                          setValoresSpecs(copy);
+                        }}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Selecione um plano..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {PLANOS_AP.map((plano) => (
+                            <SelectItem key={plano.value} value={plano.value}>
+                              {plano.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-muted-foreground">Sessão Padrão (R$)</Label>
+                        <Input
+                          type="text"
+                          disabled
+                          placeholder="Não definido"
+                          value={prof?.valor_sessao !== undefined && prof?.valor_sessao !== null ? Number(prof.valor_sessao).toFixed(2) : ""}
+                          className="bg-muted text-muted-foreground cursor-not-allowed"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-muted-foreground">Anamnese (R$)</Label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          placeholder="Ex.: 200.00"
+                          value={v.valor_avaliacao}
+                          onChange={(e) => {
+                            const copy = [...valoresSpecs];
+                            copy[i].valor_avaliacao = e.target.value;
+                            setValoresSpecs(copy);
+                          }}
+                        />
+                      </div>
+                    </>
+                  )}
                 </div>
               ))}
             </div>
