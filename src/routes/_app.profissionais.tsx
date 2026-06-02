@@ -262,6 +262,13 @@ function ProfForm({ prof, onSaved }: { prof: any; onSaved: () => void }) {
   );
 }
 
+const parseMoneyValue = (val: any) => {
+  if (val === undefined || val === null || val === "") return null;
+  const cleaned = String(val).replace(",", ".").trim();
+  const num = Number(cleaned);
+  return isNaN(num) ? null : num;
+};
+
 export function ValoresDialog({ prof, onSaved }: { prof: any; onSaved: () => void }) {
   const { data: pacientes = [] } = useQuery({
     queryKey: ["pacientes-min-prof"],
@@ -305,14 +312,14 @@ export function ValoresDialog({ prof, onSaved }: { prof: any; onSaved: () => voi
       const payloadConfig = {
         especialidades: valoresSpecs.map((v) => ({
           nome: v.nome,
-          valor_sessao: prof?.valor_sessao !== undefined && prof?.valor_sessao !== null ? Number(prof.valor_sessao) : null,
-          valor_avaliacao: v.valor_avaliacao ? Number(v.valor_avaliacao) : null,
+          valor_sessao: prof?.valor_sessao !== undefined && prof?.valor_sessao !== null ? parseMoneyValue(prof.valor_sessao) : null,
+          valor_avaliacao: parseMoneyValue(v.valor_avaliacao),
         })),
         descontos: descontos.map((d: any) => ({
           paciente_id: d.paciente_id,
           especialidade: d.especialidade,
-          valor_sessao: Number(d.valor_sessao),
-          valor_avaliacao: Number(d.valor_avaliacao),
+          valor_sessao: parseMoneyValue(d.valor_sessao),
+          valor_avaliacao: parseMoneyValue(d.valor_avaliacao),
         })),
       };
       const { error } = await supabase
@@ -368,7 +375,8 @@ export function ValoresDialog({ prof, onSaved }: { prof: any; onSaved: () => voi
                   <div className="space-y-1.5">
                     <Label className="text-xs text-muted-foreground">Anamnese (R$)</Label>
                     <Input
-                      type="text"
+                      type="number"
+                      step="0.01"
                       placeholder="Ex.: 200.00"
                       value={v.valor_avaliacao}
                       onChange={(e) => {
@@ -443,8 +451,8 @@ export function ValoresDialog({ prof, onSaved }: { prof: any; onSaved: () => voi
                     const newRule = {
                       paciente_id: newDesc.paciente_id,
                       especialidade: newDesc.especialidade,
-                      valor_sessao: Number(newDesc.valor_sessao),
-                      valor_avaliacao: Number(newDesc.valor_avaliacao),
+                      valor_sessao: parseMoneyValue(newDesc.valor_sessao) ?? 0,
+                      valor_avaliacao: parseMoneyValue(newDesc.valor_avaliacao) ?? 0,
                     };
                     const exists = descontos.some(
                       (d: any) => d.paciente_id === newRule.paciente_id && d.especialidade === newRule.especialidade
