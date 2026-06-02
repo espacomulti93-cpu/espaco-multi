@@ -42,6 +42,11 @@ function ProfissionaisPage() {
     },
   });
 
+  const { data: pacientes = [] } = useQuery({
+    queryKey: ["pacientes-nomes"],
+    queryFn: async () => (await supabase.from("pacientes").select("id, nome")).data ?? [],
+  });
+
   const [orderedData, setOrderedData] = useState<any[]>([]);
 
   useEffect(() => {
@@ -167,27 +172,34 @@ function ProfissionaisPage() {
                     </div>
                     <div className="mt-2 space-y-1">
                       {p.valores_config && (p.valores_config as any).especialidades?.length > 0 ? (
-                        (p.valores_config as any).especialidades.map((esp: any) => {
-                          if (esp.nome.toUpperCase() === "AP") {
-                            const plano = PLANOS_AP.find((pl) => pl.value === String(esp.plano_mensal));
+                        (p.valores_config as any).especialidades
+                          .filter((esp: any) => {
+                            const activeSpecs = p.especialidade
+                              ? p.especialidade.split(",").map((s: string) => s.trim().toLowerCase())
+                              : [];
+                            return activeSpecs.includes(esp.nome.toLowerCase());
+                          })
+                          .map((esp: any) => {
+                            if (esp.nome.toUpperCase() === "AP") {
+                              const plano = PLANOS_AP.find((pl) => pl.value === String(esp.plano_mensal));
+                              return (
+                                <div key={esp.nome} className="text-xs text-muted-foreground flex justify-between gap-4">
+                                  <span className="font-semibold">AP:</span>
+                                  <span className="font-medium text-foreground">
+                                    {plano ? plano.label : "Plano não configurado"}
+                                  </span>
+                                </div>
+                              );
+                            }
                             return (
                               <div key={esp.nome} className="text-xs text-muted-foreground flex justify-between gap-4">
-                                <span className="font-semibold">AP:</span>
+                                <span>{esp.nome}:</span>
                                 <span className="font-medium text-foreground">
-                                  {plano ? plano.label : "Plano não configurado"}
+                                  Sessão R$ {Number(p.valor_sessao ?? esp.valor_sessao ?? 0).toFixed(2)} | Anamnese R$ {Number(esp.valor_avaliacao ?? 0).toFixed(2)}
                                 </span>
                               </div>
                             );
-                          }
-                          return (
-                            <div key={esp.nome} className="text-xs text-muted-foreground flex justify-between gap-4">
-                              <span>{esp.nome}:</span>
-                              <span className="font-medium text-foreground">
-                                Sessão R$ {Number(p.valor_sessao ?? esp.valor_sessao ?? 0).toFixed(2)} | Anamnese R$ {Number(esp.valor_avaliacao ?? 0).toFixed(2)}
-                              </span>
-                            </div>
-                          );
-                        })
+                          })
                       ) : p.valor_sessao ? (
                         <div className="text-xs text-muted-foreground">
                           Geral: R$ {Number(p.valor_sessao).toFixed(2)}/sessão
@@ -196,6 +208,20 @@ function ProfissionaisPage() {
                         <div className="text-xs text-muted-foreground">Valores não configurados</div>
                       )}
                     </div>
+                    {p.valores_config && (p.valores_config as any).descontos?.length > 0 && (
+                      <div className="mt-2 pt-2 border-t text-[11px] text-muted-foreground space-y-0.5">
+                        <span className="font-semibold text-foreground block">Descontos ativos:</span>
+                        {(p.valores_config as any).descontos.map((d: any, idx: number) => {
+                          const pac = pacientes.find((pac: any) => pac.id === d.paciente_id);
+                          return (
+                            <div key={idx} className="flex justify-between text-[10px] text-muted-foreground">
+                              <span>{pac?.nome || "Carregando..."} ({d.especialidade})</span>
+                              <span>R$ {Number(d.valor_sessao ?? 0).toFixed(2)}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                   <Badge variant={p.ativo ? "default" : "secondary"} onDragStart={(e) => e.stopPropagation()}>{p.ativo ? "Ativo" : "Inativo"}</Badge>
                 </div>
@@ -363,7 +389,7 @@ export function ValoresDialog({ prof, onSaved }: { prof: any; onSaved: () => voi
   const config = prof?.valores_config as any || { especialidades: [], descontos: [] };
 
   const [valoresSpecs, setValoresSpecs] = useState(() => {
-    return specs.map((spec) => {
+    return specs.map((spec: string) => {
       const existing = config.especialidades?.find((e: any) => e.nome === spec);
       return {
         nome: spec,
@@ -388,7 +414,7 @@ export function ValoresDialog({ prof, onSaved }: { prof: any; onSaved: () => voi
   const mutation = useMutation({
     mutationFn: async () => {
       const payloadConfig = {
-        especialidades: valoresSpecs.map((v) => ({
+        especialidades: valoresSpecs.map((v: any) => ({
           nome: v.nome,
           valor_sessao: v.nome.toUpperCase() === "AP" ? null : (prof?.valor_sessao !== undefined && prof?.valor_sessao !== null ? parseMoneyValue(prof.valor_sessao) : null),
           valor_avaliacao: v.nome.toUpperCase() === "AP" ? null : parseMoneyValue(v.valor_avaliacao),
@@ -436,7 +462,7 @@ export function ValoresDialog({ prof, onSaved }: { prof: any; onSaved: () => voi
               Defina o valor cobrado por anamnese para cada especialidade. O valor da sessão padrão é obtido do cadastro do profissional.
             </p>
             <div className="space-y-3">
-              {valoresSpecs.map((v, i) => (
+              {valoresSpecs.map((v: any, i: number) => (
                 <div key={v.nome} className="grid grid-cols-3 gap-4 items-end border p-3.5 rounded-lg bg-card shadow-sm">
                   <div>
                     <Label className="text-sm font-semibold">{v.nome}</Label>
@@ -519,7 +545,7 @@ export function ValoresDialog({ prof, onSaved }: { prof: any; onSaved: () => voi
                 <Select value={newDesc.especialidade} onValueChange={(v) => setNewDesc({ ...newDesc, especialidade: v })}>
                   <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
                   <SelectContent>
-                    {specs.map((s) => (
+                    {specs.map((s: string) => (
                       <SelectItem key={s} value={s}>{s}</SelectItem>
                     ))}
                   </SelectContent>

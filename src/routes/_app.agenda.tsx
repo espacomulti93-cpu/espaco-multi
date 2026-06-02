@@ -397,20 +397,67 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
         ? (tipoAgendamento === "anamnese" ? "[Tipo: Anamnese]\n" : "[Tipo: Sessão Padrão]\n")
         : "";
 
-      const payload: any = {
-        ...form,
-        sala_id: null,
-        servico_id: matchingServico ? matchingServico.id : null,
-        data_inicio: start,
-        data_fim: end,
-        observacoes: typePrefix + form.observacoes,
-      };
       if (editing) {
+        const payload: any = {
+          ...form,
+          sala_id: null,
+          servico_id: matchingServico ? matchingServico.id : null,
+          data_inicio: start,
+          data_fim: end,
+          observacoes: typePrefix + form.observacoes,
+        };
         const { error } = await supabase.from("agendamentos").update(payload).eq("id", editing.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("agendamentos").insert(payload);
-        if (error) throw error;
+        if (form.recorrencia !== "unica") {
+          const occurrences: any[] = [];
+          const numOccurrences = 12;
+          const groupId = crypto.randomUUID();
+
+          for (let i = 0; i < numOccurrences; i++) {
+            let occStart: Date;
+            let occEnd: Date;
+            if (form.recorrencia === "semanal") {
+              occStart = addWeeks(new Date(form.data_inicio), i);
+              occEnd = addWeeks(new Date(form.data_fim), i);
+            } else if (form.recorrencia === "quinzenal") {
+              occStart = addWeeks(new Date(form.data_inicio), i * 2);
+              occEnd = addWeeks(new Date(form.data_fim), i * 2);
+            } else if (form.recorrencia === "mensal") {
+              const baseStart = new Date(form.data_inicio);
+              const baseEnd = new Date(form.data_fim);
+              occStart = new Date(baseStart.getFullYear(), baseStart.getMonth() + i, baseStart.getDate(), baseStart.getHours(), baseStart.getMinutes());
+              occEnd = new Date(baseEnd.getFullYear(), baseEnd.getMonth() + i, baseEnd.getDate(), baseEnd.getHours(), baseEnd.getMinutes());
+            } else {
+              occStart = new Date(form.data_inicio);
+              occEnd = new Date(form.data_fim);
+            }
+
+            const payload: any = {
+              ...form,
+              sala_id: null,
+              servico_id: matchingServico ? matchingServico.id : null,
+              data_inicio: occStart.toISOString(),
+              data_fim: occEnd.toISOString(),
+              observacoes: typePrefix + form.observacoes,
+              recorrencia_grupo: groupId,
+            };
+            occurrences.push(payload);
+          }
+          const { error } = await supabase.from("agendamentos").insert(occurrences);
+          if (error) throw error;
+        } else {
+          const payload: any = {
+            ...form,
+            sala_id: null,
+            servico_id: matchingServico ? matchingServico.id : null,
+            data_inicio: start,
+            data_fim: end,
+            observacoes: typePrefix + form.observacoes,
+          };
+          const { error } = await supabase.from("agendamentos").insert(payload);
+          if (error) throw error;
+        }
       }
     },
     onSuccess: () => { toast.success(editing ? "Agendamento atualizado" : "Agendamento criado"); onSaved(); },
@@ -433,7 +480,7 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
   });
 
   return (
-    <DialogContent className="max-w-lg">
+    <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
       <DialogHeader>
         <DialogTitle>{editing ? "Editar agendamento" : "Novo agendamento"}</DialogTitle>
       </DialogHeader>
