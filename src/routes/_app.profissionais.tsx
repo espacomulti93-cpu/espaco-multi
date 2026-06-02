@@ -107,7 +107,7 @@ function ProfissionaisPage() {
                           <div key={esp.nome} className="text-xs text-muted-foreground flex justify-between gap-4">
                             <span>{esp.nome}:</span>
                             <span className="font-medium text-foreground">
-                              Sessão R$ {Number(esp.valor_sessao).toFixed(2)} | Av. R$ {Number(esp.valor_avaliacao).toFixed(2)}
+                              Sessão R$ {Number(p.valor_sessao ?? esp.valor_sessao ?? 0).toFixed(2)} | Anamnese R$ {Number(esp.valor_avaliacao ?? 0).toFixed(2)}
                             </span>
                           </div>
                         ))
@@ -305,7 +305,7 @@ export function ValoresDialog({ prof, onSaved }: { prof: any; onSaved: () => voi
       const payloadConfig = {
         especialidades: valoresSpecs.map((v) => ({
           nome: v.nome,
-          valor_sessao: v.valor_sessao ? Number(v.valor_sessao) : null,
+          valor_sessao: prof?.valor_sessao !== undefined && prof?.valor_sessao !== null ? Number(prof.valor_sessao) : null,
           valor_avaliacao: v.valor_avaliacao ? Number(v.valor_avaliacao) : null,
         })),
         descontos: descontos.map((d: any) => ({
@@ -347,7 +347,7 @@ export function ValoresDialog({ prof, onSaved }: { prof: any; onSaved: () => voi
           
           <TabsContent value="valores" className="flex-1 overflow-y-auto py-4 space-y-4">
             <p className="text-xs text-muted-foreground">
-              Defina o valor cobrado por sessão de tratamento e avaliação inicial para cada especialidade.
+              Defina o valor cobrado por anamnese para cada especialidade. O valor da sessão padrão é obtido do cadastro do profissional.
             </p>
             <div className="space-y-3">
               {valoresSpecs.map((v, i) => (
@@ -359,17 +359,14 @@ export function ValoresDialog({ prof, onSaved }: { prof: any; onSaved: () => voi
                     <Label className="text-xs text-muted-foreground">Sessão Padrão (R$)</Label>
                     <Input
                       type="text"
-                      placeholder="Ex.: 150.00"
-                      value={v.valor_sessao}
-                      onChange={(e) => {
-                        const copy = [...valoresSpecs];
-                        copy[i].valor_sessao = e.target.value;
-                        setValoresSpecs(copy);
-                      }}
+                      disabled
+                      placeholder="Não definido"
+                      value={prof?.valor_sessao !== undefined && prof?.valor_sessao !== null ? Number(prof.valor_sessao).toFixed(2) : ""}
+                      className="bg-muted text-muted-foreground cursor-not-allowed"
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-xs text-muted-foreground">Avaliação Prévia (R$)</Label>
+                    <Label className="text-xs text-muted-foreground">Anamnese (R$)</Label>
                     <Input
                       type="text"
                       placeholder="Ex.: 200.00"
@@ -388,7 +385,7 @@ export function ValoresDialog({ prof, onSaved }: { prof: any; onSaved: () => voi
           
           <TabsContent value="descontos" className="flex-1 overflow-y-auto py-4 space-y-4">
             <p className="text-xs text-muted-foreground">
-              Configure descontos e valores especiais de sessões e avaliações para pacientes selecionados.
+              Configure descontos e valores especiais de sessões e anamneses para pacientes selecionados.
             </p>
             
             <div className="grid grid-cols-2 gap-3 p-3 border border-dashed rounded-lg bg-muted/40">
@@ -425,7 +422,7 @@ export function ValoresDialog({ prof, onSaved }: { prof: any; onSaved: () => voi
                 />
               </div>
               <div className="space-y-1.5">
-                <Label>Valor Avaliação (R$)</Label>
+                <Label>Valor Anamnese (R$)</Label>
                 <Input
                   type="number"
                   step="0.01"
@@ -472,7 +469,7 @@ export function ValoresDialog({ prof, onSaved }: { prof: any; onSaved: () => voi
                     <TableHead>Paciente</TableHead>
                     <TableHead>Especialidade</TableHead>
                     <TableHead>Sessão</TableHead>
-                    <TableHead>Avaliação</TableHead>
+                    <TableHead>Anamnese</TableHead>
                     <TableHead className="w-12"></TableHead>
                   </TableRow>
                 </TableHeader>
