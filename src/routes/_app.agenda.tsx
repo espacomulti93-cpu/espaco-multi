@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { ChevronLeft, ChevronRight, Plus, X, Check, ChevronsUpDown, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, X, Check, ChevronsUpDown, Trash2, MessageCircle } from "lucide-react";
 import { toast } from "sonner";
 import {
   addDays,
@@ -260,6 +260,40 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
       (a, b) => new Date(a.data_inicio).getTime() - new Date(b.data_inicio).getTime()
     );
   }, [patientAgs]);
+
+  const { data: responsaveisPaciente = [] } = useQuery({
+    queryKey: ["responsaveis-paciente-dialog", form.paciente_id],
+    queryFn: async () => {
+      if (!form.paciente_id) return [];
+      const { data, error } = await supabase
+        .from("responsaveis")
+        .select("telefone, whatsapp, nome")
+        .eq("paciente_id", form.paciente_id);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!form.paciente_id,
+  });
+
+  const whatsappUrl = useMemo(() => {
+    if (!responsaveisPaciente.length) return null;
+    const respWithWhats = responsaveisPaciente.find((r: any) => r.whatsapp);
+    const respWithTel = responsaveisPaciente.find((r: any) => r.telefone);
+    const num = respWithWhats?.whatsapp || respWithWhats?.telefone || respWithTel?.whatsapp || respWithTel?.telefone;
+    if (!num) return null;
+
+    const cleanNum = num.replace(/\D/g, "");
+    if (!cleanNum) return null;
+
+    let phoneWithCountry = cleanNum;
+    if (cleanNum.length === 10 || cleanNum.length === 11) {
+      phoneWithCountry = "55" + cleanNum;
+    }
+
+    const pacienteNome = selectedPaciente?.nome || editing?.pacientes?.nome || "";
+    const msg = encodeURIComponent(`Olá! Gostaria de falar sobre o agendamento de ${pacienteNome}.`);
+    return `https://wa.me/${phoneWithCountry}?text=${msg}`;
+  }, [responsaveisPaciente, selectedPaciente, editing]);
 
   const displayedPacientes = useMemo(() => {
     if (editing) {
@@ -647,11 +681,22 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
                       {format(new Date(editing.data_inicio), "dd/MM/yyyy HH:mm", { locale: ptBR })}
                     </span>
                   </div>
-                  <div>
+                  <div className="flex items-center flex-wrap gap-1">
                     <span className="text-muted-foreground font-medium">Status:</span>{" "}
-                    <Badge variant="secondary" className="h-4 px-1 text-[9px] ml-1 font-semibold">
+                    <Badge variant="secondary" className="h-4 px-1 text-[9px] font-semibold">
                       {STATUS_LABEL[editing.status] || editing.status}
                     </Badge>
+                    {editing.status !== "confirmado" && whatsappUrl && (
+                      <a
+                        href={whatsappUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-0.5 ml-1 text-[10px] text-green-600 hover:text-green-700 hover:underline font-semibold"
+                        title="Contatar via WhatsApp"
+                      >
+                        <MessageCircle className="h-3.5 w-3.5 fill-green-600/10" /> WhatsApp
+                      </a>
+                    )}
                   </div>
                   <div>
                     <span className="text-muted-foreground font-medium">Recorrência:</span>{" "}
@@ -855,6 +900,19 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
                     {Object.entries(STATUS_LABEL).map(([v, l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}
                   </SelectContent>
                 </Select>
+                {editing && form.status !== "confirmado" && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="w-full mt-1.5 h-8 gap-1.5 text-green-600 hover:text-green-700 hover:bg-green-50 border-green-200/60 dark:border-green-900/30 text-xs"
+                    disabled={!whatsappUrl}
+                    onClick={() => whatsappUrl && window.open(whatsappUrl, "_blank")}
+                  >
+                    <MessageCircle className="h-4 w-4 fill-green-600/10" />
+                    {whatsappUrl ? "WhatsApp Paciente" : "Sem WhatsApp"}
+                  </Button>
+                )}
               </div>
               <div className="space-y-1.5">
                 <Label>Recorrência</Label>
