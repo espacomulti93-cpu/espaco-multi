@@ -35,8 +35,15 @@ const items = [
 
 export function AppSidebar() {
   const path = useRouterState({ select: (r) => r.location.pathname });
-  const { user, signOut } = useAuth();
+  const { user, roles, signOut } = useAuth();
   const { setOpen, setOpenMobile } = useSidebar();
+
+  const menuItems = [
+    ...items,
+    ...(roles.includes("admin")
+      ? [{ title: "Diretoria", url: "/diretoria", icon: DollarSign }]
+      : []),
+  ];
 
   return (
     <Sidebar collapsible="icon">
@@ -55,7 +62,7 @@ export function AppSidebar() {
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
-              {items.map((item) => {
+              {menuItems.map((item) => {
                 const active = path === item.url || path.startsWith(item.url + "/");
                 return (
                   <SidebarMenuItem key={item.url}>

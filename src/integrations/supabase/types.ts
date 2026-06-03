@@ -126,6 +126,36 @@ export type Database = {
           },
         ];
       };
+      despesas: {
+        Row: {
+          categoria: string | null;
+          created_at: string;
+          data: string;
+          descricao: string;
+          id: string;
+          updated_at: string;
+          valor: number;
+        };
+        Insert: {
+          categoria?: string | null;
+          created_at?: string;
+          data?: string;
+          descricao: string;
+          id?: string;
+          updated_at?: string;
+          valor?: number;
+        };
+        Update: {
+          categoria?: string | null;
+          created_at?: string;
+          data?: string;
+          descricao?: string;
+          id?: string;
+          updated_at?: string;
+          valor?: number;
+        };
+        Relationships: [];
+      };
       fatura_itens: {
         Row: {
           agendamento_id: string | null;

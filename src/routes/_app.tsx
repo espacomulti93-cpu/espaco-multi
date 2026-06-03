@@ -15,6 +15,7 @@ const titles: Record<string, string> = {
   "/pacientes": "Pacientes",
   "/profissionais": "Profissionais",
   "/relatorios": "Relatórios",
+  "/diretoria": "Diretoria",
 };
 
 function AppLayout() {
