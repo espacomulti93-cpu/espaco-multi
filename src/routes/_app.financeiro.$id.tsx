@@ -184,20 +184,12 @@ function FaturaDetail() {
               </div>
               <div className="flex items-center gap-2">
                 <div className="text-sm font-semibold">{brl(Number(it.total))}</div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={async () => {
-                    await supabase.from("fatura_itens").delete().eq("id", it.id);
-                    qc.invalidateQueries({ queryKey: ["fatura-itens", id] });
-                  }}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
               </div>
             </div>
           ))}
-          <NovoItemForm faturaId={id} onSaved={() => qc.invalidateQueries({ queryKey: ["fatura-itens", id] })} />
+          <p className="text-xs text-muted-foreground text-center pt-2 italic">
+            Estes itens são gerados automaticamente a partir da Agenda. Para modificar ou excluir sessões, altere o status ou remova o agendamento correspondente na Agenda.
+          </p>
         </CardContent>
       </Card>
     </div>
@@ -209,40 +201,6 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
     <div>
       <div className="text-xs uppercase tracking-wide text-muted-foreground">{label}</div>
       <div className="mt-1 text-sm">{children}</div>
-    </div>
-  );
-}
-
-function NovoItemForm({ faturaId, onSaved }: { faturaId: string; onSaved: () => void }) {
-  const [descricao, setDescricao] = useState("");
-  const [quantidade, setQuantidade] = useState("1");
-  const [valor, setValor] = useState("");
-
-  async function add() {
-    const q = Number(quantidade || 1);
-    const v = Number(valor || 0);
-    const { error } = await supabase.from("fatura_itens").insert({
-      fatura_id: faturaId,
-      descricao,
-      quantidade: q,
-      valor_unitario: v,
-      total: q * v,
-    });
-    if (error) return toast.error(error.message);
-    setDescricao("");
-    setValor("");
-    setQuantidade("1");
-    onSaved();
-  }
-
-  return (
-    <div className="grid gap-2 rounded-md border border-dashed p-3 sm:grid-cols-[1fr_80px_120px_auto]">
-      <Input placeholder="Descrição" value={descricao} onChange={(e) => setDescricao(e.target.value)} />
-      <Input type="number" min="1" value={quantidade} onChange={(e) => setQuantidade(e.target.value)} />
-      <Input type="number" step="0.01" placeholder="Valor" value={valor} onChange={(e) => setValor(e.target.value)} />
-      <Button onClick={add} disabled={!descricao || !valor}>
-        <Plus className="h-4 w-4" />
-      </Button>
     </div>
   );
 }

@@ -131,19 +131,12 @@ function FinanceiroPage() {
                 <SelectItem value="cancelada">Cancelada</SelectItem>
               </SelectContent>
             </Select>
-            <Dialog open={open} onOpenChange={setOpen}>
-              <DialogTrigger asChild>
-                <Button className="ml-auto gap-1.5">
-                  <Plus className="h-4 w-4" /> Nova fatura
-                </Button>
-              </DialogTrigger>
-              <NovaFaturaDialog
-                onSaved={() => {
-                  setOpen(false);
-                  qc.invalidateQueries({ queryKey: ["faturas"] });
-                }}
-              />
-            </Dialog>
+            <div className="bg-primary/5 border border-primary/20 text-foreground text-xs rounded-lg p-3 flex gap-2 items-center font-medium animate-in fade-in duration-200 ml-auto max-w-md">
+              <AlertCircle className="h-4 w-4 text-primary shrink-0" />
+              <span>
+                As faturas são geradas e atualizadas de forma 100% automática a partir dos agendamentos com status "Confirmado" na Agenda.
+              </span>
+            </div>
           </div>
 
           <Card>
@@ -222,106 +215,6 @@ function StatCard({
         </div>
       </CardContent>
     </Card>
-  );
-}
-
-function NovaFaturaDialog({ onSaved }: { onSaved: () => void }) {
-  const [pacienteId, setPacienteId] = useState("");
-  const [competencia, setCompetencia] = useState(format(new Date(), "yyyy-MM-01"));
-  const [vencimento, setVencimento] = useState("");
-  const [valor, setValor] = useState("");
-  const [descricao, setDescricao] = useState("");
-
-  const { data: pacientes = [] } = useQuery({
-    queryKey: ["pacientes-min-fatura"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("pacientes").select("id, nome").order("nome");
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  const save = useMutation({
-    mutationFn: async () => {
-      const v = Number(valor || 0);
-      const { data: fat, error } = await supabase
-        .from("faturas")
-        .insert({
-          paciente_id: pacienteId,
-          competencia,
-          vencimento: vencimento || null,
-          valor: v,
-          status: "aberta",
-        })
-        .select()
-        .single();
-      if (error) throw error;
-      if (descricao) {
-        await supabase.from("fatura_itens").insert({
-          fatura_id: fat.id,
-          descricao,
-          quantidade: 1,
-          valor_unitario: v,
-          total: v,
-        });
-      }
-    },
-    onSuccess: () => {
-      toast.success("Fatura criada");
-      onSaved();
-    },
-    onError: (e: any) => toast.error(e.message),
-  });
-
-  return (
-    <DialogContent>
-      <DialogHeader>
-        <DialogTitle>Nova fatura</DialogTitle>
-      </DialogHeader>
-      <div className="space-y-3">
-        <div className="space-y-1.5">
-          <Label>Paciente</Label>
-          <Select value={pacienteId} onValueChange={setPacienteId}>
-            <SelectTrigger>
-              <SelectValue placeholder="Selecione" />
-            </SelectTrigger>
-            <SelectContent>
-              {pacientes.map((p: any) => (
-                <SelectItem key={p.id} value={p.id}>
-                  {p.nome}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5">
-            <Label>Competência</Label>
-            <Input type="date" value={competencia} onChange={(e) => setCompetencia(e.target.value)} />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Vencimento</Label>
-            <Input type="date" value={vencimento} onChange={(e) => setVencimento(e.target.value)} />
-          </div>
-        </div>
-        <div className="space-y-1.5">
-          <Label>Valor (R$)</Label>
-          <Input type="number" step="0.01" value={valor} onChange={(e) => setValor(e.target.value)} />
-        </div>
-        <div className="space-y-1.5">
-          <Label>Descrição (opcional)</Label>
-          <Input value={descricao} onChange={(e) => setDescricao(e.target.value)} placeholder="Ex.: Sessões de maio" />
-        </div>
-      </div>
-      <DialogFooter>
-        <Button
-          disabled={!pacienteId || !valor || save.isPending}
-          onClick={() => save.mutate()}
-        >
-          {save.isPending ? "Salvando…" : "Salvar"}
-        </Button>
-      </DialogFooter>
-    </DialogContent>
   );
 }
 
