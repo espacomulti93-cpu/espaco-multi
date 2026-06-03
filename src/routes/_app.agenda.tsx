@@ -123,11 +123,23 @@ function Agenda() {
   );
 }
 
+const safeFormatDate = (dateVal: any, formatStr: string, options?: any) => {
+  if (!dateVal) return "—";
+  const d = new Date(dateVal);
+  if (isNaN(d.getTime())) return "—";
+  try {
+    return format(d, formatStr, options);
+  } catch (e) {
+    return "—";
+  }
+};
+
 const getEspecialidade = (a: any) => {
   if (a.servicos?.nome) return a.servicos.nome;
-  const pacSpecs = a.pacientes?.cids_secundarios || [];
+  const pacSpecs = (Array.isArray(a.pacientes?.cids_secundarios) ? a.pacientes.cids_secundarios : [])
+    .filter((s: any): s is string => typeof s === 'string');
   const profSpecs = a.profissionais?.especialidade
-    ? a.profissionais.especialidade.split(",").map((s: string) => s.trim())
+    ? a.profissionais.especialidade.split(",").map((s: string) => s.trim()).filter(Boolean)
     : [];
   const intersection = pacSpecs.filter((s: string) =>
     profSpecs.some((ps: string) => ps.toLowerCase() === s.toLowerCase())
@@ -163,7 +175,7 @@ function FragmentRow({ h, days, ags, onCellClick, onEdit }: any) {
                   {a.pacientes?.nome}
                 </div>
                 <div className="truncate text-[10px] text-muted-foreground">
-                  {format(new Date(a.data_inicio), "HH:mm")}
+                  {safeFormatDate(a.data_inicio, "HH:mm")}
                 </div>
                 <div className="truncate text-[9px] text-muted-foreground">
                   {a.profissionais?.nome}
@@ -187,13 +199,13 @@ function FragmentRow({ h, days, ags, onCellClick, onEdit }: any) {
 
 function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
   const qc = useQueryClient();
-  const initialStart = editing
-    ? format(new Date(editing.data_inicio), "yyyy-MM-dd'T'HH:mm")
+  const initialStart = editing && editing.data_inicio
+    ? safeFormatDate(editing.data_inicio, "yyyy-MM-dd'T'HH:mm")
     : defaults
     ? format(new Date(defaults.date.setHours(defaults.hour, 0, 0, 0)), "yyyy-MM-dd'T'HH:mm")
     : format(new Date(), "yyyy-MM-dd'T'HH:mm");
-  const initialEnd = editing
-    ? format(new Date(editing.data_fim), "yyyy-MM-dd'T'HH:mm")
+  const initialEnd = editing && editing.data_fim
+    ? safeFormatDate(editing.data_fim, "yyyy-MM-dd'T'HH:mm")
     : format(new Date(new Date(initialStart).getTime() + 50 * 60000), "yyyy-MM-dd'T'HH:mm");
 
   const [tipoAgendamento, setTipoAgendamento] = useState<"sessao" | "anamnese">(() => {
@@ -227,6 +239,8 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
     return "";
   });
 
+  const specialtyUpper = (selectedSpecialty || "").toUpperCase();
+
   const { data: pacientes = [] } = useQuery({
     queryKey: ["pac-min"],
     queryFn: async () => (await supabase.from("pacientes").select("id, nome, cids_secundarios").order("nome")).data ?? [],
@@ -257,9 +271,9 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
 
   const sortedPatientAgs = useMemo(() => {
     if (!Array.isArray(patientAgs)) return [];
-    return [...patientAgs].sort(
-      (a, b) => new Date(a.data_inicio).getTime() - new Date(b.data_inicio).getTime()
-    );
+    return [...patientAgs]
+      .filter((a: any) => a?.data_inicio && !isNaN(new Date(a.data_inicio).getTime()))
+      .sort((a, b) => new Date(a.data_inicio).getTime() - new Date(b.data_inicio).getTime());
   }, [patientAgs]);
 
   const { data: responsaveisPaciente = [] } = useQuery({
@@ -276,6 +290,8 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
     enabled: !!form.paciente_id,
   });
 
+  const selectedPaciente = pacientes.find((p: any) => p.id === form.paciente_id);
+
   const whatsappUrl = useMemo(() => {
     if (!Array.isArray(responsaveisPaciente) || !responsaveisPaciente.length) return null;
     const respWithWhats = responsaveisPaciente.find((r: any) => r?.whatsapp);
@@ -283,7 +299,7 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
     const num = respWithWhats?.whatsapp || respWithWhats?.telefone || respWithTel?.whatsapp || respWithTel?.telefone;
     if (!num) return null;
 
-    const cleanNum = num.replace(/\D/g, "");
+    const cleanNum = String(num).replace(/\D/g, "");
     if (!cleanNum) return null;
 
     let phoneWithCountry = cleanNum;
@@ -305,12 +321,12 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
 
     return pacientes.filter((pac: any) => {
       if (pac.id === editing?.paciente_id) return true;
-      const pacSpecs = (pac.cids_secundarios as string[] || []).map((s: string) => s.toLowerCase());
+      const pacSpecs = (Array.isArray(pac.cids_secundarios) ? pac.cids_secundarios : [])
+        .filter((s: any): s is string => typeof s === 'string')
+        .map((s: string) => s.toLowerCase());
       return pacSpecs.includes(selectedSpecialty.toLowerCase());
     });
   }, [pacientes, form.profissional_id, selectedSpecialty, editing]);
-
-  const selectedPaciente = pacientes.find((p: any) => p.id === form.paciente_id);
 
   const formDate = form.data_inicio ? form.data_inicio.split("T")[0] : "";
   const formTime = form.data_inicio ? form.data_inicio.split("T")[1] : "";
@@ -320,7 +336,7 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
     if (!form.paciente_id) return [];
     return profissionais.filter((prof: any) => {
       const config = prof.valores_config as any;
-      return config?.descontos?.some((d: any) => d.paciente_id === form.paciente_id);
+      return Array.isArray(config?.descontos) && config.descontos.some((d: any) => d.paciente_id === form.paciente_id);
     });
   }, [profissionais, form.paciente_id]);
 
@@ -368,9 +384,14 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
     const config = prof.valores_config as any || { especialidades: [], descontos: [] };
 
     // Check custom patient discount
-    const discount = config.descontos?.find(
-      (d: any) => d.paciente_id === form.paciente_id && d.especialidade === selectedSpecialty
-    );
+    const discount = Array.isArray(config.descontos)
+      ? config.descontos.find(
+          (d: any) =>
+            d.paciente_id === form.paciente_id &&
+            typeof d.especialidade === 'string' &&
+            d.especialidade.toLowerCase() === selectedSpecialty.toLowerCase()
+        )
+      : null;
 
     if (discount) {
       return {
@@ -381,11 +402,15 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
     }
 
     // Check standard specialty rates
-    const specConfig = config.especialidades?.find((e: any) => e.nome === selectedSpecialty);
+    const specConfig = Array.isArray(config.especialidades)
+      ? config.especialidades.find(
+          (e: any) => typeof e?.nome === 'string' && e.nome.toLowerCase() === selectedSpecialty.toLowerCase()
+        )
+      : null;
     if (specConfig) {
       return {
         type: "Padrão Especialidade",
-        valor_sessao: selectedSpecialty.toUpperCase() === "AP" ? null : (specConfig.valor_sessao ?? prof.valor_sessao),
+        valor_sessao: specialtyUpper === "AP" ? null : (specConfig.valor_sessao ?? prof.valor_sessao),
         valor_avaliacao: specConfig.valor_avaliacao,
         plano_mensal: specConfig.plano_mensal,
       };
@@ -397,10 +422,10 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
       valor_sessao: prof.valor_sessao,
       valor_avaliacao: null,
     };
-  }, [form.profissional_id, form.paciente_id, selectedSpecialty, profissionais]);
+  }, [form.profissional_id, form.paciente_id, selectedSpecialty, profissionais, specialtyUpper]);
 
   const getSelectedSpecialtyDuration = () => {
-    const s: any = servicos.find((x: any) => x.nome.toLowerCase() === selectedSpecialty.toLowerCase());
+    const s: any = servicos.find((x: any) => x.nome?.toLowerCase() === selectedSpecialty?.toLowerCase());
     return s ? s.duracao_minutos : 50;
   };
 
@@ -409,7 +434,7 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
     const timeVal = form.data_inicio ? form.data_inicio.split("T")[1] || "09:00" : "09:00";
     const newStart = `${dateVal}T${timeVal}`;
     const duration = getSelectedSpecialtyDuration();
-    const newEnd = format(new Date(new Date(newStart).getTime() + duration * 60000), "yyyy-MM-dd'T'HH:mm");
+    const newEnd = safeFormatDate(new Date(newStart).getTime() + duration * 60000, "yyyy-MM-dd'T'HH:mm");
     setForm({
       ...form,
       data_inicio: newStart,
@@ -419,10 +444,10 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
 
   const handleTimeChange = (timeVal: string) => {
     if (!timeVal) return;
-    const dateVal = form.data_inicio ? form.data_inicio.split("T")[0] || format(new Date(), "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd");
+    const dateVal = form.data_inicio ? form.data_inicio.split("T")[0] || safeFormatDate(new Date(), "yyyy-MM-dd") : safeFormatDate(new Date(), "yyyy-MM-dd");
     const newStart = `${dateVal}T${timeVal}`;
     const duration = getSelectedSpecialtyDuration();
-    const newEnd = format(new Date(new Date(newStart).getTime() + duration * 60000), "yyyy-MM-dd'T'HH:mm");
+    const newEnd = safeFormatDate(new Date(newStart).getTime() + duration * 60000, "yyyy-MM-dd'T'HH:mm");
     setForm({
       ...form,
       data_inicio: newStart,
@@ -451,13 +476,15 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
 
   const handleSpecialtyChange = (spec: string) => {
     setSelectedSpecialty(spec);
-    const s: any = servicos.find((x: any) => x.nome.toLowerCase() === spec.toLowerCase());
+    const s: any = servicos.find((x: any) => x.nome?.toLowerCase() === spec?.toLowerCase());
     const duration = s ? s.duracao_minutos : 50;
-    const newEnd = format(new Date(new Date(form.data_inicio).getTime() + duration * 60000), "yyyy-MM-dd'T'HH:mm");
+    const newEnd = safeFormatDate(new Date(form.data_inicio).getTime() + duration * 60000, "yyyy-MM-dd'T'HH:mm");
     setForm((prev) => {
       const currentPac = pacientes.find((pac: any) => pac.id === prev.paciente_id);
-      const pacSpecs = (currentPac?.cids_secundarios as string[] || []).map((s: string) => s.toLowerCase());
-      const hasSpec = pacSpecs.includes(spec.toLowerCase());
+      const pacSpecs = (Array.isArray(currentPac?.cids_secundarios) ? currentPac.cids_secundarios : [])
+        .filter((s: any): s is string => typeof s === 'string')
+        .map((s: string) => s.toLowerCase());
+      const hasSpec = pacSpecs.includes(spec?.toLowerCase());
       const newPacienteId = (hasSpec || prev.paciente_id === editing?.paciente_id)
         ? prev.paciente_id
         : "";
@@ -489,7 +516,7 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
       }
 
       let matchingServico = servicos.find(
-        (s: any) => s.nome.toLowerCase() === selectedSpecialty.toLowerCase()
+        (s: any) => s.nome?.toLowerCase() === selectedSpecialty?.toLowerCase()
       );
 
       if (!matchingServico && selectedSpecialty) {
@@ -503,7 +530,7 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
         qc.invalidateQueries({ queryKey: ["serv-min"] });
       }
 
-      const typePrefix = selectedSpecialty.toUpperCase() !== "AP"
+      const typePrefix = specialtyUpper !== "AP"
         ? (tipoAgendamento === "anamnese" ? "[Tipo: Anamnese]\n" : "[Tipo: Sessão Padrão]\n")
         : "";
 
@@ -679,13 +706,13 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
                   <div>
                     <span className="text-muted-foreground font-medium">Data/Hora:</span>{" "}
                     <span className="text-foreground font-semibold">
-                      {format(new Date(editing.data_inicio), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                      {safeFormatDate(editing.data_inicio, "dd/MM/yyyy HH:mm", { locale: ptBR })}
                     </span>
                   </div>
                   <div className="flex items-center flex-wrap gap-1">
                     <span className="text-muted-foreground font-medium">Status:</span>{" "}
                     <Badge variant="secondary" className="h-4 px-1 text-[9px] font-semibold">
-                      {STATUS_LABEL[editing.status] || editing.status}
+                      {STATUS_LABEL[editing.status] || editing.status || ""}
                     </Badge>
                     {editing.status !== "confirmado" && whatsappUrl && (
                       <a
@@ -730,7 +757,7 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
                           <div className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: a.profissionais?.cor || "var(--primary)" }} />
                           <div>
                             <span className="font-medium text-foreground">
-                              {format(new Date(a.data_inicio), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                              {safeFormatDate(a.data_inicio, "dd/MM/yyyy HH:mm", { locale: ptBR })}
                             </span>
                             <span className="text-muted-foreground mx-1">•</span>
                             <span className="text-muted-foreground">
@@ -746,7 +773,7 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
                           a.status === "falta" && "border-orange-500/30 text-orange-600 bg-orange-50/50",
                           a.status === "pendente" && "border-yellow-500/30 text-yellow-600 bg-yellow-50/50"
                         )}>
-                          {STATUS_LABEL[a.status] || a.status}
+                          {STATUS_LABEL[a.status] || a.status || ""}
                         </Badge>
                       </div>
                     ))}
@@ -834,7 +861,7 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
 
         {(form.profissional_id && form.paciente_id && selectedSpecialty || editing) && (
           <div className="space-y-3 animate-in fade-in duration-200">
-            {selectedSpecialty.toUpperCase() !== "AP" && (
+            {specialtyUpper !== "AP" && (
               <div className="space-y-1.5 animate-in fade-in duration-200">
                 <Label>Tipo de Agendamento *</Label>
                 <Select value={tipoAgendamento} onValueChange={(v: any) => setTipoAgendamento(v)}>
@@ -858,7 +885,7 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
                   </span>
                 </div>
                 <div className="mt-1">
-                  {selectedSpecialty.toUpperCase() === "AP" && currentPricing.plano_mensal ? (
+                  {specialtyUpper === "AP" && currentPricing.plano_mensal ? (
                     <div>
                       <span className="text-muted-foreground">Plano Mensal (AP): </span>
                       <span className="font-semibold text-foreground">{currentPricing.plano_mensal}</span>
@@ -887,8 +914,8 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
             <div className="space-y-1.5">
               <Label>Data *</Label>
               <div className="grid grid-cols-2 gap-3">
-                <Input type="date" required value={formDate} onChange={(e) => handleDateChange(e.target.value)} />
-                <Input type="time" required value={formTime} onChange={(e) => handleTimeChange(e.target.value)} />
+                <Input type="date" required value={formDate || ""} onChange={(e) => handleDateChange(e.target.value)} />
+                <Input type="time" required value={formTime || ""} onChange={(e) => handleTimeChange(e.target.value)} />
               </div>
             </div>
 
