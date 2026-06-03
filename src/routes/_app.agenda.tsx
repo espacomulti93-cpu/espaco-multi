@@ -307,10 +307,25 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
       phoneWithCountry = "55" + cleanNum;
     }
 
-    const pacienteNome = selectedPaciente?.nome || editing?.pacientes?.nome || "";
-    const msg = encodeURIComponent(`Olá! Gostaria de falar sobre o agendamento de ${pacienteNome}.`);
+    const dateObj = form.data_inicio ? new Date(form.data_inicio) : null;
+    let formattedDate = "";
+    if (dateObj && !isNaN(dateObj.getTime())) {
+      const rawDateStr = format(dateObj, "EEEE, dd/MM 'às' HH:mm", { locale: ptBR });
+      formattedDate = rawDateStr.charAt(0).toUpperCase() + rawDateStr.slice(1);
+    }
+
+    const textMsg = `Olá! 😄
+Sua sessão de ${selectedSpecialty || "terapia"} está agendada para *${formattedDate}*.
+
+Você pode confirmar, por favor?
+
+⚠ *Importante: em caso de ausência ou cancelamento sem aviso prévio, a sessão será cobrada normalmente.*
+
+Fico à disposição para qualquer dúvida!`;
+
+    const msg = encodeURIComponent(textMsg);
     return `https://wa.me/${phoneWithCountry}?text=${msg}`;
-  }, [responsaveisPaciente, selectedPaciente, editing]);
+  }, [responsaveisPaciente, selectedPaciente, editing, form.data_inicio, selectedSpecialty]);
 
   const displayedPacientes = useMemo(() => {
     if (editing) {
