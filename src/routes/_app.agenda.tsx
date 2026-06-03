@@ -213,8 +213,8 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
   const [pacienteOpen, setPacienteOpen] = useState(false);
 
   const [selectedSpecialty, setSelectedSpecialty] = useState(() => {
-    if (editing?.servicos?.nome) {
-      return editing.servicos.nome;
+    if (editing) {
+      return editing.servicos?.nome || getEspecialidade(editing) || "";
     }
     return "";
   });
@@ -232,8 +232,27 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
     queryFn: async () => (await supabase.from("servicos").select("id, nome, duracao_minutos").eq("ativo", true).order("nome")).data ?? [],
   });
 
+  const { data: patientAgs = [] } = useQuery({
+    queryKey: ["patient-ags-dialog", form.paciente_id],
+    queryFn: async () => {
+      if (!form.paciente_id) return [];
+      const { data, error } = await supabase
+        .from("agendamentos")
+        .select("*, profissionais(nome, cor), servicos(nome)")
+        .eq("paciente_id", form.paciente_id)
+        .order("data_inicio", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!form.paciente_id,
+  });
+
   const displayedPacientes = useMemo(() => {
-    if (!form.profissional_id || !selectedSpecialty) return [];
+    if (editing) {
+      if (!form.profissional_id || !selectedSpecialty) return pacientes;
+    } else {
+      if (!form.profissional_id || !selectedSpecialty) return [];
+    }
 
     return pacientes.filter((pac: any) => {
       if (pac.id === editing?.paciente_id) return true;
@@ -268,9 +287,15 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
   const professionalSpecialties = useMemo(() => {
     if (!form.profissional_id) return [];
     const prof = profissionais.find((p: any) => p.id === form.profissional_id);
-    if (!prof || !prof.especialidade) return [];
-    return prof.especialidade.split(",").map((s: string) => s.trim()).filter(Boolean);
-  }, [profissionais, form.profissional_id]);
+    if (!prof) return [];
+    const specs = prof.especialidade
+      ? prof.especialidade.split(",").map((s: string) => s.trim()).filter(Boolean)
+      : [];
+    if (selectedSpecialty && !specs.includes(selectedSpecialty)) {
+      specs.push(selectedSpecialty);
+    }
+    return specs;
+  }, [profissionais, form.profissional_id, selectedSpecialty]);
 
   // Auto-select specialty if only one is available
   useEffect(() => {
@@ -434,8 +459,17 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
         : "";
 
       if (editing) {
+        const hasOtherFieldsChanged = 
+          form.paciente_id !== (editing.paciente_id ?? "") ||
+          form.profissional_id !== (editing.profissional_id ?? "") ||
+          selectedSpecialty !== (editing.servicos?.nome || getEspecialidade(editing) || "") ||
+          form.data_inicio !== initialStart ||
+          form.data_fim !== initialEnd ||
+          form.recorrencia !== (editing.recorrencia ?? "unica") ||
+          form.observacoes !== initialObservacoes;
+
         let updateAllFuture = false;
-        if (editing.recorrencia_grupo) {
+        if (editing.recorrencia_grupo && hasOtherFieldsChanged) {
           updateAllFuture = confirm(
             "Este agendamento faz parte de uma série recorrente. Deseja aplicar estas alterações também para todas as datas futuras da série?"
           );
@@ -473,7 +507,6 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
                 servico_id: matchingServico ? matchingServico.id : null,
                 data_inicio: occStart,
                 data_fim: occEnd,
-                status: form.status,
                 recorrencia: form.recorrencia,
                 observacoes: typePrefix + form.observacoes,
               })
@@ -571,6 +604,99 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
         <DialogTitle>{editing ? "Editar agendamento" : "Novo agendamento"}</DialogTitle>
       </DialogHeader>
       <form onSubmit={(e) => { e.preventDefault(); save.mutate(); }} className="space-y-3">
+        {editing && (
+          <div className="rounded-lg border bg-muted/40 p-3 text-xs space-y-3 animate-in fade-in duration-200">
+            <div className="font-semibold text-muted-foreground uppercase tracking-wider text-[10px]">
+              Dados Agendados & Histórico
+            </div>
+            
+            <div className="max-h-36 overflow-y-auto pr-1 space-y-3 divider-y">
+              {/* Resumo do Agendamento Atual */}
+              <div className="space-y-1.5 pb-2 border-b border-border/60">
+                <div className="font-medium text-primary text-[10px] uppercase">Agendamento Atual</div>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                  <div>
+                    <span className="text-muted-foreground font-medium">Paciente:</span>{" "}
+                    <span className="text-foreground font-semibold">{editing.pacientes?.nome || "—"}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground font-medium">Profissional:</span>{" "}
+                    <span className="text-foreground font-semibold">{editing.profissionais?.nome || "—"}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground font-medium">Especialidade:</span>{" "}
+                    <span className="text-foreground font-semibold">{editing.servicos?.nome || editing.profissionais?.especialidade || "—"}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground font-medium">Data/Hora:</span>{" "}
+                    <span className="text-foreground font-semibold">
+                      {format(new Date(editing.data_inicio), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground font-medium">Status:</span>{" "}
+                    <Badge variant="secondary" className="h-4 px-1 text-[9px] ml-1 font-semibold">
+                      {STATUS_LABEL[editing.status] || editing.status}
+                    </Badge>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground font-medium">Recorrência:</span>{" "}
+                    <span className="text-foreground font-semibold capitalize">{editing.recorrencia || "única"}</span>
+                  </div>
+                </div>
+                {editing.observacoes && (
+                  <div className="mt-1">
+                    <span className="text-muted-foreground font-medium">Observações:</span>{" "}
+                    <span className="text-foreground whitespace-pre-wrap">{editing.observacoes.replace(/^\[Tipo: (Anamnese|Sessão Padrão)\]\n?/, "")}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Todos os Agendamentos do Paciente */}
+              <div className="space-y-1.5 pt-1">
+                <div className="font-medium text-primary text-[10px] uppercase flex items-center justify-between">
+                  <span>Todos os Agendamentos do Paciente ({patientAgs.length})</span>
+                </div>
+                {patientAgs.length === 0 ? (
+                  <p className="text-muted-foreground italic">Nenhum outro agendamento encontrado.</p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {patientAgs.map((a: any) => (
+                      <div key={a.id} className={cn(
+                        "p-1.5 rounded border flex items-center justify-between text-[11px] transition",
+                        a.id === editing.id ? "bg-primary/5 border-primary/30" : "bg-card border-border/40"
+                      )}>
+                        <div className="flex items-center gap-2">
+                          <div className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: a.profissionais?.cor || "var(--primary)" }} />
+                          <div>
+                            <span className="font-medium text-foreground">
+                              {format(new Date(a.data_inicio), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                            </span>
+                            <span className="text-muted-foreground mx-1">•</span>
+                            <span className="text-muted-foreground">
+                              {a.profissionais?.nome} ({a.servicos?.nome || "Sessão"})
+                            </span>
+                          </div>
+                        </div>
+                        <Badge variant="outline" className={cn(
+                          "h-4 px-1 text-[8px] uppercase font-bold shrink-0",
+                          a.status === "confirmado" && "border-green-500/30 text-green-600 bg-green-50/50",
+                          a.status === "cancelado" && "border-red-500/30 text-red-600 bg-red-50/50",
+                          a.status === "realizado" && "border-blue-500/30 text-blue-600 bg-blue-50/50",
+                          a.status === "falta" && "border-orange-500/30 text-orange-600 bg-orange-50/50",
+                          a.status === "pendente" && "border-yellow-500/30 text-yellow-600 bg-yellow-50/50"
+                        )}>
+                          {STATUS_LABEL[a.status] || a.status}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="space-y-1.5">
           <Label>Profissional *</Label>
           <Select value={form.profissional_id} onValueChange={handleProfissionalChange}>
@@ -585,7 +711,7 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
           </Select>
         </div>
 
-        {form.profissional_id && (
+        {(form.profissional_id || editing) && (
           <div className="space-y-1.5 animate-in fade-in duration-200">
             <Label>Especialidade *</Label>
             <Select value={selectedSpecialty} onValueChange={handleSpecialtyChange}>
@@ -599,7 +725,7 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
           </div>
         )}
 
-        {form.profissional_id && selectedSpecialty && (
+        {(form.profissional_id && selectedSpecialty || editing) && (
           <div className="space-y-1.5 animate-in fade-in duration-200">
             <Label>Paciente *</Label>
             <Popover open={pacienteOpen} onOpenChange={setPacienteOpen}>
@@ -646,7 +772,7 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
           </div>
         )}
 
-        {form.profissional_id && form.paciente_id && selectedSpecialty && (
+        {(form.profissional_id && form.paciente_id && selectedSpecialty || editing) && (
           <div className="space-y-3 animate-in fade-in duration-200">
             {selectedSpecialty.toUpperCase() !== "AP" && (
               <div className="space-y-1.5 animate-in fade-in duration-200">
