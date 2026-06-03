@@ -248,7 +248,7 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
         .from("agendamentos")
         .select("*, profissionais(nome, cor), servicos(nome)")
         .eq("paciente_id", form.paciente_id)
-        .order("data_inicio", { ascending: false });
+        .order("data_inicio", { ascending: true });
       if (error) throw error;
       return data;
     },
@@ -257,7 +257,7 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
 
   const sortedPatientAgs = useMemo(() => {
     return [...patientAgs].sort(
-      (a, b) => new Date(b.data_inicio).getTime() - new Date(a.data_inicio).getTime()
+      (a, b) => new Date(a.data_inicio).getTime() - new Date(b.data_inicio).getTime()
     );
   }, [patientAgs]);
 
