@@ -317,7 +317,7 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
     let textMsg = "";
     if (tipoAgendamento === "anamnese") {
       textMsg = `Olá!
-Estou com uma vaga para Avaliação ${selectedSpecialty || "terapia"} para *${formattedDate}*.
+Estou com uma vaga para Avaliação de ${selectedSpecialty || "terapia"} para *${formattedDate}*.
 
 Você tem interesse em agendar a avaliação?`;
     } else {
