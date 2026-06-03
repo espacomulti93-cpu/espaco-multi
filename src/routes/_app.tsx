@@ -14,7 +14,7 @@ const titles: Record<string, string> = {
   "/agenda": "Agenda",
   "/pacientes": "Pacientes",
   "/profissionais": "Profissionais",
-  "/financeiro": "Financeiro & Relatórios",
+  "/relatorios": "Relatórios",
 };
 
 function AppLayout() {
@@ -22,7 +22,9 @@ function AppLayout() {
   const path = useRouterState({ select: (r) => r.location.pathname });
 
   if (loading) {
-    return <div className="grid min-h-screen place-items-center text-muted-foreground">Carregando…</div>;
+    return (
+      <div className="grid min-h-screen place-items-center text-muted-foreground">Carregando…</div>
+    );
   }
   if (!session) return <Navigate to="/login" replace />;
 

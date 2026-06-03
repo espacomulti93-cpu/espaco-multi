@@ -50,7 +50,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loading,
     signIn: async (email, password) => {
       const adjustedPassword = password.length < 6 ? password + "_espacomulti_pad" : password;
-      const { error } = await supabase.auth.signInWithPassword({ email, password: adjustedPassword });
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password: adjustedPassword,
+      });
       return { error: error?.message ?? null };
     },
     signUp: async (nome, email, password) => {

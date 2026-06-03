@@ -7,8 +7,21 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Search, User, Pencil, Trash2 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -46,10 +59,7 @@ function PacientesPage() {
   const { data: pacientes = [], isLoading } = useQuery({
     queryKey: ["pacientes"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("pacientes")
-        .select("*")
-        .order("nome");
+      const { data, error } = await supabase.from("pacientes").select("*").order("nome");
       if (error) throw error;
       return data;
     },
@@ -58,11 +68,8 @@ function PacientesPage() {
   const deleteMutation = useMutation({
     mutationFn: async (ids: string[]) => {
       // 1. Delete fatura_itens for faturas belonging to these patients
-      const { data: faturas } = await supabase
-        .from("faturas")
-        .select("id")
-        .in("paciente_id", ids);
-      const faturaIds = faturas?.map(f => f.id) || [];
+      const { data: faturas } = await supabase.from("faturas").select("id").in("paciente_id", ids);
+      const faturaIds = faturas?.map((f) => f.id) || [];
       if (faturaIds.length > 0) {
         await supabase.from("fatura_itens").delete().in("fatura_id", faturaIds);
       }
@@ -93,14 +100,14 @@ function PacientesPage() {
   };
 
   const handleDeleteMultiple = () => {
-    if (confirm(`Tem certeza que deseja excluir os ${selectedIds.length} pacientes selecionados?`)) {
+    if (
+      confirm(`Tem certeza que deseja excluir os ${selectedIds.length} pacientes selecionados?`)
+    ) {
       deleteMutation.mutate(selectedIds);
     }
   };
 
-  const filtered = pacientes.filter((p) =>
-    p.nome.toLowerCase().includes(q.toLowerCase())
-  );
+  const filtered = pacientes.filter((p) => p.nome.toLowerCase().includes(q.toLowerCase()));
 
   return (
     <div className="space-y-4">
@@ -128,7 +135,10 @@ function PacientesPage() {
                 }
               }}
             />
-            <Label htmlFor="select-all" className="text-xs cursor-pointer text-muted-foreground select-none">
+            <Label
+              htmlFor="select-all"
+              className="text-xs cursor-pointer text-muted-foreground select-none"
+            >
               Selecionar tudo
             </Label>
           </div>
@@ -146,7 +156,13 @@ function PacientesPage() {
           </Button>
         )}
 
-        <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setEditing(null); }}>
+        <Dialog
+          open={open}
+          onOpenChange={(o) => {
+            setOpen(o);
+            if (!o) setEditing(null);
+          }}
+        >
           <DialogTrigger asChild>
             <Button className="ml-auto gap-1.5">
               <Plus className="h-4 w-4" /> Novo paciente
@@ -190,10 +206,7 @@ function PacientesPage() {
                 className="cursor-pointer group relative rounded-xl border bg-card p-4 transition hover:border-primary/40 hover:shadow-sm"
               >
                 <div className="flex items-start gap-3">
-                  <div 
-                    className="mt-1"
-                    onClick={(e) => e.stopPropagation()}
-                  >
+                  <div className="mt-1" onClick={(e) => e.stopPropagation()}>
                     <Checkbox
                       checked={isSelected}
                       onCheckedChange={(checked) => {
@@ -223,7 +236,11 @@ function PacientesPage() {
                     {p.cids_secundarios && (p.cids_secundarios as string[]).length > 0 && (
                       <div className="mt-1.5 flex flex-wrap gap-1">
                         {(p.cids_secundarios as string[]).map((cid) => (
-                          <Badge key={cid} variant="outline" className="text-[10px] px-1.5 py-0 bg-secondary/30">
+                          <Badge
+                            key={cid}
+                            variant="outline"
+                            className="text-[10px] px-1.5 py-0 bg-secondary/30"
+                          >
                             {cid}
                           </Badge>
                         ))}
@@ -231,7 +248,9 @@ function PacientesPage() {
                     )}
                     <div className="mt-3 flex items-center justify-between gap-2 text-xs text-muted-foreground">
                       <div>
-                        {p.tipo_atendimento === "convenio" ? `Convênio: ${p.convenio_nome ?? "—"}` : "Particular"}
+                        {p.tipo_atendimento === "convenio"
+                          ? `Convênio: ${p.convenio_nome ?? "—"}`
+                          : "Particular"}
                       </div>
                       <div className="flex gap-1">
                         <Button
@@ -280,16 +299,12 @@ const formatPhone = (value: string) => {
   return `(${nums.substring(0, 2)}) ${nums.substring(2, 7)}-${nums.substring(7, 11)}`;
 };
 
-export function PacienteFormDialog({
-  paciente,
-  onSaved,
-}: {
-  paciente?: any;
-  onSaved: () => void;
-}) {
+export function PacienteFormDialog({ paciente, onSaved }: { paciente?: any; onSaved: () => void }) {
   const [form, setForm] = useState({
     nome: paciente?.nome ?? "",
-    data_nascimento: paciente?.data_nascimento ? formatBirthDateForDisplay(paciente.data_nascimento) : "",
+    data_nascimento: paciente?.data_nascimento
+      ? formatBirthDateForDisplay(paciente.data_nascimento)
+      : "",
     cid_principal: paciente?.cid_principal ?? "",
     cids_secundarios: (paciente?.cids_secundarios as string[]) ?? [],
     tipo_atendimento: paciente?.tipo_atendimento ?? "particular",
@@ -312,8 +327,10 @@ export function PacienteFormDialog({
 
   const availableSpecialties = Array.from(
     new Set(
-      profissionais.flatMap((p) => p.especialidade ? p.especialidade.split(",").map(s => s.trim()) : []).filter(Boolean)
-    )
+      profissionais
+        .flatMap((p) => (p.especialidade ? p.especialidade.split(",").map((s) => s.trim()) : []))
+        .filter(Boolean),
+    ),
   ) as string[];
 
   const { data: responsaveis = [] } = useQuery({
@@ -351,7 +368,12 @@ export function PacienteFormDialog({
       let dbBirthDate: string | null = null;
       if (form.data_nascimento) {
         const parts = form.data_nascimento.split("/");
-        if (parts.length !== 3 || parts[0].length !== 2 || parts[1].length !== 2 || parts[2].length !== 4) {
+        if (
+          parts.length !== 3 ||
+          parts[0].length !== 2 ||
+          parts[1].length !== 2 ||
+          parts[2].length !== 4
+        ) {
           throw new Error("Data de nascimento inválida. Use o formato DD/MM/AAAA.");
         }
         dbBirthDate = `${parts[2]}-${parts[1]}-${parts[0]}`;
@@ -385,13 +407,11 @@ export function PacienteFormDialog({
               .eq("id", responsaveis[0].id);
             if (rError) throw rError;
           } else {
-            const { error: rError } = await supabase
-              .from("responsaveis")
-              .insert({
-                paciente_id: paciente.id,
-                nome: form.responsavel.trim(),
-                telefone: form.telefone.trim() || null,
-              });
+            const { error: rError } = await supabase.from("responsaveis").insert({
+              paciente_id: paciente.id,
+              nome: form.responsavel.trim(),
+              telefone: form.telefone.trim() || null,
+            });
             if (rError) throw rError;
           }
         }
@@ -405,13 +425,11 @@ export function PacienteFormDialog({
         if (error) throw error;
 
         if ((form.responsavel.trim() || form.telefone.trim()) && newPaciente) {
-          const { error: rError } = await supabase
-            .from("responsaveis")
-            .insert({
-              paciente_id: newPaciente.id,
-              nome: form.responsavel.trim(),
-              telefone: form.telefone.trim() || null,
-            });
+          const { error: rError } = await supabase.from("responsaveis").insert({
+            paciente_id: newPaciente.id,
+            nome: form.responsavel.trim(),
+            telefone: form.telefone.trim() || null,
+          });
           if (rError) throw rError;
         }
       }
@@ -437,7 +455,11 @@ export function PacienteFormDialog({
       >
         <div className="space-y-1.5">
           <Label>Nome completo *</Label>
-          <Input required value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} />
+          <Input
+            required
+            value={form.nome}
+            onChange={(e) => setForm({ ...form, nome: e.target.value })}
+          />
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
@@ -445,7 +467,9 @@ export function PacienteFormDialog({
             <Input
               type="text"
               value={form.data_nascimento}
-              onChange={(e) => setForm({ ...form, data_nascimento: formatBirthDate(e.target.value) })}
+              onChange={(e) =>
+                setForm({ ...form, data_nascimento: formatBirthDate(e.target.value) })
+              }
               placeholder="DD/MM/AAAA"
               maxLength={10}
             />
@@ -507,8 +531,13 @@ export function PacienteFormDialog({
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
             <Label>Tipo de atendimento</Label>
-            <Select value={form.tipo_atendimento} onValueChange={(v) => setForm({ ...form, tipo_atendimento: v as any })}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+            <Select
+              value={form.tipo_atendimento}
+              onValueChange={(v) => setForm({ ...form, tipo_atendimento: v as any })}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="particular">Particular</SelectItem>
                 <SelectItem value="convenio">Convênio</SelectItem>
@@ -517,8 +546,13 @@ export function PacienteFormDialog({
           </div>
           <div className="space-y-1.5">
             <Label>Status</Label>
-            <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v as any })}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+            <Select
+              value={form.status}
+              onValueChange={(v) => setForm({ ...form, status: v as any })}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="ativo">Ativo</SelectItem>
                 <SelectItem value="inativo">Inativo</SelectItem>
@@ -530,7 +564,10 @@ export function PacienteFormDialog({
         {form.tipo_atendimento === "convenio" && (
           <div className="space-y-1.5">
             <Label>Nome do convênio</Label>
-            <Input value={form.convenio_nome} onChange={(e) => setForm({ ...form, convenio_nome: e.target.value })} />
+            <Input
+              value={form.convenio_nome}
+              onChange={(e) => setForm({ ...form, convenio_nome: e.target.value })}
+            />
           </div>
         )}
         <div className="space-y-1.5">

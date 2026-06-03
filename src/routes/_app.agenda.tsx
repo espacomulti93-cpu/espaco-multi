@@ -6,24 +6,45 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { ChevronLeft, ChevronRight, Plus, X, Check, ChevronsUpDown, Trash2, MessageCircle } from "lucide-react";
-import { toast } from "sonner";
 import {
-  addDays,
-  addWeeks,
-  endOfWeek,
-  format,
-  isSameDay,
-  startOfWeek,
-} from "date-fns";
+  ChevronLeft,
+  ChevronRight,
+  Plus,
+  X,
+  Check,
+  ChevronsUpDown,
+  Trash2,
+  MessageCircle,
+} from "lucide-react";
+import { toast } from "sonner";
+import { addDays, addWeeks, endOfWeek, format, isSameDay, startOfWeek } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from "@/components/ui/command";
+import {
+  Command,
+  CommandInput,
+  CommandList,
+  CommandEmpty,
+  CommandGroup,
+  CommandItem,
+} from "@/components/ui/command";
 
 export const Route = createFileRoute("/_app/agenda")({
   component: Agenda,
@@ -42,9 +63,16 @@ function Agenda() {
   const qc = useQueryClient();
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 }));
   const weekEnd = endOfWeek(weekStart, { weekStartsOn: 1 });
-  const days = useMemo(() => Array.from({ length: 6 }, (_, i) => addDays(weekStart, i)), [weekStart]);
+  const days = useMemo(
+    () => Array.from({ length: 6 }, (_, i) => addDays(weekStart, i)),
+    [weekStart],
+  );
 
-  const [dialog, setDialog] = useState<{ open: boolean; editing?: any; defaults?: { date: Date; hour: number } }>({ open: false });
+  const [dialog, setDialog] = useState<{
+    open: boolean;
+    editing?: any;
+    defaults?: { date: Date; hour: number };
+  }>({ open: false });
   const [cancelTarget, setCancelTarget] = useState<any>(null);
 
   const { data: ags = [] } = useQuery({
@@ -52,7 +80,9 @@ function Agenda() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("agendamentos")
-        .select("*, pacientes(nome, cids_secundarios), profissionais(nome, cor, especialidade), servicos(nome)")
+        .select(
+          "*, pacientes(nome, cids_secundarios), profissionais(nome, cor, especialidade), servicos(nome)",
+        )
         .gte("data_inicio", weekStart.toISOString())
         .lt("data_inicio", addDays(weekEnd, 1).toISOString())
         .order("data_inicio");
@@ -64,11 +94,22 @@ function Agenda() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
-        <Button variant="outline" size="icon" onClick={() => setWeekStart(addWeeks(weekStart, -1))}><ChevronLeft className="h-4 w-4" /></Button>
-        <Button variant="outline" size="sm" onClick={() => setWeekStart(startOfWeek(new Date(), { weekStartsOn: 1 }))}>Hoje</Button>
-        <Button variant="outline" size="icon" onClick={() => setWeekStart(addWeeks(weekStart, 1))}><ChevronRight className="h-4 w-4" /></Button>
+        <Button variant="outline" size="icon" onClick={() => setWeekStart(addWeeks(weekStart, -1))}>
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setWeekStart(startOfWeek(new Date(), { weekStartsOn: 1 }))}
+        >
+          Hoje
+        </Button>
+        <Button variant="outline" size="icon" onClick={() => setWeekStart(addWeeks(weekStart, 1))}>
+          <ChevronRight className="h-4 w-4" />
+        </Button>
         <div className="ml-2 text-sm font-medium">
-          {format(weekStart, "d 'de' MMM", { locale: ptBR })} – {format(weekEnd, "d 'de' MMM yyyy", { locale: ptBR })}
+          {format(weekStart, "d 'de' MMM", { locale: ptBR })} –{" "}
+          {format(weekEnd, "d 'de' MMM yyyy", { locale: ptBR })}
         </div>
         <Button className="ml-auto gap-1.5" onClick={() => setDialog({ open: true })}>
           <Plus className="h-4 w-4" /> Novo agendamento
@@ -80,13 +121,23 @@ function Agenda() {
           <div className="grid min-w-[900px] grid-cols-[60px_repeat(6,1fr)]">
             <div className="border-b border-r bg-muted/40 p-2 text-xs font-medium text-muted-foreground"></div>
             {days.map((d) => (
-              <div key={d.toString()} className={`border-b border-r p-2 text-center text-xs font-medium ${isSameDay(d, new Date()) ? "bg-primary/10 text-primary" : "bg-muted/40 text-muted-foreground"}`}>
+              <div
+                key={d.toString()}
+                className={`border-b border-r p-2 text-center text-xs font-medium ${isSameDay(d, new Date()) ? "bg-primary/10 text-primary" : "bg-muted/40 text-muted-foreground"}`}
+              >
                 <div>{format(d, "EEE", { locale: ptBR })}</div>
                 <div className="text-base text-foreground">{format(d, "d")}</div>
               </div>
             ))}
             {HOURS.map((h) => (
-              <FragmentRow key={h} h={h} days={days} ags={ags} onCellClick={(date: Date) => setDialog({ open: true, defaults: { date, hour: h } })} onEdit={(a: any) => setDialog({ open: true, editing: a })} />
+              <FragmentRow
+                key={h}
+                h={h}
+                days={days}
+                ags={ags}
+                onCellClick={(date: Date) => setDialog({ open: true, defaults: { date, hour: h } })}
+                onEdit={(a: any) => setDialog({ open: true, editing: a })}
+              />
             ))}
           </div>
         </CardContent>
@@ -103,7 +154,10 @@ function Agenda() {
               qc.invalidateQueries({ queryKey: ["patient-ags-dialog"] });
               qc.invalidateQueries({ queryKey: ["faturas"] });
             }}
-            onCancel={(a: any) => { setDialog({ open: false }); setCancelTarget(a); }}
+            onCancel={(a: any) => {
+              setDialog({ open: false });
+              setCancelTarget(a);
+            }}
           />
         )}
       </Dialog>
@@ -138,13 +192,17 @@ const safeFormatDate = (dateVal: any, formatStr: string, options?: any) => {
 
 const getEspecialidade = (a: any) => {
   if (a.servicos?.nome) return a.servicos.nome;
-  const pacSpecs = (Array.isArray(a.pacientes?.cids_secundarios) ? a.pacientes.cids_secundarios : [])
-    .filter((s: any): s is string => typeof s === 'string');
+  const pacSpecs = (
+    Array.isArray(a.pacientes?.cids_secundarios) ? a.pacientes.cids_secundarios : []
+  ).filter((s: any): s is string => typeof s === "string");
   const profSpecs = a.profissionais?.especialidade
-    ? a.profissionais.especialidade.split(",").map((s: string) => s.trim()).filter(Boolean)
+    ? a.profissionais.especialidade
+        .split(",")
+        .map((s: string) => s.trim())
+        .filter(Boolean)
     : [];
   const intersection = pacSpecs.filter((s: string) =>
-    profSpecs.some((ps: string) => ps.toLowerCase() === s.toLowerCase())
+    profSpecs.some((ps: string) => ps.toLowerCase() === s.toLowerCase()),
   );
   if (intersection.length > 0) return intersection[0];
   if (profSpecs.length > 0) return profSpecs[0];
@@ -159,7 +217,7 @@ const syncAgendamentoFinanceiro = async (
   status: string,
   tipoAgendamento: "sessao" | "anamnese",
   especialidade: string,
-  valor: number
+  valor: number,
 ) => {
   try {
     const numValor = Number(valor || 0);
@@ -189,11 +247,8 @@ const syncAgendamentoFinanceiro = async (
             .update({ valor: newFaturaValor })
             .eq("id", existingItem.fatura_id);
         }
-        
-        await supabase
-          .from("fatura_itens")
-          .delete()
-          .eq("id", existingItem.id);
+
+        await supabase.from("fatura_itens").delete().eq("id", existingItem.id);
 
         // Clean up fatura if it has no more items
         if (oldFatura?.status === "aberta") {
@@ -203,10 +258,7 @@ const syncAgendamentoFinanceiro = async (
             .eq("fatura_id", existingItem.fatura_id)
             .limit(1);
           if (!remaining || remaining.length === 0) {
-            await supabase
-              .from("faturas")
-              .delete()
-              .eq("id", existingItem.fatura_id);
+            await supabase.from("faturas").delete().eq("id", existingItem.fatura_id);
           }
         }
       }
@@ -217,9 +269,10 @@ const syncAgendamentoFinanceiro = async (
     const d = new Date(dataInicio);
     const competencia = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
     const dateStr = format(d, "dd/MM/yyyy HH:mm");
-    const descricao = tipoAgendamento === "anamnese"
-      ? `${especialidade || "Avaliação"} (Avaliação) - ${dateStr}`
-      : `${especialidade || "Sessão"} - ${dateStr}`;
+    const descricao =
+      tipoAgendamento === "anamnese"
+        ? `${especialidade || "Avaliação"} (Avaliação) - ${dateStr}`
+        : `${especialidade || "Sessão"} - ${dateStr}`;
 
     // Find or create open invoice
     let faturaId = "";
@@ -248,7 +301,7 @@ const syncAgendamentoFinanceiro = async (
           paciente_id: pacienteId,
           competencia,
           valor: 0,
-          status: "aberta"
+          status: "aberta",
         })
         .select()
         .single();
@@ -277,7 +330,7 @@ const syncAgendamentoFinanceiro = async (
             fatura_id: faturaId,
             descricao,
             valor_unitario: numValor,
-            total: numValor
+            total: numValor,
           })
           .eq("id", existingItem.id);
         // Add to new invoice
@@ -294,10 +347,7 @@ const syncAgendamentoFinanceiro = async (
             .eq("fatura_id", existingItem.fatura_id)
             .limit(1);
           if (!remaining || remaining.length === 0) {
-            await supabase
-              .from("faturas")
-              .delete()
-              .eq("id", existingItem.fatura_id);
+            await supabase.from("faturas").delete().eq("id", existingItem.fatura_id);
           }
         }
       } else {
@@ -308,7 +358,7 @@ const syncAgendamentoFinanceiro = async (
           .update({
             descricao,
             valor_unitario: numValor,
-            total: numValor
+            total: numValor,
           })
           .eq("id", existingItem.id);
 
@@ -321,16 +371,14 @@ const syncAgendamentoFinanceiro = async (
       }
     } else {
       // Create new item
-      await supabase
-        .from("fatura_itens")
-        .insert({
-          fatura_id: faturaId,
-          agendamento_id: agendamentoId,
-          descricao,
-          quantidade: 1,
-          valor_unitario: numValor,
-          total: numValor
-        });
+      await supabase.from("fatura_itens").insert({
+        fatura_id: faturaId,
+        agendamento_id: agendamentoId,
+        descricao,
+        quantidade: 1,
+        valor_unitario: numValor,
+        total: numValor,
+      });
       // Add to invoice
       await supabase
         .from("faturas")
@@ -345,7 +393,9 @@ const syncAgendamentoFinanceiro = async (
 function FragmentRow({ h, days, ags, onCellClick, onEdit }: any) {
   return (
     <>
-      <div className="border-b border-r p-1 text-right text-xs text-muted-foreground">{String(h).padStart(2, "0")}:00</div>
+      <div className="border-b border-r p-1 text-right text-xs text-muted-foreground">
+        {String(h).padStart(2, "0")}:00
+      </div>
       {days.map((d: Date) => {
         const cellAgs = ags.filter((a: any) => {
           const dt = new Date(a.data_inicio);
@@ -360,13 +410,14 @@ function FragmentRow({ h, days, ags, onCellClick, onEdit }: any) {
             {cellAgs.map((a: any) => (
               <button
                 key={a.id}
-                onClick={(e) => { e.stopPropagation(); onEdit(a); }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEdit(a);
+                }}
                 className="mb-1 block w-full rounded-md border-l-4 bg-card px-2 py-1 text-left text-xs shadow-sm transition hover:shadow"
                 style={{ borderLeftColor: a.profissionais?.cor ?? "var(--primary)" }}
               >
-                <div className="truncate font-medium text-foreground">
-                  {a.pacientes?.nome}
-                </div>
+                <div className="truncate font-medium text-foreground">{a.pacientes?.nome}</div>
                 <div className="truncate text-[10px] text-muted-foreground">
                   {safeFormatDate(a.data_inicio, "HH:mm")}
                 </div>
@@ -379,7 +430,9 @@ function FragmentRow({ h, days, ags, onCellClick, onEdit }: any) {
                   </div>
                 )}
                 {a.status !== "pendente" && (
-                  <Badge variant="secondary" className="mt-1 h-4 px-1 text-[9px]">{STATUS_LABEL[a.status]}</Badge>
+                  <Badge variant="secondary" className="mt-1 h-4 px-1 text-[9px]">
+                    {STATUS_LABEL[a.status]}
+                  </Badge>
                 )}
               </button>
             ))}
@@ -392,14 +445,16 @@ function FragmentRow({ h, days, ags, onCellClick, onEdit }: any) {
 
 function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
   const qc = useQueryClient();
-  const initialStart = editing && editing.data_inicio
-    ? safeFormatDate(editing.data_inicio, "yyyy-MM-dd'T'HH:mm")
-    : defaults
-    ? format(new Date(defaults.date.setHours(defaults.hour, 0, 0, 0)), "yyyy-MM-dd'T'HH:mm")
-    : format(new Date(), "yyyy-MM-dd'T'HH:mm");
-  const initialEnd = editing && editing.data_fim
-    ? safeFormatDate(editing.data_fim, "yyyy-MM-dd'T'HH:mm")
-    : format(new Date(new Date(initialStart).getTime() + 50 * 60000), "yyyy-MM-dd'T'HH:mm");
+  const initialStart =
+    editing && editing.data_inicio
+      ? safeFormatDate(editing.data_inicio, "yyyy-MM-dd'T'HH:mm")
+      : defaults
+        ? format(new Date(defaults.date.setHours(defaults.hour, 0, 0, 0)), "yyyy-MM-dd'T'HH:mm")
+        : format(new Date(), "yyyy-MM-dd'T'HH:mm");
+  const initialEnd =
+    editing && editing.data_fim
+      ? safeFormatDate(editing.data_fim, "yyyy-MM-dd'T'HH:mm")
+      : format(new Date(new Date(initialStart).getTime() + 50 * 60000), "yyyy-MM-dd'T'HH:mm");
 
   const [tipoAgendamento, setTipoAgendamento] = useState<"sessao" | "anamnese">(() => {
     if (editing?.observacoes?.startsWith("[Tipo: Anamnese]")) {
@@ -436,15 +491,31 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
 
   const { data: pacientes = [] } = useQuery({
     queryKey: ["pac-min"],
-    queryFn: async () => (await supabase.from("pacientes").select("id, nome, cids_secundarios").order("nome")).data ?? [],
+    queryFn: async () =>
+      (await supabase.from("pacientes").select("id, nome, cids_secundarios").order("nome")).data ??
+      [],
   });
   const { data: profissionais = [] } = useQuery({
     queryKey: ["prof-min"],
-    queryFn: async () => (await supabase.from("profissionais").select("id, nome, especialidade, valor_sessao, valores_config").eq("ativo", true).order("nome")).data ?? [],
+    queryFn: async () =>
+      (
+        await supabase
+          .from("profissionais")
+          .select("id, nome, especialidade, valor_sessao, valores_config")
+          .eq("ativo", true)
+          .order("nome")
+      ).data ?? [],
   });
   const { data: servicos = [] } = useQuery({
     queryKey: ["serv-min"],
-    queryFn: async () => (await supabase.from("servicos").select("id, nome, duracao_minutos").eq("ativo", true).order("nome")).data ?? [],
+    queryFn: async () =>
+      (
+        await supabase
+          .from("servicos")
+          .select("id, nome, duracao_minutos")
+          .eq("ativo", true)
+          .order("nome")
+      ).data ?? [],
   });
 
   const { data: patientAgs = [] } = useQuery({
@@ -489,7 +560,11 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
     if (!Array.isArray(responsaveisPaciente) || !responsaveisPaciente.length) return null;
     const respWithWhats = responsaveisPaciente.find((r: any) => r?.whatsapp);
     const respWithTel = responsaveisPaciente.find((r: any) => r?.telefone);
-    const num = respWithWhats?.whatsapp || respWithWhats?.telefone || respWithTel?.whatsapp || respWithTel?.telefone;
+    const num =
+      respWithWhats?.whatsapp ||
+      respWithWhats?.telefone ||
+      respWithTel?.whatsapp ||
+      respWithTel?.telefone;
     if (!num) return null;
 
     const cleanNum = String(num).replace(/\D/g, "");
@@ -526,7 +601,14 @@ Fico à disposição para qualquer dúvida!`;
 
     const msg = encodeURIComponent(textMsg);
     return `https://wa.me/${phoneWithCountry}?text=${msg}`;
-  }, [responsaveisPaciente, selectedPaciente, editing, form.data_inicio, selectedSpecialty, tipoAgendamento]);
+  }, [
+    responsaveisPaciente,
+    selectedPaciente,
+    editing,
+    form.data_inicio,
+    selectedSpecialty,
+    tipoAgendamento,
+  ]);
 
   const displayedPacientes = useMemo(() => {
     if (editing) {
@@ -538,7 +620,7 @@ Fico à disposição para qualquer dúvida!`;
     return pacientes.filter((pac: any) => {
       if (pac.id === editing?.paciente_id) return true;
       const pacSpecs = (Array.isArray(pac.cids_secundarios) ? pac.cids_secundarios : [])
-        .filter((s: any): s is string => typeof s === 'string')
+        .filter((s: any): s is string => typeof s === "string")
         .map((s: string) => s.toLowerCase());
       return pacSpecs.includes(selectedSpecialty.toLowerCase());
     });
@@ -552,7 +634,10 @@ Fico à disposição para qualquer dúvida!`;
     if (!form.paciente_id) return [];
     return profissionais.filter((prof: any) => {
       const config = prof.valores_config as any;
-      return Array.isArray(config?.descontos) && config.descontos.some((d: any) => d.paciente_id === form.paciente_id);
+      return (
+        Array.isArray(config?.descontos) &&
+        config.descontos.some((d: any) => d.paciente_id === form.paciente_id)
+      );
     });
   }, [profissionais, form.paciente_id]);
 
@@ -570,7 +655,10 @@ Fico à disposição para qualquer dúvida!`;
     const prof = profissionais.find((p: any) => p.id === form.profissional_id);
     if (!prof) return [];
     const specs = prof.especialidade
-      ? prof.especialidade.split(",").map((s: string) => s.trim()).filter(Boolean)
+      ? prof.especialidade
+          .split(",")
+          .map((s: string) => s.trim())
+          .filter(Boolean)
       : [];
     if (selectedSpecialty && !specs.includes(selectedSpecialty)) {
       specs.push(selectedSpecialty);
@@ -597,15 +685,15 @@ Fico à disposição para qualquer dúvida!`;
     const prof = profissionais.find((p: any) => p.id === form.profissional_id);
     if (!prof) return null;
 
-    const config = prof.valores_config as any || { especialidades: [], descontos: [] };
+    const config = (prof.valores_config as any) || { especialidades: [], descontos: [] };
 
     // Check custom patient discount
     const discount = Array.isArray(config.descontos)
       ? config.descontos.find(
           (d: any) =>
             d.paciente_id === form.paciente_id &&
-            typeof d.especialidade === 'string' &&
-            d.especialidade.toLowerCase() === selectedSpecialty.toLowerCase()
+            typeof d.especialidade === "string" &&
+            d.especialidade.toLowerCase() === selectedSpecialty.toLowerCase(),
         )
       : null;
 
@@ -620,13 +708,15 @@ Fico à disposição para qualquer dúvida!`;
     // Check standard specialty rates
     const specConfig = Array.isArray(config.especialidades)
       ? config.especialidades.find(
-          (e: any) => typeof e?.nome === 'string' && e.nome.toLowerCase() === selectedSpecialty.toLowerCase()
+          (e: any) =>
+            typeof e?.nome === "string" && e.nome.toLowerCase() === selectedSpecialty.toLowerCase(),
         )
       : null;
     if (specConfig) {
       return {
         type: "Padrão Especialidade",
-        valor_sessao: specialtyUpper === "AP" ? null : (specConfig.valor_sessao ?? prof.valor_sessao),
+        valor_sessao:
+          specialtyUpper === "AP" ? null : (specConfig.valor_sessao ?? prof.valor_sessao),
         valor_avaliacao: specConfig.valor_avaliacao,
         plano_mensal: specConfig.plano_mensal,
       };
@@ -641,7 +731,9 @@ Fico à disposição para qualquer dúvida!`;
   }, [form.profissional_id, form.paciente_id, selectedSpecialty, profissionais, specialtyUpper]);
 
   const getSelectedSpecialtyDuration = () => {
-    const s: any = servicos.find((x: any) => x.nome?.toLowerCase() === selectedSpecialty?.toLowerCase());
+    const s: any = servicos.find(
+      (x: any) => x.nome?.toLowerCase() === selectedSpecialty?.toLowerCase(),
+    );
     return s ? s.duracao_minutos : 50;
   };
 
@@ -650,7 +742,10 @@ Fico à disposição para qualquer dúvida!`;
     const timeVal = form.data_inicio ? form.data_inicio.split("T")[1] || "09:00" : "09:00";
     const newStart = `${dateVal}T${timeVal}`;
     const duration = getSelectedSpecialtyDuration();
-    const newEnd = safeFormatDate(new Date(newStart).getTime() + duration * 60000, "yyyy-MM-dd'T'HH:mm");
+    const newEnd = safeFormatDate(
+      new Date(newStart).getTime() + duration * 60000,
+      "yyyy-MM-dd'T'HH:mm",
+    );
     setForm({
       ...form,
       data_inicio: newStart,
@@ -660,10 +755,15 @@ Fico à disposição para qualquer dúvida!`;
 
   const handleTimeChange = (timeVal: string) => {
     if (!timeVal) return;
-    const dateVal = form.data_inicio ? form.data_inicio.split("T")[0] || safeFormatDate(new Date(), "yyyy-MM-dd") : safeFormatDate(new Date(), "yyyy-MM-dd");
+    const dateVal = form.data_inicio
+      ? form.data_inicio.split("T")[0] || safeFormatDate(new Date(), "yyyy-MM-dd")
+      : safeFormatDate(new Date(), "yyyy-MM-dd");
     const newStart = `${dateVal}T${timeVal}`;
     const duration = getSelectedSpecialtyDuration();
-    const newEnd = safeFormatDate(new Date(newStart).getTime() + duration * 60000, "yyyy-MM-dd'T'HH:mm");
+    const newEnd = safeFormatDate(
+      new Date(newStart).getTime() + duration * 60000,
+      "yyyy-MM-dd'T'HH:mm",
+    );
     setForm({
       ...form,
       data_inicio: newStart,
@@ -694,16 +794,20 @@ Fico à disposição para qualquer dúvida!`;
     setSelectedSpecialty(spec);
     const s: any = servicos.find((x: any) => x.nome?.toLowerCase() === spec?.toLowerCase());
     const duration = s ? s.duracao_minutos : 50;
-    const newEnd = safeFormatDate(new Date(form.data_inicio).getTime() + duration * 60000, "yyyy-MM-dd'T'HH:mm");
+    const newEnd = safeFormatDate(
+      new Date(form.data_inicio).getTime() + duration * 60000,
+      "yyyy-MM-dd'T'HH:mm",
+    );
     setForm((prev) => {
       const currentPac = pacientes.find((pac: any) => pac.id === prev.paciente_id);
-      const pacSpecs = (Array.isArray(currentPac?.cids_secundarios) ? currentPac.cids_secundarios : [])
-        .filter((s: any): s is string => typeof s === 'string')
+      const pacSpecs = (
+        Array.isArray(currentPac?.cids_secundarios) ? currentPac.cids_secundarios : []
+      )
+        .filter((s: any): s is string => typeof s === "string")
         .map((s: string) => s.toLowerCase());
       const hasSpec = pacSpecs.includes(spec?.toLowerCase());
-      const newPacienteId = (hasSpec || prev.paciente_id === editing?.paciente_id)
-        ? prev.paciente_id
-        : "";
+      const newPacienteId =
+        hasSpec || prev.paciente_id === editing?.paciente_id ? prev.paciente_id : "";
       return {
         ...prev,
         paciente_id: newPacienteId,
@@ -714,7 +818,8 @@ Fico à disposição para qualquer dúvida!`;
 
   const save = useMutation({
     mutationFn: async () => {
-      if (!form.paciente_id || !form.profissional_id) throw new Error("Selecione paciente e profissional");
+      if (!form.paciente_id || !form.profissional_id)
+        throw new Error("Selecione paciente e profissional");
 
       const start = new Date(form.data_inicio).toISOString();
       const end = new Date(form.data_fim).toISOString();
@@ -727,12 +832,14 @@ Fico à disposição para qualquer dúvida!`;
         .gt("data_fim", start);
       const others = (conflicts ?? []).filter((c) => c.id !== editing?.id);
       if (others.length > 0) {
-        const ok = confirm("⚠ Conflito de horário detectado para este profissional. Deseja salvar mesmo assim?");
+        const ok = confirm(
+          "⚠ Conflito de horário detectado para este profissional. Deseja salvar mesmo assim?",
+        );
         if (!ok) throw new Error("Cancelado pelo usuário");
       }
 
       let matchingServico = servicos.find(
-        (s: any) => s.nome?.toLowerCase() === selectedSpecialty?.toLowerCase()
+        (s: any) => s.nome?.toLowerCase() === selectedSpecialty?.toLowerCase(),
       );
 
       if (!matchingServico && selectedSpecialty) {
@@ -746,20 +853,24 @@ Fico à disposição para qualquer dúvida!`;
         qc.invalidateQueries({ queryKey: ["serv-min"] });
       }
 
-      const typePrefix = specialtyUpper !== "AP"
-        ? (tipoAgendamento === "anamnese" ? "[Tipo: Anamnese]\n" : "[Tipo: Sessão Padrão]\n")
-        : "";
+      const typePrefix =
+        specialtyUpper !== "AP"
+          ? tipoAgendamento === "anamnese"
+            ? "[Tipo: Anamnese]\n"
+            : "[Tipo: Sessão Padrão]\n"
+          : "";
 
       // Calculate valor for sync
       let valor = 0;
       if (specialtyUpper !== "AP" && currentPricing) {
-        valor = tipoAgendamento === "sessao"
-          ? Number(currentPricing.valor_sessao ?? 0)
-          : Number(currentPricing.valor_avaliacao ?? currentPricing.valor_sessao ?? 0);
+        valor =
+          tipoAgendamento === "sessao"
+            ? Number(currentPricing.valor_sessao ?? 0)
+            : Number(currentPricing.valor_avaliacao ?? currentPricing.valor_sessao ?? 0);
       }
 
       if (editing) {
-        const hasOtherFieldsChanged = 
+        const hasOtherFieldsChanged =
           form.paciente_id !== (editing.paciente_id ?? "") ||
           form.profissional_id !== (editing.profissional_id ?? "") ||
           selectedSpecialty !== (editing.servicos?.nome || getEspecialidade(editing) || "") ||
@@ -771,7 +882,7 @@ Fico à disposição para qualquer dúvida!`;
         let updateAllFuture = false;
         if (editing.recorrencia_grupo && hasOtherFieldsChanged) {
           updateAllFuture = confirm(
-            "Este agendamento faz parte de uma série recorrente. Deseja aplicar estas alterações também para todas as datas futuras da série?"
+            "Este agendamento faz parte de uma série recorrente. Deseja aplicar estas alterações também para todas as datas futuras da série?",
           );
         }
 
@@ -793,11 +904,14 @@ Fico à disposição para qualquer dúvida!`;
 
           if (fetchError) throw fetchError;
 
-          const startDiff = new Date(form.data_inicio).getTime() - new Date(editing.data_inicio).getTime();
+          const startDiff =
+            new Date(form.data_inicio).getTime() - new Date(editing.data_inicio).getTime();
           const endDiff = new Date(form.data_fim).getTime() - new Date(editing.data_fim).getTime();
 
           const updates = (futureAgs ?? []).map((occ) => {
-            const occStart = new Date(new Date(occ.data_inicio).getTime() + startDiff).toISOString();
+            const occStart = new Date(
+              new Date(occ.data_inicio).getTime() + startDiff,
+            ).toISOString();
             const occEnd = new Date(new Date(occ.data_fim).getTime() + endDiff).toISOString();
             return supabase
               .from("agendamentos")
@@ -817,7 +931,9 @@ Fico à disposição para qualquer dúvida!`;
 
           if (futureAgs && futureAgs.length > 0) {
             for (const occ of futureAgs) {
-              const occStart = new Date(new Date(occ.data_inicio).getTime() + startDiff).toISOString();
+              const occStart = new Date(
+                new Date(occ.data_inicio).getTime() + startDiff,
+              ).toISOString();
               await syncAgendamentoFinanceiro(
                 occ.id,
                 form.paciente_id,
@@ -826,12 +942,15 @@ Fico à disposição para qualquer dúvida!`;
                 form.status,
                 tipoAgendamento,
                 selectedSpecialty,
-                valor
+                valor,
               );
             }
           }
         } else {
-          const { error } = await supabase.from("agendamentos").update(payload).eq("id", editing.id);
+          const { error } = await supabase
+            .from("agendamentos")
+            .update(payload)
+            .eq("id", editing.id);
           if (error) throw error;
 
           await syncAgendamentoFinanceiro(
@@ -842,7 +961,7 @@ Fico à disposição para qualquer dúvida!`;
             form.status,
             tipoAgendamento,
             selectedSpecialty,
-            valor
+            valor,
           );
         }
       } else {
@@ -863,8 +982,20 @@ Fico à disposição para qualquer dúvida!`;
             } else if (form.recorrencia === "mensal") {
               const baseStart = new Date(form.data_inicio);
               const baseEnd = new Date(form.data_fim);
-              occStart = new Date(baseStart.getFullYear(), baseStart.getMonth() + i, baseStart.getDate(), baseStart.getHours(), baseStart.getMinutes());
-              occEnd = new Date(baseEnd.getFullYear(), baseEnd.getMonth() + i, baseEnd.getDate(), baseEnd.getHours(), baseEnd.getMinutes());
+              occStart = new Date(
+                baseStart.getFullYear(),
+                baseStart.getMonth() + i,
+                baseStart.getDate(),
+                baseStart.getHours(),
+                baseStart.getMinutes(),
+              );
+              occEnd = new Date(
+                baseEnd.getFullYear(),
+                baseEnd.getMonth() + i,
+                baseEnd.getDate(),
+                baseEnd.getHours(),
+                baseEnd.getMinutes(),
+              );
             } else {
               occStart = new Date(form.data_inicio);
               occEnd = new Date(form.data_fim);
@@ -897,7 +1028,7 @@ Fico à disposição para qualquer dúvida!`;
                 occ.status,
                 tipoAgendamento,
                 selectedSpecialty,
-                valor
+                valor,
               );
             }
           }
@@ -926,13 +1057,16 @@ Fico à disposição para qualquer dúvida!`;
               form.status,
               tipoAgendamento,
               selectedSpecialty,
-              valor
+              valor,
             );
           }
         }
       }
     },
-    onSuccess: () => { toast.success(editing ? "Agendamento atualizado" : "Agendamento criado"); onSaved(); },
+    onSuccess: () => {
+      toast.success(editing ? "Agendamento atualizado" : "Agendamento criado");
+      onSaved();
+    },
     onError: (e: any) => e.message !== "Cancelado pelo usuário" && toast.error(e.message),
   });
 
@@ -962,15 +1096,12 @@ Fico à disposição para qualquer dúvida!`;
               "cancelado",
               tipoAgendamento,
               selectedSpecialty,
-              0
+              0,
             );
           }
         }
       } else {
-        const { error } = await supabase
-          .from("agendamentos")
-          .delete()
-          .eq("id", editing.id);
+        const { error } = await supabase.from("agendamentos").delete().eq("id", editing.id);
         if (error) throw error;
 
         await syncAgendamentoFinanceiro(
@@ -981,7 +1112,7 @@ Fico à disposição para qualquer dúvida!`;
           "cancelado",
           tipoAgendamento,
           selectedSpecialty,
-          0
+          0,
         );
       }
     },
@@ -997,29 +1128,43 @@ Fico à disposição para qualquer dúvida!`;
       <DialogHeader>
         <DialogTitle>{editing ? "Editar agendamento" : "Novo agendamento"}</DialogTitle>
       </DialogHeader>
-      <form onSubmit={(e) => { e.preventDefault(); save.mutate(); }} className="space-y-3">
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          save.mutate();
+        }}
+        className="space-y-3"
+      >
         {editing && (
           <div className="rounded-lg border bg-muted/40 p-3 text-xs space-y-3 animate-in fade-in duration-200">
             <div className="font-semibold text-muted-foreground uppercase tracking-wider text-[10px]">
               Dados Agendados & Histórico
             </div>
-            
+
             <div className="max-h-36 overflow-y-auto pr-1 space-y-3 divider-y">
               {/* Resumo do Agendamento Atual */}
               <div className="space-y-1.5 pb-2 border-b border-border/60">
-                <div className="font-medium text-primary text-[10px] uppercase">Agendamento Atual</div>
+                <div className="font-medium text-primary text-[10px] uppercase">
+                  Agendamento Atual
+                </div>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-1">
                   <div>
                     <span className="text-muted-foreground font-medium">Paciente:</span>{" "}
-                    <span className="text-foreground font-semibold">{editing.pacientes?.nome || "—"}</span>
+                    <span className="text-foreground font-semibold">
+                      {editing.pacientes?.nome || "—"}
+                    </span>
                   </div>
                   <div>
                     <span className="text-muted-foreground font-medium">Profissional:</span>{" "}
-                    <span className="text-foreground font-semibold">{editing.profissionais?.nome || "—"}</span>
+                    <span className="text-foreground font-semibold">
+                      {editing.profissionais?.nome || "—"}
+                    </span>
                   </div>
                   <div>
                     <span className="text-muted-foreground font-medium">Especialidade:</span>{" "}
-                    <span className="text-foreground font-semibold">{editing.servicos?.nome || editing.profissionais?.especialidade || "—"}</span>
+                    <span className="text-foreground font-semibold">
+                      {editing.servicos?.nome || editing.profissionais?.especialidade || "—"}
+                    </span>
                   </div>
                   <div>
                     <span className="text-muted-foreground font-medium">Data/Hora:</span>{" "}
@@ -1046,13 +1191,17 @@ Fico à disposição para qualquer dúvida!`;
                   </div>
                   <div>
                     <span className="text-muted-foreground font-medium">Recorrência:</span>{" "}
-                    <span className="text-foreground font-semibold capitalize">{editing.recorrencia || "única"}</span>
+                    <span className="text-foreground font-semibold capitalize">
+                      {editing.recorrencia || "única"}
+                    </span>
                   </div>
                 </div>
                 {editing.observacoes && (
                   <div className="mt-1">
                     <span className="text-muted-foreground font-medium">Observações:</span>{" "}
-                    <span className="text-foreground whitespace-pre-wrap">{editing.observacoes.replace(/^\[Tipo: (Anamnese|Sessão Padrão)\]\n?/, "")}</span>
+                    <span className="text-foreground whitespace-pre-wrap">
+                      {editing.observacoes.replace(/^\[Tipo: (Anamnese|Sessão Padrão)\]\n?/, "")}
+                    </span>
                   </div>
                 )}
               </div>
@@ -1062,17 +1211,27 @@ Fico à disposição para qualquer dúvida!`;
                 <div className="font-medium text-primary text-[10px] uppercase flex items-center justify-between">
                   <span>Todos os Agendamentos do Paciente ({patientAgs.length})</span>
                 </div>
-                 {sortedPatientAgs.length === 0 ? (
-                  <p className="text-muted-foreground italic">Nenhum outro agendamento encontrado.</p>
+                {sortedPatientAgs.length === 0 ? (
+                  <p className="text-muted-foreground italic">
+                    Nenhum outro agendamento encontrado.
+                  </p>
                 ) : (
                   <div className="space-y-1.5">
                     {sortedPatientAgs.map((a: any) => (
-                      <div key={a.id} className={cn(
-                        "p-1.5 rounded border flex items-center justify-between text-[11px] transition",
-                        a.id === editing.id ? "bg-primary/5 border-primary/30" : "bg-card border-border/40"
-                      )}>
+                      <div
+                        key={a.id}
+                        className={cn(
+                          "p-1.5 rounded border flex items-center justify-between text-[11px] transition",
+                          a.id === editing.id
+                            ? "bg-primary/5 border-primary/30"
+                            : "bg-card border-border/40",
+                        )}
+                      >
                         <div className="flex items-center gap-2">
-                          <div className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: a.profissionais?.cor || "var(--primary)" }} />
+                          <div
+                            className="h-2 w-2 rounded-full shrink-0"
+                            style={{ backgroundColor: a.profissionais?.cor || "var(--primary)" }}
+                          />
                           <div>
                             <span className="font-medium text-foreground">
                               {safeFormatDate(a.data_inicio, "dd/MM/yyyy HH:mm", { locale: ptBR })}
@@ -1083,14 +1242,22 @@ Fico à disposição para qualquer dúvida!`;
                             </span>
                           </div>
                         </div>
-                        <Badge variant="outline" className={cn(
-                          "h-4 px-1 text-[8px] uppercase font-bold shrink-0",
-                          a.status === "confirmado" && "border-green-500/30 text-green-600 bg-green-50/50",
-                          a.status === "cancelado" && "border-red-500/30 text-red-600 bg-red-50/50",
-                          a.status === "realizado" && "border-blue-500/30 text-blue-600 bg-blue-50/50",
-                          a.status === "falta" && "border-orange-500/30 text-orange-600 bg-orange-50/50",
-                          a.status === "pendente" && "border-yellow-500/30 text-yellow-600 bg-yellow-50/50"
-                        )}>
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            "h-4 px-1 text-[8px] uppercase font-bold shrink-0",
+                            a.status === "confirmado" &&
+                              "border-green-500/30 text-green-600 bg-green-50/50",
+                            a.status === "cancelado" &&
+                              "border-red-500/30 text-red-600 bg-red-50/50",
+                            a.status === "realizado" &&
+                              "border-blue-500/30 text-blue-600 bg-blue-50/50",
+                            a.status === "falta" &&
+                              "border-orange-500/30 text-orange-600 bg-orange-50/50",
+                            a.status === "pendente" &&
+                              "border-yellow-500/30 text-yellow-600 bg-yellow-50/50",
+                          )}
+                        >
                           {STATUS_LABEL[a.status] || a.status || ""}
                         </Badge>
                       </div>
@@ -1105,7 +1272,9 @@ Fico à disposição para qualquer dúvida!`;
         <div className="space-y-1.5">
           <Label>Profissional *</Label>
           <Select value={form.profissional_id} onValueChange={handleProfissionalChange}>
-            <SelectTrigger><SelectValue placeholder="Selecione o profissional…" /></SelectTrigger>
+            <SelectTrigger>
+              <SelectValue placeholder="Selecione o profissional…" />
+            </SelectTrigger>
             <SelectContent>
               {profissionais.map((p: any) => (
                 <SelectItem key={p.id} value={p.id}>
@@ -1120,17 +1289,21 @@ Fico à disposição para qualquer dúvida!`;
           <div className="space-y-1.5 animate-in fade-in duration-200">
             <Label>Especialidade *</Label>
             <Select value={selectedSpecialty} onValueChange={handleSpecialtyChange}>
-              <SelectTrigger><SelectValue placeholder="Selecione a especialidade…" /></SelectTrigger>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione a especialidade…" />
+              </SelectTrigger>
               <SelectContent>
                 {professionalSpecialties.map((s: string) => (
-                  <SelectItem key={s} value={s}>{s}</SelectItem>
+                  <SelectItem key={s} value={s}>
+                    {s}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
         )}
 
-        {(form.profissional_id && selectedSpecialty || editing) && (
+        {((form.profissional_id && selectedSpecialty) || editing) && (
           <div className="space-y-1.5 animate-in fade-in duration-200">
             <Label>Paciente *</Label>
             <Popover open={pacienteOpen} onOpenChange={setPacienteOpen}>
@@ -1163,7 +1336,7 @@ Fico à disposição para qualquer dúvida!`;
                           <Check
                             className={cn(
                               "mr-2 h-4 w-4",
-                              form.paciente_id === p.id ? "opacity-100" : "opacity-0"
+                              form.paciente_id === p.id ? "opacity-100" : "opacity-0",
                             )}
                           />
                           {p.nome}
@@ -1177,7 +1350,7 @@ Fico à disposição para qualquer dúvida!`;
           </div>
         )}
 
-        {(form.profissional_id && form.paciente_id && selectedSpecialty || editing) && (
+        {((form.profissional_id && form.paciente_id && selectedSpecialty) || editing) && (
           <div className="space-y-3 animate-in fade-in duration-200">
             {specialtyUpper !== "AP" && (
               <div className="space-y-1.5 animate-in fade-in duration-200">
@@ -1206,7 +1379,9 @@ Fico à disposição para qualquer dúvida!`;
                   {specialtyUpper === "AP" && currentPricing.plano_mensal ? (
                     <div>
                       <span className="text-muted-foreground">Plano Mensal (AP): </span>
-                      <span className="font-semibold text-foreground">{currentPricing.plano_mensal}</span>
+                      <span className="font-semibold text-foreground">
+                        {currentPricing.plano_mensal}
+                      </span>
                     </div>
                   ) : (
                     <div>
@@ -1215,13 +1390,14 @@ Fico à disposição para qualquer dúvida!`;
                       </span>
                       <span className="font-bold text-foreground text-sm font-mono">
                         {tipoAgendamento === "sessao"
-                          ? (currentPricing.valor_sessao !== null && currentPricing.valor_sessao !== undefined
-                              ? `R$ ${Number(currentPricing.valor_sessao).toFixed(2)}`
-                              : "—")
-                          : (currentPricing.valor_avaliacao !== null && currentPricing.valor_avaliacao !== undefined
-                              ? `R$ ${Number(currentPricing.valor_avaliacao).toFixed(2)}`
-                              : "—")
-                        }
+                          ? currentPricing.valor_sessao !== null &&
+                            currentPricing.valor_sessao !== undefined
+                            ? `R$ ${Number(currentPricing.valor_sessao).toFixed(2)}`
+                            : "—"
+                          : currentPricing.valor_avaliacao !== null &&
+                              currentPricing.valor_avaliacao !== undefined
+                            ? `R$ ${Number(currentPricing.valor_avaliacao).toFixed(2)}`
+                            : "—"}
                       </span>
                     </div>
                   )}
@@ -1232,18 +1408,37 @@ Fico à disposição para qualquer dúvida!`;
             <div className="space-y-1.5">
               <Label>Data *</Label>
               <div className="grid grid-cols-2 gap-3">
-                <Input type="date" required value={formDate || ""} onChange={(e) => handleDateChange(e.target.value)} />
-                <Input type="time" required value={formTime || ""} onChange={(e) => handleTimeChange(e.target.value)} />
+                <Input
+                  type="date"
+                  required
+                  value={formDate || ""}
+                  onChange={(e) => handleDateChange(e.target.value)}
+                />
+                <Input
+                  type="time"
+                  required
+                  value={formTime || ""}
+                  onChange={(e) => handleTimeChange(e.target.value)}
+                />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label>Status</Label>
-                <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v as any })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                <Select
+                  value={form.status}
+                  onValueChange={(v) => setForm({ ...form, status: v as any })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
                   <SelectContent>
-                    {Object.entries(STATUS_LABEL).map(([v, l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}
+                    {Object.entries(STATUS_LABEL).map(([v, l]) => (
+                      <SelectItem key={v} value={v}>
+                        {l}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
                 {form.status !== "confirmado" && (
@@ -1262,8 +1457,13 @@ Fico à disposição para qualquer dúvida!`;
               </div>
               <div className="space-y-1.5">
                 <Label>Recorrência</Label>
-                <Select value={form.recorrencia} onValueChange={(v) => setForm({ ...form, recorrencia: v as any })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                <Select
+                  value={form.recorrencia}
+                  onValueChange={(v) => setForm({ ...form, recorrencia: v as any })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="unica">Única</SelectItem>
                     <SelectItem value="semanal">Semanal</SelectItem>
@@ -1276,7 +1476,11 @@ Fico à disposição para qualquer dúvida!`;
 
             <div className="space-y-1.5">
               <Label>Observações</Label>
-              <Textarea rows={2} value={form.observacoes} onChange={(e) => setForm({ ...form, observacoes: e.target.value })} />
+              <Textarea
+                rows={2}
+                value={form.observacoes}
+                onChange={(e) => setForm({ ...form, observacoes: e.target.value })}
+              />
             </div>
 
             <DialogFooter className="gap-2 pt-2 border-t mt-4 justify-between flex-wrap">
@@ -1288,12 +1492,16 @@ Fico à disposição para qualquer dúvida!`;
                     className="gap-1.5 text-destructive hover:bg-destructive/10 hover:text-destructive"
                     disabled={deleteMutation.isPending}
                     onClick={() => {
-                      if (confirm("Tem certeza que deseja excluir permanentemente este agendamento? Esta ação não pode ser desfeita.")) {
+                      if (
+                        confirm(
+                          "Tem certeza que deseja excluir permanentemente este agendamento? Esta ação não pode ser desfeita.",
+                        )
+                      ) {
                         const hasFuture = editing?.recorrencia_grupo;
                         let deleteAllFuture = false;
                         if (hasFuture) {
                           deleteAllFuture = confirm(
-                            "Este agendamento faz parte de uma série recorrente. Deseja excluir também todos os agendamentos futuros desta série?"
+                            "Este agendamento faz parte de uma série recorrente. Deseja excluir também todos os agendamentos futuros desta série?",
                           );
                         }
                         deleteMutation.mutate(deleteAllFuture);
@@ -1314,7 +1522,9 @@ Fico à disposição para qualquer dúvida!`;
                   </Button>
                 )}
               </div>
-              <Button type="submit" disabled={save.isPending}>{save.isPending ? "Salvando…" : "Salvar"}</Button>
+              <Button type="submit" disabled={save.isPending}>
+                {save.isPending ? "Salvando…" : "Salvar"}
+              </Button>
             </DialogFooter>
           </div>
         )}
@@ -1331,7 +1541,9 @@ function CancelDialog({ ag, onDone }: any) {
       if (cancelAllFuture && ag.recorrencia_grupo) {
         const { data: futureAgs } = await supabase
           .from("agendamentos")
-          .select("id, data_inicio, observacoes, paciente_id, profissional_id, servicos(nome), pacientes(cids_secundarios), profissionais(especialidade)")
+          .select(
+            "id, data_inicio, observacoes, paciente_id, profissional_id, servicos(nome), pacientes(cids_secundarios), profissionais(especialidade)",
+          )
           .eq("recorrencia_grupo", ag.recorrencia_grupo)
           .gte("data_inicio", ag.data_inicio);
 
@@ -1354,7 +1566,7 @@ function CancelDialog({ ag, onDone }: any) {
               "cancelado",
               occTipo,
               occSpec,
-              0
+              0,
             );
           }
         }
@@ -1375,30 +1587,46 @@ function CancelDialog({ ag, onDone }: any) {
           "cancelado",
           occTipo,
           occSpec,
-          0
+          0,
         );
       }
     },
-    onSuccess: () => { toast.success("Agendamento cancelado"); onDone(); },
+    onSuccess: () => {
+      toast.success("Agendamento cancelado");
+      onDone();
+    },
     onError: (e: any) => toast.error(e.message),
   });
   return (
     <DialogContent>
-      <DialogHeader><DialogTitle>Cancelar agendamento</DialogTitle></DialogHeader>
+      <DialogHeader>
+        <DialogTitle>Cancelar agendamento</DialogTitle>
+      </DialogHeader>
       <form
         onSubmit={(e) => {
           e.preventDefault();
           const cancelAllFuture = ag.recorrencia_grupo
-            ? confirm("Este agendamento faz parte de uma série recorrente. Deseja cancelar também todos os agendamentos futuros desta série?")
+            ? confirm(
+                "Este agendamento faz parte de uma série recorrente. Deseja cancelar também todos os agendamentos futuros desta série?",
+              )
             : false;
           m.mutate(cancelAllFuture);
         }}
         className="space-y-3"
       >
-        <p className="text-sm text-muted-foreground">Informe o motivo do cancelamento. Esta ação não pode ser desfeita.</p>
-        <Textarea required value={motivo} onChange={(e) => setMotivo(e.target.value)} placeholder="Motivo…" />
+        <p className="text-sm text-muted-foreground">
+          Informe o motivo do cancelamento. Esta ação não pode ser desfeita.
+        </p>
+        <Textarea
+          required
+          value={motivo}
+          onChange={(e) => setMotivo(e.target.value)}
+          placeholder="Motivo…"
+        />
         <DialogFooter>
-          <Button type="submit" variant="destructive" disabled={m.isPending}>Confirmar cancelamento</Button>
+          <Button type="submit" variant="destructive" disabled={m.isPending}>
+            Confirmar cancelamento
+          </Button>
         </DialogFooter>
       </form>
     </DialogContent>

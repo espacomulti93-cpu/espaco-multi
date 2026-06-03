@@ -6,7 +6,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Plus, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -76,7 +83,9 @@ function PacienteDetail() {
     <div className="space-y-5">
       <div className="flex items-center gap-2">
         <Button asChild variant="ghost" size="sm" className="gap-1">
-          <Link to="/pacientes"><ArrowLeft className="h-4 w-4" /> Pacientes</Link>
+          <Link to="/pacientes">
+            <ArrowLeft className="h-4 w-4" /> Pacientes
+          </Link>
         </Button>
       </div>
 
@@ -132,8 +141,18 @@ function PacienteDetail() {
               )}
             </div>
           </div>
-          <Info label="Atendimento" value={paciente.tipo_atendimento === "convenio" ? `Convênio: ${paciente.convenio_nome ?? "—"}` : "Particular"} />
-          <Info label="Valor mensal" value={paciente.valor_mensal ? `R$ ${Number(paciente.valor_mensal).toFixed(2)}` : "—"} />
+          <Info
+            label="Atendimento"
+            value={
+              paciente.tipo_atendimento === "convenio"
+                ? `Convênio: ${paciente.convenio_nome ?? "—"}`
+                : "Particular"
+            }
+          />
+          <Info
+            label="Valor mensal"
+            value={paciente.valor_mensal ? `R$ ${Number(paciente.valor_mensal).toFixed(2)}` : "—"}
+          />
           <Info label="Cadastrado em" value={format(new Date(paciente.created_at), "dd/MM/yyyy")} />
           {paciente.observacoes && (
             <div className="sm:col-span-2">
@@ -170,9 +189,16 @@ function PacienteDetail() {
               {responsaveis.map((r) => (
                 <div key={r.id} className="flex items-center gap-3 py-3">
                   <div className="flex-1">
-                    <div className="text-sm font-medium">{r.nome} {r.parentesco && <span className="text-muted-foreground">• {r.parentesco}</span>}</div>
+                    <div className="text-sm font-medium">
+                      {r.nome}{" "}
+                      {r.parentesco && (
+                        <span className="text-muted-foreground">• {r.parentesco}</span>
+                      )}
+                    </div>
                     <div className="text-xs text-muted-foreground">
-                      {[r.telefone, r.whatsapp && `WhatsApp: ${r.whatsapp}`, r.email].filter(Boolean).join(" • ")}
+                      {[r.telefone, r.whatsapp && `WhatsApp: ${r.whatsapp}`, r.email]
+                        .filter(Boolean)
+                        .join(" • ")}
                     </div>
                   </div>
                   <Button size="icon" variant="ghost" onClick={() => delResp.mutate(r.id)}>
@@ -186,7 +212,9 @@ function PacienteDetail() {
       </Card>
 
       <Card>
-        <CardHeader><CardTitle className="text-base">Histórico de agendamentos</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle className="text-base">Histórico de agendamentos</CardTitle>
+        </CardHeader>
         <CardContent>
           {ags.length === 0 ? (
             <p className="text-sm text-muted-foreground">Sem agendamentos.</p>
@@ -194,7 +222,10 @@ function PacienteDetail() {
             <div className="divide-y">
               {ags.map((a: any) => (
                 <div key={a.id} className="flex items-center gap-3 py-2.5 text-sm">
-                  <div className="h-8 w-1 rounded-full" style={{ background: a.profissionais?.cor }} />
+                  <div
+                    className="h-8 w-1 rounded-full"
+                    style={{ background: a.profissionais?.cor }}
+                  />
                   <div className="min-w-[140px] font-medium">
                     {format(new Date(a.data_inicio), "dd/MM/yyyy HH:mm")}
                   </div>
@@ -222,10 +253,18 @@ function Info({ label, value }: { label: string; value: any }) {
 }
 
 function ResponsavelDialog({ pacienteId, onSaved }: { pacienteId: string; onSaved: () => void }) {
-  const [form, setForm] = useState({ nome: "", parentesco: "", telefone: "", whatsapp: "", email: "" });
+  const [form, setForm] = useState({
+    nome: "",
+    parentesco: "",
+    telefone: "",
+    whatsapp: "",
+    email: "",
+  });
   const m = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from("responsaveis").insert({ ...form, paciente_id: pacienteId });
+      const { error } = await supabase
+        .from("responsaveis")
+        .insert({ ...form, paciente_id: pacienteId });
       if (error) throw error;
     },
     onSuccess: () => {
@@ -236,21 +275,61 @@ function ResponsavelDialog({ pacienteId, onSaved }: { pacienteId: string; onSave
   });
   return (
     <DialogContent>
-      <DialogHeader><DialogTitle>Novo responsável</DialogTitle></DialogHeader>
-      <form onSubmit={(e) => { e.preventDefault(); m.mutate(); }} className="space-y-3">
-        <div className="space-y-1.5"><Label>Nome *</Label>
-          <Input required value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} /></div>
-        <div className="space-y-1.5"><Label>Parentesco</Label>
-          <Input value={form.parentesco} onChange={(e) => setForm({ ...form, parentesco: e.target.value })} placeholder="Mãe, Pai, Responsável legal…" /></div>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5"><Label>Telefone</Label>
-            <Input value={form.telefone} onChange={(e) => setForm({ ...form, telefone: e.target.value })} /></div>
-          <div className="space-y-1.5"><Label>WhatsApp</Label>
-            <Input value={form.whatsapp} onChange={(e) => setForm({ ...form, whatsapp: e.target.value })} /></div>
+      <DialogHeader>
+        <DialogTitle>Novo responsável</DialogTitle>
+      </DialogHeader>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          m.mutate();
+        }}
+        className="space-y-3"
+      >
+        <div className="space-y-1.5">
+          <Label>Nome *</Label>
+          <Input
+            required
+            value={form.nome}
+            onChange={(e) => setForm({ ...form, nome: e.target.value })}
+          />
         </div>
-        <div className="space-y-1.5"><Label>E-mail</Label>
-          <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
-        <DialogFooter><Button type="submit" disabled={m.isPending}>Salvar</Button></DialogFooter>
+        <div className="space-y-1.5">
+          <Label>Parentesco</Label>
+          <Input
+            value={form.parentesco}
+            onChange={(e) => setForm({ ...form, parentesco: e.target.value })}
+            placeholder="Mãe, Pai, Responsável legal…"
+          />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <Label>Telefone</Label>
+            <Input
+              value={form.telefone}
+              onChange={(e) => setForm({ ...form, telefone: e.target.value })}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label>WhatsApp</Label>
+            <Input
+              value={form.whatsapp}
+              onChange={(e) => setForm({ ...form, whatsapp: e.target.value })}
+            />
+          </div>
+        </div>
+        <div className="space-y-1.5">
+          <Label>E-mail</Label>
+          <Input
+            type="email"
+            value={form.email}
+            onChange={(e) => setForm({ ...form, email: e.target.value })}
+          />
+        </div>
+        <DialogFooter>
+          <Button type="submit" disabled={m.isPending}>
+            Salvar
+          </Button>
+        </DialogFooter>
       </form>
     </DialogContent>
   );

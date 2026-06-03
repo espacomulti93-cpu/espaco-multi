@@ -6,19 +6,48 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Pencil, Trash2, DollarSign, GripVertical } from "lucide-react";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export const Route = createFileRoute("/_app/profissionais")({
   component: ProfissionaisPage,
 });
 
-const CORES = ["#3b82f6", "#fb923c", "#10b981", "#a78bfa", "#ec4899", "#f59e0b", "#06b6d4", "#ef4444"];
+const CORES = [
+  "#3b82f6",
+  "#fb923c",
+  "#10b981",
+  "#a78bfa",
+  "#ec4899",
+  "#f59e0b",
+  "#06b6d4",
+  "#ef4444",
+];
 
 const PLANOS_AP = [
   { label: "1x na semana: R$ 240,00", value: "240" },
@@ -34,7 +63,11 @@ function ProfissionaisPage() {
   const { data = [] } = useQuery({
     queryKey: ["profissionais"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("profissionais").select("*").order("cor").order("nome");
+      const { data, error } = await supabase
+        .from("profissionais")
+        .select("*")
+        .order("cor")
+        .order("nome");
       if (error) throw error;
       return data;
     },
@@ -108,9 +141,17 @@ function ProfissionaisPage() {
   return (
     <div className="space-y-4">
       <div className="flex justify-end gap-2">
-        <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setEditing(null); }}>
+        <Dialog
+          open={open}
+          onOpenChange={(o) => {
+            setOpen(o);
+            if (!o) setEditing(null);
+          }}
+        >
           <DialogTrigger asChild>
-            <Button className="gap-1.5"><Plus className="h-4 w-4" /> Novo profissional</Button>
+            <Button className="gap-1.5">
+              <Plus className="h-4 w-4" /> Novo profissional
+            </Button>
           </DialogTrigger>
           {open && (
             <ProfForm
@@ -125,11 +166,15 @@ function ProfissionaisPage() {
         </Dialog>
       </div>
       {data.length === 0 ? (
-        <Card><CardContent className="py-12 text-center text-sm text-muted-foreground">Nenhum profissional cadastrado.</CardContent></Card>
+        <Card>
+          <CardContent className="py-12 text-center text-sm text-muted-foreground">
+            Nenhum profissional cadastrado.
+          </CardContent>
+        </Card>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {orderedData.map((p, idx) => (
-            <Card 
+            <Card
               key={p.id}
               draggable
               onDragStart={(e) => handleDragStart(e, idx)}
@@ -147,11 +192,19 @@ function ProfissionaisPage() {
                     <div className="truncate font-medium">{p.nome}</div>
                     <div className="mt-1 flex flex-wrap gap-1">
                       {p.especialidade ? (
-                        p.especialidade.split(",").map((s: string) => s.trim()).filter(Boolean).map((esp: string) => (
-                          <Badge key={esp} variant="outline" className="text-[10px] px-1.5 py-0 font-normal">
-                            {esp}
-                          </Badge>
-                        ))
+                        p.especialidade
+                          .split(",")
+                          .map((s: string) => s.trim())
+                          .filter(Boolean)
+                          .map((esp: string) => (
+                            <Badge
+                              key={esp}
+                              variant="outline"
+                              className="text-[10px] px-1.5 py-0 font-normal"
+                            >
+                              {esp}
+                            </Badge>
+                          ))
                       ) : (
                         <span className="text-xs text-muted-foreground">—</span>
                       )}
@@ -161,15 +214,22 @@ function ProfissionaisPage() {
                         (p.valores_config as any).especialidades
                           .filter((esp: any) => {
                             const activeSpecs = p.especialidade
-                              ? p.especialidade.split(",").map((s: string) => s.trim().toLowerCase())
+                              ? p.especialidade
+                                  .split(",")
+                                  .map((s: string) => s.trim().toLowerCase())
                               : [];
                             return activeSpecs.includes(esp.nome.toLowerCase());
                           })
                           .map((esp: any) => {
                             if (esp.nome.toUpperCase() === "AP") {
-                              const plano = PLANOS_AP.find((pl) => pl.value === String(esp.plano_mensal));
+                              const plano = PLANOS_AP.find(
+                                (pl) => pl.value === String(esp.plano_mensal),
+                              );
                               return (
-                                <div key={esp.nome} className="text-xs text-muted-foreground flex justify-between gap-4">
+                                <div
+                                  key={esp.nome}
+                                  className="text-xs text-muted-foreground flex justify-between gap-4"
+                                >
                                   <span className="font-semibold">AP:</span>
                                   <span className="font-medium text-foreground">
                                     {plano ? plano.label : "Plano não configurado"}
@@ -188,11 +248,12 @@ function ProfissionaisPage() {
                               valStr = `Sessão R$ ${Number(esp.valor_sessao ?? 0).toFixed(2)} | Anamnese R$ ${Number(esp.valor_avaliacao ?? 0).toFixed(2)}`;
                             }
                             return (
-                              <div key={esp.nome} className="text-xs text-muted-foreground flex justify-between gap-4">
+                              <div
+                                key={esp.nome}
+                                className="text-xs text-muted-foreground flex justify-between gap-4"
+                              >
                                 <span>{esp.nome}:</span>
-                                <span className="font-medium text-foreground">
-                                  {valStr}
-                                </span>
+                                <span className="font-medium text-foreground">{valStr}</span>
                               </div>
                             );
                           })
@@ -201,37 +262,70 @@ function ProfissionaisPage() {
                           Geral: R$ {Number(p.valor_sessao).toFixed(2)}/sessão
                         </div>
                       ) : (
-                        <div className="text-xs text-muted-foreground">Valores não configurados</div>
+                        <div className="text-xs text-muted-foreground">
+                          Valores não configurados
+                        </div>
                       )}
                     </div>
                     {p.valores_config && (p.valores_config as any).descontos?.length > 0 && (
                       <div className="mt-2 pt-2 border-t text-[11px] text-muted-foreground space-y-0.5">
-                        <span className="font-semibold text-foreground block">Descontos ativos:</span>
+                        <span className="font-semibold text-foreground block">
+                          Descontos ativos:
+                        </span>
                         {(p.valores_config as any).descontos.map((d: any, idx: number) => {
                           const pac = pacientes.find((pac: any) => pac.id === d.paciente_id);
-                          const isSupervisorABA = d.especialidade?.toLowerCase() === "supervisor aba";
+                          const isSupervisorABA =
+                            d.especialidade?.toLowerCase() === "supervisor aba";
                           const val = isSupervisorABA ? d.valor_avaliacao : d.valor_sessao;
                           const prefix = isSupervisorABA ? "Ana.: " : "";
                           return (
-                            <div key={idx} className="flex justify-between text-[10px] text-muted-foreground">
-                              <span>{pac?.nome || "Carregando..."} ({d.especialidade})</span>
-                              <span>{prefix}R$ {Number(val ?? 0).toFixed(2)}</span>
+                            <div
+                              key={idx}
+                              className="flex justify-between text-[10px] text-muted-foreground"
+                            >
+                              <span>
+                                {pac?.nome || "Carregando..."} ({d.especialidade})
+                              </span>
+                              <span>
+                                {prefix}R$ {Number(val ?? 0).toFixed(2)}
+                              </span>
                             </div>
                           );
                         })}
                       </div>
                     )}
                   </div>
-                  <Badge variant={p.ativo ? "default" : "secondary"} onDragStart={(e) => e.stopPropagation()}>{p.ativo ? "Ativo" : "Inativo"}</Badge>
+                  <Badge
+                    variant={p.ativo ? "default" : "secondary"}
+                    onDragStart={(e) => e.stopPropagation()}
+                  >
+                    {p.ativo ? "Ativo" : "Inativo"}
+                  </Badge>
                 </div>
-                <div className="mt-4 flex justify-end items-center gap-2" onDragStart={(e) => e.stopPropagation()}>
+                <div
+                  className="mt-4 flex justify-end items-center gap-2"
+                  onDragStart={(e) => e.stopPropagation()}
+                >
                   <div className="flex gap-1">
-                    <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => { setEditing(p); setOpen(true); }}>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                      onClick={() => {
+                        setEditing(p);
+                        setOpen(true);
+                      }}
+                    >
                       <Pencil className="h-4 w-4" />
                     </Button>
-                    <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => {
-                      if (confirm(`Remover ${p.nome}?`)) del.mutate(p.id);
-                    }}>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                      onClick={() => {
+                        if (confirm(`Remover ${p.nome}?`)) del.mutate(p.id);
+                      }}
+                    >
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
@@ -262,19 +356,33 @@ function ProfForm({ prof, onSaved }: { prof: any; onSaved: () => void }) {
     },
   });
 
-  const config = prof?.valores_config as any || { especialidades: [], descontos: [] };
+  const config = (prof?.valores_config as any) || { especialidades: [], descontos: [] };
 
   const [form, setForm] = useState(() => {
     const initialSpecs = prof?.especialidade
-      ? prof.especialidade.split(", ").filter(Boolean).map((s: string) => {
-          const existing = config.especialidades?.find((e: any) => e.nome.toLowerCase() === s.toLowerCase());
-          return {
-            nome: s,
-            valor_sessao: existing?.valor_sessao !== undefined && existing?.valor_sessao !== null ? String(existing.valor_sessao) : "",
-            valor_avaliacao: existing?.valor_avaliacao !== undefined && existing?.valor_avaliacao !== null ? String(existing.valor_avaliacao) : "",
-            plano_mensal: existing?.plano_mensal !== undefined && existing?.plano_mensal !== null ? String(existing.plano_mensal) : "",
-          };
-        })
+      ? prof.especialidade
+          .split(", ")
+          .filter(Boolean)
+          .map((s: string) => {
+            const existing = config.especialidades?.find(
+              (e: any) => e.nome.toLowerCase() === s.toLowerCase(),
+            );
+            return {
+              nome: s,
+              valor_sessao:
+                existing?.valor_sessao !== undefined && existing?.valor_sessao !== null
+                  ? String(existing.valor_sessao)
+                  : "",
+              valor_avaliacao:
+                existing?.valor_avaliacao !== undefined && existing?.valor_avaliacao !== null
+                  ? String(existing.valor_avaliacao)
+                  : "",
+              plano_mensal:
+                existing?.plano_mensal !== undefined && existing?.plano_mensal !== null
+                  ? String(existing.plano_mensal)
+                  : "",
+            };
+          })
       : [{ nome: "", valor_sessao: "", valor_avaliacao: "", plano_mensal: "" }];
 
     return {
@@ -315,9 +423,9 @@ function ProfForm({ prof, onSaved }: { prof: any; onSaved: () => void }) {
           const isAtABA = nomeLower === "at aba";
           return {
             nome: v.nome.trim(),
-            valor_sessao: (isAP || isSupervisorABA) ? null : parseMoneyValue(v.valor_sessao),
-            valor_avaliacao: (isAP || isAtABA) ? null : parseMoneyValue(v.valor_avaliacao),
-            plano_mensal: isAP ? (v.plano_mensal || null) : null,
+            valor_sessao: isAP || isSupervisorABA ? null : parseMoneyValue(v.valor_sessao),
+            valor_avaliacao: isAP || isAtABA ? null : parseMoneyValue(v.valor_avaliacao),
+            plano_mensal: isAP ? v.plano_mensal || null : null,
           };
         }),
         descontos: descontos.map((d: any) => {
@@ -351,7 +459,10 @@ function ProfForm({ prof, onSaved }: { prof: any; onSaved: () => void }) {
         if (error) throw error;
       }
     },
-    onSuccess: () => { toast.success(prof ? "Atualizado" : "Cadastrado"); onSaved(); },
+    onSuccess: () => {
+      toast.success(prof ? "Atualizado" : "Cadastrado");
+      onSaved();
+    },
     onError: (e: any) => toast.error(e.message),
   });
 
@@ -359,14 +470,21 @@ function ProfForm({ prof, onSaved }: { prof: any; onSaved: () => void }) {
     <div className="space-y-3">
       <div className="space-y-1.5">
         <Label>Nome *</Label>
-        <Input required value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} />
+        <Input
+          required
+          value={form.nome}
+          onChange={(e) => setForm({ ...form, nome: e.target.value })}
+        />
       </div>
 
       <div className="space-y-1.5">
         <Label>Especialidades & Valores</Label>
         <div className="space-y-3">
           {form.especialidades.map((esp: any, index: number) => (
-            <div key={index} className="border p-3.5 rounded-lg bg-accent/10 space-y-2.5 relative group">
+            <div
+              key={index}
+              className="border p-3.5 rounded-lg bg-accent/10 space-y-2.5 relative group"
+            >
               <div className="flex gap-2 items-center">
                 <Input
                   required
@@ -388,7 +506,9 @@ function ProfForm({ prof, onSaved }: { prof: any; onSaved: () => void }) {
                     onClick={() => {
                       setForm({
                         ...form,
-                        especialidades: form.especialidades.filter((_: any, i: number) => i !== index),
+                        especialidades: form.especialidades.filter(
+                          (_: any, i: number) => i !== index,
+                        ),
                       });
                     }}
                   >
@@ -425,8 +545,12 @@ function ProfForm({ prof, onSaved }: { prof: any; onSaved: () => void }) {
                   ) : (
                     <>
                       {esp.nome.toLowerCase() !== "supervisor aba" && (
-                        <div className={`space-y-1 ${esp.nome.toLowerCase() === "at aba" ? "col-span-2" : ""}`}>
-                          <Label className="text-[11px] text-muted-foreground">Sessão Padrão (R$)</Label>
+                        <div
+                          className={`space-y-1 ${esp.nome.toLowerCase() === "at aba" ? "col-span-2" : ""}`}
+                        >
+                          <Label className="text-[11px] text-muted-foreground">
+                            Sessão Padrão (R$)
+                          </Label>
                           <Input
                             type="number"
                             step="0.01"
@@ -442,7 +566,9 @@ function ProfForm({ prof, onSaved }: { prof: any; onSaved: () => void }) {
                         </div>
                       )}
                       {esp.nome.toLowerCase() !== "at aba" && (
-                        <div className={`space-y-1 ${esp.nome.toLowerCase() === "supervisor aba" ? "col-span-2" : ""}`}>
+                        <div
+                          className={`space-y-1 ${esp.nome.toLowerCase() === "supervisor aba" ? "col-span-2" : ""}`}
+                        >
                           <Label className="text-[11px] text-muted-foreground">Anamnese (R$)</Label>
                           <Input
                             type="number"
@@ -470,10 +596,15 @@ function ProfForm({ prof, onSaved }: { prof: any; onSaved: () => void }) {
           variant="outline"
           size="sm"
           className="mt-1"
-          onClick={() => setForm({ 
-            ...form, 
-            especialidades: [...form.especialidades, { nome: "", valor_sessao: "", valor_avaliacao: "", plano_mensal: "" }] 
-          })}
+          onClick={() =>
+            setForm({
+              ...form,
+              especialidades: [
+                ...form.especialidades,
+                { nome: "", valor_sessao: "", valor_avaliacao: "", plano_mensal: "" },
+              ],
+            })
+          }
         >
           <Plus className="h-4 w-4 mr-1.5" /> Adicionar especialidade
         </Button>
@@ -482,11 +613,18 @@ function ProfForm({ prof, onSaved }: { prof: any; onSaved: () => void }) {
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
           <Label>E-mail</Label>
-          <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+          <Input
+            type="email"
+            value={form.email}
+            onChange={(e) => setForm({ ...form, email: e.target.value })}
+          />
         </div>
         <div className="space-y-1.5">
           <Label>Telefone</Label>
-          <Input value={form.telefone} onChange={(e) => setForm({ ...form, telefone: e.target.value })} />
+          <Input
+            value={form.telefone}
+            onChange={(e) => setForm({ ...form, telefone: e.target.value })}
+          />
         </div>
       </div>
 
@@ -504,7 +642,7 @@ function ProfForm({ prof, onSaved }: { prof: any; onSaved: () => void }) {
           ))}
         </div>
       </div>
-      
+
       <div className="flex items-center space-x-2 pt-2">
         <input
           type="checkbox"
@@ -513,20 +651,23 @@ function ProfForm({ prof, onSaved }: { prof: any; onSaved: () => void }) {
           onChange={(e) => setForm({ ...form, ativo: e.target.checked })}
           className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
         />
-        <Label htmlFor="ativo" className="text-sm font-medium leading-none cursor-pointer">Ativo</Label>
+        <Label htmlFor="ativo" className="text-sm font-medium leading-none cursor-pointer">
+          Ativo
+        </Label>
       </div>
     </div>
   );
 
   const renderDescontosForm = () => {
     const activeSpecs = form.especialidades.map((e: any) => e.nome.trim()).filter(Boolean);
-    
+
     return (
       <div className="space-y-4">
         <p className="text-xs text-muted-foreground">
-          Configure descontos e valores especiais de sessões e anamneses para pacientes selecionados.
+          Configure descontos e valores especiais de sessões e anamneses para pacientes
+          selecionados.
         </p>
-        
+
         {activeSpecs.length === 0 ? (
           <div className="py-6 text-center text-sm text-muted-foreground border rounded-lg">
             Adicione e salve especialidades na aba "Dados Gerais & Valores" primeiro.
@@ -536,28 +677,44 @@ function ProfForm({ prof, onSaved }: { prof: any; onSaved: () => void }) {
             <div className="grid grid-cols-2 gap-3 p-3 border border-dashed rounded-lg bg-muted/40">
               <div className="space-y-1.5">
                 <Label>Paciente</Label>
-                <Select value={newDesc.paciente_id} onValueChange={(v) => setNewDesc({ ...newDesc, paciente_id: v })}>
-                  <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                <Select
+                  value={newDesc.paciente_id}
+                  onValueChange={(v) => setNewDesc({ ...newDesc, paciente_id: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione..." />
+                  </SelectTrigger>
                   <SelectContent>
                     {pacientes.map((p: any) => (
-                      <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.nome}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-1.5">
                 <Label>Especialidade</Label>
-                <Select value={newDesc.especialidade} onValueChange={(v) => setNewDesc({ ...newDesc, especialidade: v })}>
-                  <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                <Select
+                  value={newDesc.especialidade}
+                  onValueChange={(v) => setNewDesc({ ...newDesc, especialidade: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione..." />
+                  </SelectTrigger>
                   <SelectContent>
                     {activeSpecs.map((s: string) => (
-                      <SelectItem key={s} value={s}>{s}</SelectItem>
+                      <SelectItem key={s} value={s}>
+                        {s}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
               {newDesc.especialidade.toLowerCase() !== "supervisor aba" && (
-                <div className={`space-y-1.5 ${newDesc.especialidade.toLowerCase() === "at aba" ? "col-span-2" : ""}`}>
+                <div
+                  className={`space-y-1.5 ${newDesc.especialidade.toLowerCase() === "at aba" ? "col-span-2" : ""}`}
+                >
                   <Label>Valor Sessão (R$)</Label>
                   <Input
                     type="number"
@@ -569,7 +726,9 @@ function ProfForm({ prof, onSaved }: { prof: any; onSaved: () => void }) {
                 </div>
               )}
               {newDesc.especialidade.toLowerCase() !== "at aba" && (
-                <div className={`space-y-1.5 ${newDesc.especialidade.toLowerCase() === "supervisor aba" ? "col-span-2" : ""}`}>
+                <div
+                  className={`space-y-1.5 ${newDesc.especialidade.toLowerCase() === "supervisor aba" ? "col-span-2" : ""}`}
+                >
                   <Label>Valor Anamnese (R$)</Label>
                   <Input
                     type="number"
@@ -607,25 +766,36 @@ function ProfForm({ prof, onSaved }: { prof: any; onSaved: () => void }) {
                     const newRule = {
                       paciente_id: newDesc.paciente_id,
                       especialidade: newDesc.especialidade,
-                      valor_sessao: needsSession ? (parseMoneyValue(newDesc.valor_sessao) ?? 0) : null,
-                      valor_avaliacao: needsAnamnese ? (parseMoneyValue(newDesc.valor_avaliacao) ?? 0) : null,
+                      valor_sessao: needsSession
+                        ? (parseMoneyValue(newDesc.valor_sessao) ?? 0)
+                        : null,
+                      valor_avaliacao: needsAnamnese
+                        ? (parseMoneyValue(newDesc.valor_avaliacao) ?? 0)
+                        : null,
                     };
                     const exists = descontos.some(
-                      (d: any) => d.paciente_id === newRule.paciente_id && d.especialidade === newRule.especialidade
+                      (d: any) =>
+                        d.paciente_id === newRule.paciente_id &&
+                        d.especialidade === newRule.especialidade,
                     );
                     if (exists) {
                       toast.error("Já existe desconto para este paciente nesta especialidade");
                       return;
                     }
                     setDescontos([...descontos, newRule]);
-                    setNewDesc({ paciente_id: "", especialidade: activeSpecs[0] || "", valor_sessao: "", valor_avaliacao: "" });
+                    setNewDesc({
+                      paciente_id: "",
+                      especialidade: activeSpecs[0] || "",
+                      valor_sessao: "",
+                      valor_avaliacao: "",
+                    });
                   }}
                 >
                   <Plus className="h-4 w-4 mr-1.5" /> Adicionar Desconto
                 </Button>
               </div>
             </div>
-            
+
             <div className="border rounded-lg overflow-hidden">
               <Table className="w-full">
                 <TableHeader className="bg-muted/50">
@@ -640,7 +810,10 @@ function ProfForm({ prof, onSaved }: { prof: any; onSaved: () => void }) {
                 <TableBody>
                   {descontos.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center text-xs text-muted-foreground py-6">
+                      <TableCell
+                        colSpan={5}
+                        className="text-center text-xs text-muted-foreground py-6"
+                      >
                         Nenhum valor com desconto cadastrado para este profissional.
                       </TableCell>
                     </TableRow>
@@ -649,7 +822,9 @@ function ProfForm({ prof, onSaved }: { prof: any; onSaved: () => void }) {
                       const pac = pacientes.find((p: any) => p.id === d.paciente_id);
                       return (
                         <TableRow key={idx}>
-                          <TableCell className="font-medium text-xs">{pac?.nome || "Carregando..."}</TableCell>
+                          <TableCell className="font-medium text-xs">
+                            {pac?.nome || "Carregando..."}
+                          </TableCell>
                           <TableCell className="text-xs">{d.especialidade}</TableCell>
                           <TableCell className="text-xs font-semibold text-primary">
                             {d.especialidade?.toLowerCase() === "supervisor aba"
@@ -667,7 +842,9 @@ function ProfForm({ prof, onSaved }: { prof: any; onSaved: () => void }) {
                               variant="ghost"
                               size="icon"
                               className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                              onClick={() => setDescontos(descontos.filter((_: any, i: number) => i !== idx))}
+                              onClick={() =>
+                                setDescontos(descontos.filter((_: any, i: number) => i !== idx))
+                              }
                             >
                               <Trash2 className="h-3.5 w-3.5" />
                             </Button>
@@ -690,29 +867,35 @@ function ProfForm({ prof, onSaved }: { prof: any; onSaved: () => void }) {
       <DialogHeader>
         <DialogTitle>{prof ? "Editar profissional" : "Novo profissional"}</DialogTitle>
       </DialogHeader>
-      <form onSubmit={(e) => { e.preventDefault(); m.mutate(); }} className="flex-1 flex flex-col overflow-hidden space-y-3">
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          m.mutate();
+        }}
+        className="flex-1 flex flex-col overflow-hidden space-y-3"
+      >
         {prof ? (
           <Tabs defaultValue="geral" className="flex-1 flex flex-col overflow-hidden">
             <TabsList className="grid grid-cols-2 shrink-0">
               <TabsTrigger value="geral">Dados Gerais & Valores</TabsTrigger>
               <TabsTrigger value="descontos">Descontos por Paciente</TabsTrigger>
             </TabsList>
-            
+
             <TabsContent value="geral" className="flex-1 overflow-y-auto py-2 pr-1 space-y-3">
               {renderGeralForm()}
             </TabsContent>
-            
+
             <TabsContent value="descontos" className="flex-1 overflow-y-auto py-2 pr-1 space-y-3">
               {renderDescontosForm()}
             </TabsContent>
           </Tabs>
         ) : (
-          <div className="flex-1 overflow-y-auto py-2 pr-1 space-y-3">
-            {renderGeralForm()}
-          </div>
+          <div className="flex-1 overflow-y-auto py-2 pr-1 space-y-3">{renderGeralForm()}</div>
         )}
         <DialogFooter className="shrink-0 pt-2 border-t">
-          <Button type="submit" disabled={m.isPending}>Salvar</Button>
+          <Button type="submit" disabled={m.isPending}>
+            Salvar
+          </Button>
         </DialogFooter>
       </form>
     </DialogContent>

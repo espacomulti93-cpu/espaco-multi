@@ -52,12 +52,17 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
         </p>
         <div className="mt-6 flex justify-center gap-2">
           <button
-            onClick={() => { router.invalidate(); reset(); }}
+            onClick={() => {
+              router.invalidate();
+              reset();
+            }}
             className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
           >
             Tentar novamente
           </button>
-          <a href="/" className="rounded-md border px-4 py-2 text-sm">Início</a>
+          <a href="/" className="rounded-md border px-4 py-2 text-sm">
+            Início
+          </a>
         </div>
       </div>
     </div>
@@ -70,13 +75,33 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "Espaço Multi — Sistema de Agendamento" },
-      { name: "description", content: "Sistema de agendamento para clínicas infantis especializadas em crianças neurodivergentes." },
+      {
+        name: "description",
+        content:
+          "Sistema de agendamento para clínicas infantis especializadas em crianças neurodivergentes.",
+      },
       { property: "og:title", content: "Espaço Multi — Sistema de Agendamento" },
       { name: "twitter:title", content: "Espaço Multi — Sistema de Agendamento" },
-      { property: "og:description", content: "Sistema de agendamento para clínicas infantis especializadas em crianças neurodivergentes." },
-      { name: "twitter:description", content: "Sistema de agendamento para clínicas infantis especializadas em crianças neurodivergentes." },
-      { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/nMdj4W20UNO8FGFZoy3nF7xJd572/social-images/social-1780087028450-capa_2026.webp" },
-      { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/nMdj4W20UNO8FGFZoy3nF7xJd572/social-images/social-1780087028450-capa_2026.webp" },
+      {
+        property: "og:description",
+        content:
+          "Sistema de agendamento para clínicas infantis especializadas em crianças neurodivergentes.",
+      },
+      {
+        name: "twitter:description",
+        content:
+          "Sistema de agendamento para clínicas infantis especializadas em crianças neurodivergentes.",
+      },
+      {
+        property: "og:image",
+        content:
+          "https://storage.googleapis.com/gpt-engineer-file-uploads/nMdj4W20UNO8FGFZoy3nF7xJd572/social-images/social-1780087028450-capa_2026.webp",
+      },
+      {
+        name: "twitter:image",
+        content:
+          "https://storage.googleapis.com/gpt-engineer-file-uploads/nMdj4W20UNO8FGFZoy3nF7xJd572/social-images/social-1780087028450-capa_2026.webp",
+      },
       { name: "twitter:card", content: "summary_large_image" },
       { property: "og:type", content: "website" },
     ],
@@ -91,7 +116,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 function RootShell({ children }: { children: ReactNode }) {
   return (
     <html lang="pt-BR">
-      <head><HeadContent /></head>
+      <head>
+        <HeadContent />
+      </head>
       <body>
         {children}
         <Scripts />

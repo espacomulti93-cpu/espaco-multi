@@ -1,5 +1,15 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { LayoutDashboard, Calendar, Users, Stethoscope, Settings, LogOut, Brain, DollarSign, BarChart3 } from "lucide-react";
+import {
+  LayoutDashboard,
+  Calendar,
+  Users,
+  Stethoscope,
+  Settings,
+  LogOut,
+  Brain,
+  DollarSign,
+  BarChart3,
+} from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -20,7 +30,7 @@ const items = [
   { title: "Agenda", url: "/agenda", icon: Calendar },
   { title: "Pacientes", url: "/pacientes", icon: Users },
   { title: "Profissionais", url: "/profissionais", icon: Stethoscope },
-  { title: "Financeiro & Relatórios", url: "/financeiro", icon: DollarSign },
+  { title: "Relatórios", url: "/relatorios", icon: BarChart3 },
 ];
 
 export function AppSidebar() {
@@ -50,7 +60,7 @@ export function AppSidebar() {
                 return (
                   <SidebarMenuItem key={item.url}>
                     <SidebarMenuButton asChild isActive={active} tooltip={item.title}>
-                      <Link 
+                      <Link
                         to={item.url}
                         onClick={() => {
                           setOpenMobile(false);
@@ -71,12 +81,7 @@ export function AppSidebar() {
         <div className="px-2 pb-2 group-data-[collapsible=icon]:hidden">
           <div className="truncate text-xs text-muted-foreground">{user?.email}</div>
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => signOut()}
-          className="justify-start gap-2"
-        >
+        <Button variant="ghost" size="sm" onClick={() => signOut()} className="justify-start gap-2">
           <LogOut className="h-4 w-4" />
           <span className="group-data-[collapsible=icon]:hidden">Sair</span>
         </Button>

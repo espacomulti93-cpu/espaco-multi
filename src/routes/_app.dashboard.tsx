@@ -42,9 +42,19 @@ function Dashboard() {
     queryKey: ["dashboard-stats"],
     queryFn: async () => {
       const [pac, prof, ag] = await Promise.all([
-        supabase.from("pacientes").select("id", { count: "exact", head: true }).eq("status", "ativo"),
-        supabase.from("profissionais").select("id", { count: "exact", head: true }).eq("ativo", true),
-        supabase.from("agendamentos").select("status", { count: "exact" }).gte("data_inicio", startOfDay).lte("data_inicio", endOfDay),
+        supabase
+          .from("pacientes")
+          .select("id", { count: "exact", head: true })
+          .eq("status", "ativo"),
+        supabase
+          .from("profissionais")
+          .select("id", { count: "exact", head: true })
+          .eq("ativo", true),
+        supabase
+          .from("agendamentos")
+          .select("status", { count: "exact" })
+          .gte("data_inicio", startOfDay)
+          .lte("data_inicio", endOfDay),
       ]);
       const ags = ag.data ?? [];
       return {
@@ -67,16 +77,33 @@ function Dashboard() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard icon={Calendar} label="Agendamentos hoje" value={stats?.agendamentosHoje ?? 0} tone="primary" />
-        <StatCard icon={CheckCircle2} label="Realizados" value={stats?.realizados ?? 0} tone="success" />
+        <StatCard
+          icon={Calendar}
+          label="Agendamentos hoje"
+          value={stats?.agendamentosHoje ?? 0}
+          tone="primary"
+        />
+        <StatCard
+          icon={CheckCircle2}
+          label="Realizados"
+          value={stats?.realizados ?? 0}
+          tone="success"
+        />
         <StatCard icon={XCircle} label="Faltas" value={stats?.faltas ?? 0} tone="destructive" />
-        <StatCard icon={Users} label="Pacientes ativos" value={stats?.pacientes ?? 0} tone="accent" />
+        <StatCard
+          icon={Users}
+          label="Pacientes ativos"
+          value={stats?.pacientes ?? 0}
+          tone="accent"
+        />
       </div>
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-base">Agendamentos de hoje</CardTitle>
-          <Link to="/agenda" className="text-sm text-primary hover:underline">Ver agenda completa</Link>
+          <Link to="/agenda" className="text-sm text-primary hover:underline">
+            Ver agenda completa
+          </Link>
         </CardHeader>
         <CardContent>
           {agHoje.length === 0 ? (
@@ -113,8 +140,18 @@ function Dashboard() {
       </Card>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <QuickLink to="/pacientes" icon={Users} title="Gerenciar pacientes" desc="Cadastros, responsáveis e histórico" />
-        <QuickLink to="/profissionais" icon={Stethoscope} title="Equipe" desc="Profissionais, especialidades e cores" />
+        <QuickLink
+          to="/pacientes"
+          icon={Users}
+          title="Gerenciar pacientes"
+          desc="Cadastros, responsáveis e histórico"
+        />
+        <QuickLink
+          to="/profissionais"
+          icon={Stethoscope}
+          title="Equipe"
+          desc="Profissionais, especialidades e cores"
+        />
       </div>
     </div>
   );
@@ -154,7 +191,10 @@ function StatCard({
 
 function QuickLink({ to, icon: Icon, title, desc }: any) {
   return (
-    <Link to={to} className="group rounded-xl border bg-card p-4 transition hover:border-primary/40 hover:shadow-sm">
+    <Link
+      to={to}
+      className="group rounded-xl border bg-card p-4 transition hover:border-primary/40 hover:shadow-sm"
+    >
       <div className="flex items-center gap-3">
         <div className="grid h-10 w-10 place-items-center rounded-lg bg-secondary text-secondary-foreground">
           <Icon className="h-5 w-5" />
