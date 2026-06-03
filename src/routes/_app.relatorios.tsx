@@ -149,18 +149,6 @@ function RelatoriosPage() {
           </CardContent>
         </Card>
       </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Status dos agendamentos</CardTitle>
-        </CardHeader>
-        <CardContent className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <RelatorioMiniStat label="Total" value={stats.total} />
-          <RelatorioMiniStat label="Realizados" value={stats.realizados} />
-          <RelatorioMiniStat label="Cancelados" value={stats.cancelados} />
-          <RelatorioMiniStat label="Taxa de comparecimento" value={`${stats.taxa}%`} />
-        </CardContent>
-      </Card>
     </div>
   );
 }
@@ -196,15 +184,6 @@ function RelatorioRow({
       <span className={`font-semibold ${tone === "destructive" ? "text-destructive" : ""}`}>
         {value}
       </span>
-    </div>
-  );
-}
-
-function RelatorioMiniStat({ label, value }: { label: string; value: string | number }) {
-  return (
-    <div className="rounded-md border p-3">
-      <div className="text-xs text-muted-foreground">{label}</div>
-      <div className="mt-1 text-xl font-semibold">{value}</div>
     </div>
   );
 }
