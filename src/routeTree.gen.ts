@@ -12,12 +12,10 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as AppRelatoriosRouteImport } from './routes/_app.relatorios'
 import { Route as AppProfissionaisRouteImport } from './routes/_app.profissionais'
 import { Route as AppPacientesRouteImport } from './routes/_app.pacientes'
 import { Route as AppFinanceiroRouteImport } from './routes/_app.financeiro'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
-import { Route as AppConfiguracoesRouteImport } from './routes/_app.configuracoes'
 import { Route as AppAgendaRouteImport } from './routes/_app.agenda'
 import { Route as AppPacientesIdRouteImport } from './routes/_app.pacientes.$id'
 import { Route as AppFinanceiroIdRouteImport } from './routes/_app.financeiro.$id'
@@ -35,11 +33,6 @@ const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
-} as any)
-const AppRelatoriosRoute = AppRelatoriosRouteImport.update({
-  id: '/relatorios',
-  path: '/relatorios',
-  getParentRoute: () => AppRoute,
 } as any)
 const AppProfissionaisRoute = AppProfissionaisRouteImport.update({
   id: '/profissionais',
@@ -59,11 +52,6 @@ const AppFinanceiroRoute = AppFinanceiroRouteImport.update({
 const AppDashboardRoute = AppDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppConfiguracoesRoute = AppConfiguracoesRouteImport.update({
-  id: '/configuracoes',
-  path: '/configuracoes',
   getParentRoute: () => AppRoute,
 } as any)
 const AppAgendaRoute = AppAgendaRouteImport.update({
@@ -86,12 +74,10 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/agenda': typeof AppAgendaRoute
-  '/configuracoes': typeof AppConfiguracoesRoute
   '/dashboard': typeof AppDashboardRoute
   '/financeiro': typeof AppFinanceiroRouteWithChildren
   '/pacientes': typeof AppPacientesRouteWithChildren
   '/profissionais': typeof AppProfissionaisRoute
-  '/relatorios': typeof AppRelatoriosRoute
   '/financeiro/$id': typeof AppFinanceiroIdRoute
   '/pacientes/$id': typeof AppPacientesIdRoute
 }
@@ -99,12 +85,10 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/agenda': typeof AppAgendaRoute
-  '/configuracoes': typeof AppConfiguracoesRoute
   '/dashboard': typeof AppDashboardRoute
   '/financeiro': typeof AppFinanceiroRouteWithChildren
   '/pacientes': typeof AppPacientesRouteWithChildren
   '/profissionais': typeof AppProfissionaisRoute
-  '/relatorios': typeof AppRelatoriosRoute
   '/financeiro/$id': typeof AppFinanceiroIdRoute
   '/pacientes/$id': typeof AppPacientesIdRoute
 }
@@ -114,12 +98,10 @@ export interface FileRoutesById {
   '/_app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
   '/_app/agenda': typeof AppAgendaRoute
-  '/_app/configuracoes': typeof AppConfiguracoesRoute
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/financeiro': typeof AppFinanceiroRouteWithChildren
   '/_app/pacientes': typeof AppPacientesRouteWithChildren
   '/_app/profissionais': typeof AppProfissionaisRoute
-  '/_app/relatorios': typeof AppRelatoriosRoute
   '/_app/financeiro/$id': typeof AppFinanceiroIdRoute
   '/_app/pacientes/$id': typeof AppPacientesIdRoute
 }
@@ -129,12 +111,10 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/agenda'
-    | '/configuracoes'
     | '/dashboard'
     | '/financeiro'
     | '/pacientes'
     | '/profissionais'
-    | '/relatorios'
     | '/financeiro/$id'
     | '/pacientes/$id'
   fileRoutesByTo: FileRoutesByTo
@@ -142,12 +122,10 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/agenda'
-    | '/configuracoes'
     | '/dashboard'
     | '/financeiro'
     | '/pacientes'
     | '/profissionais'
-    | '/relatorios'
     | '/financeiro/$id'
     | '/pacientes/$id'
   id:
@@ -156,12 +134,10 @@ export interface FileRouteTypes {
     | '/_app'
     | '/login'
     | '/_app/agenda'
-    | '/_app/configuracoes'
     | '/_app/dashboard'
     | '/_app/financeiro'
     | '/_app/pacientes'
     | '/_app/profissionais'
-    | '/_app/relatorios'
     | '/_app/financeiro/$id'
     | '/_app/pacientes/$id'
   fileRoutesById: FileRoutesById
@@ -195,13 +171,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_app/relatorios': {
-      id: '/_app/relatorios'
-      path: '/relatorios'
-      fullPath: '/relatorios'
-      preLoaderRoute: typeof AppRelatoriosRouteImport
-      parentRoute: typeof AppRoute
-    }
     '/_app/profissionais': {
       id: '/_app/profissionais'
       path: '/profissionais'
@@ -228,13 +197,6 @@ declare module '@tanstack/react-router' {
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof AppDashboardRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/configuracoes': {
-      id: '/_app/configuracoes'
-      path: '/configuracoes'
-      fullPath: '/configuracoes'
-      preLoaderRoute: typeof AppConfiguracoesRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/agenda': {
@@ -287,22 +249,18 @@ const AppPacientesRouteWithChildren = AppPacientesRoute._addFileChildren(
 
 interface AppRouteChildren {
   AppAgendaRoute: typeof AppAgendaRoute
-  AppConfiguracoesRoute: typeof AppConfiguracoesRoute
   AppDashboardRoute: typeof AppDashboardRoute
   AppFinanceiroRoute: typeof AppFinanceiroRouteWithChildren
   AppPacientesRoute: typeof AppPacientesRouteWithChildren
   AppProfissionaisRoute: typeof AppProfissionaisRoute
-  AppRelatoriosRoute: typeof AppRelatoriosRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppAgendaRoute: AppAgendaRoute,
-  AppConfiguracoesRoute: AppConfiguracoesRoute,
   AppDashboardRoute: AppDashboardRoute,
   AppFinanceiroRoute: AppFinanceiroRouteWithChildren,
   AppPacientesRoute: AppPacientesRouteWithChildren,
   AppProfissionaisRoute: AppProfissionaisRoute,
-  AppRelatoriosRoute: AppRelatoriosRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)

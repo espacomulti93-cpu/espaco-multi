@@ -20,9 +20,7 @@ const items = [
   { title: "Agenda", url: "/agenda", icon: Calendar },
   { title: "Pacientes", url: "/pacientes", icon: Users },
   { title: "Profissionais", url: "/profissionais", icon: Stethoscope },
-  { title: "Financeiro", url: "/financeiro", icon: DollarSign },
-  { title: "Relatórios", url: "/relatorios", icon: BarChart3 },
-  { title: "Configurações", url: "/configuracoes", icon: Settings },
+  { title: "Financeiro & Relatórios", url: "/financeiro", icon: DollarSign },
 ];
 
 export function AppSidebar() {
