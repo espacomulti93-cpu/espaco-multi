@@ -58,14 +58,30 @@ export const Route = createFileRoute("/_app/diretoria")({
 
 function PasswordGate({ onUnlock }: { onUnlock: () => void }) {
   const [password, setPassword] = useState("");
+  const [verifying, setVerifying] = useState(false);
+  const { user, signIn } = useAuth();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (password === "diretoria123") {
-      onUnlock();
-      toast.success("Acesso liberado!");
-    } else {
-      toast.error("Senha incorreta!");
+    if (!user?.email) {
+      toast.error("Usuário não identificado!");
+      return;
+    }
+
+    setVerifying(true);
+    try {
+      const { error } = await signIn(user.email, password);
+      if (!error) {
+        onUnlock();
+        toast.success("Acesso liberado!");
+      } else {
+        toast.error("Senha incorreta!");
+      }
+    } catch (err: any) {
+      console.error(err);
+      toast.error("Erro ao validar senha.");
+    } finally {
+      setVerifying(false);
     }
   };
 
@@ -78,13 +94,13 @@ function PasswordGate({ onUnlock }: { onUnlock: () => void }) {
           </div>
           <CardTitle className="text-2xl font-bold">Acesso Restrito</CardTitle>
           <CardDescription>
-            Digite a senha de acesso da diretoria para visualizar as informações financeiras.
+            Digite sua senha de administrador para visualizar as informações financeiras da diretoria.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="password">Senha de Segurança</Label>
+              <Label htmlFor="password">Senha do Administrador</Label>
               <Input
                 id="password"
                 type="password"
@@ -94,10 +110,11 @@ function PasswordGate({ onUnlock }: { onUnlock: () => void }) {
                 required
                 className="text-center tracking-widest"
                 autoFocus
+                disabled={verifying}
               />
             </div>
-            <Button type="submit" className="w-full">
-              Confirmar Senha
+            <Button type="submit" className="w-full" disabled={verifying}>
+              {verifying ? "Verificando..." : "Confirmar Senha"}
             </Button>
           </form>
         </CardContent>
