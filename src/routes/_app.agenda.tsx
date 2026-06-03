@@ -314,7 +314,14 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
       formattedDate = rawDateStr.charAt(0).toUpperCase() + rawDateStr.slice(1);
     }
 
-    const textMsg = `Olá! 😄
+    let textMsg = "";
+    if (tipoAgendamento === "anamnese") {
+      textMsg = `Olá! 😄
+Estou com uma vaga para Avaliação ${selectedSpecialty || "terapia"} para *${formattedDate}*.
+
+Você tem interesse em agendar a avaliação?`;
+    } else {
+      textMsg = `Olá! 😄
 Sua sessão de ${selectedSpecialty || "terapia"} está agendada para *${formattedDate}*.
 
 Você pode confirmar, por favor?
@@ -322,10 +329,11 @@ Você pode confirmar, por favor?
 ⚠ *Importante: em caso de ausência ou cancelamento sem aviso prévio, a sessão será cobrada normalmente.*
 
 Fico à disposição para qualquer dúvida!`;
+    }
 
     const msg = encodeURIComponent(textMsg);
     return `https://wa.me/${phoneWithCountry}?text=${msg}`;
-  }, [responsaveisPaciente, selectedPaciente, editing, form.data_inicio, selectedSpecialty]);
+  }, [responsaveisPaciente, selectedPaciente, editing, form.data_inicio, selectedSpecialty, tipoAgendamento]);
 
   const displayedPacientes = useMemo(() => {
     if (editing) {
