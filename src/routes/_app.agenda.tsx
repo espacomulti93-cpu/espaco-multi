@@ -316,17 +316,17 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
 
     let textMsg = "";
     if (tipoAgendamento === "anamnese") {
-      textMsg = `Olá! 😄
+      textMsg = `Olá! \u{1F604}
 Estou com uma vaga para Avaliação ${selectedSpecialty || "terapia"} para *${formattedDate}*.
 
 Você tem interesse em agendar a avaliação?`;
     } else {
-      textMsg = `Olá! 😄
+      textMsg = `Olá! \u{1F604}
 Sua sessão de ${selectedSpecialty || "terapia"} está agendada para *${formattedDate}*.
 
 Você pode confirmar, por favor?
 
-⚠ *Importante: em caso de ausência ou cancelamento sem aviso prévio, a sessão será cobrada normalmente.*
+\u{26A0}\u{FE0F} *Importante: em caso de ausência ou cancelamento sem aviso prévio, a sessão será cobrada normalmente.*
 
 Fico à disposição para qualquer dúvida!`;
     }
