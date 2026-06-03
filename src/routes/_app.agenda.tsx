@@ -151,6 +151,197 @@ const getEspecialidade = (a: any) => {
   return null;
 };
 
+const syncAgendamentoFinanceiro = async (
+  agendamentoId: string,
+  pacienteId: string,
+  profissionalId: string,
+  dataInicio: string,
+  status: string,
+  tipoAgendamento: "sessao" | "anamnese",
+  especialidade: string,
+  valor: number
+) => {
+  try {
+    const numValor = Number(valor || 0);
+
+    // 1. Fetch existing fatura item for this agendamento if any
+    const { data: existingItens, error: fetchItensErr } = await supabase
+      .from("fatura_itens")
+      .select("*, faturas(status, valor)")
+      .eq("agendamento_id", agendamentoId);
+
+    if (fetchItensErr) {
+      console.error("Error fetching fatura items:", fetchItensErr);
+      return;
+    }
+
+    const existingItem = existingItens?.[0];
+    const oldFatura = existingItem?.faturas as any;
+
+    // If status is NOT confirmed:
+    if (status !== "confirmado") {
+      // If there is an existing item, delete it and subtract its value from the fatura
+      if (existingItem) {
+        if (oldFatura?.status === "aberta") {
+          const newFaturaValor = Math.max(0, Number(oldFatura.valor) - Number(existingItem.total));
+          await supabase
+            .from("faturas")
+            .update({ valor: newFaturaValor })
+            .eq("id", existingItem.fatura_id);
+        }
+        
+        await supabase
+          .from("fatura_itens")
+          .delete()
+          .eq("id", existingItem.id);
+
+        // Clean up fatura if it has no more items
+        if (oldFatura?.status === "aberta") {
+          const { data: remaining } = await supabase
+            .from("fatura_itens")
+            .select("id")
+            .eq("fatura_id", existingItem.fatura_id)
+            .limit(1);
+          if (!remaining || remaining.length === 0) {
+            await supabase
+              .from("faturas")
+              .delete()
+              .eq("id", existingItem.fatura_id);
+          }
+        }
+      }
+      return;
+    }
+
+    // If status IS confirmed:
+    const d = new Date(dataInicio);
+    const competencia = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
+    const dateStr = format(d, "dd/MM/yyyy HH:mm");
+    const descricao = tipoAgendamento === "anamnese"
+      ? `${especialidade || "Avaliação"} (Avaliação) - ${dateStr}`
+      : `${especialidade || "Sessão"} - ${dateStr}`;
+
+    // Find or create open invoice
+    let faturaId = "";
+    let faturaValor = 0;
+
+    const { data: openFaturas, error: fetchFaturaErr } = await supabase
+      .from("faturas")
+      .select("id, valor")
+      .eq("paciente_id", pacienteId)
+      .eq("competencia", competencia)
+      .eq("status", "aberta")
+      .limit(1);
+
+    if (fetchFaturaErr) {
+      console.error("Error fetching fatura:", fetchFaturaErr);
+      return;
+    }
+
+    if (openFaturas && openFaturas.length > 0) {
+      faturaId = openFaturas[0].id;
+      faturaValor = Number(openFaturas[0].valor);
+    } else {
+      const { data: newFatura, error: createFaturaErr } = await supabase
+        .from("faturas")
+        .insert({
+          paciente_id: pacienteId,
+          competencia,
+          valor: 0,
+          status: "aberta"
+        })
+        .select()
+        .single();
+
+      if (createFaturaErr) {
+        console.error("Error creating fatura:", createFaturaErr);
+        return;
+      }
+      faturaId = newFatura.id;
+      faturaValor = 0;
+    }
+
+    if (existingItem) {
+      if (existingItem.fatura_id !== faturaId) {
+        // Subtract from old invoice
+        if (oldFatura?.status === "aberta") {
+          await supabase
+            .from("faturas")
+            .update({ valor: Math.max(0, Number(oldFatura.valor) - Number(existingItem.total)) })
+            .eq("id", existingItem.fatura_id);
+        }
+        // Update item
+        await supabase
+          .from("fatura_itens")
+          .update({
+            fatura_id: faturaId,
+            descricao,
+            valor_unitario: numValor,
+            total: numValor
+          })
+          .eq("id", existingItem.id);
+        // Add to new invoice
+        await supabase
+          .from("faturas")
+          .update({ valor: faturaValor + numValor })
+          .eq("id", faturaId);
+
+        // Clean up old invoice if empty
+        if (oldFatura?.status === "aberta") {
+          const { data: remaining } = await supabase
+            .from("fatura_itens")
+            .select("id")
+            .eq("fatura_id", existingItem.fatura_id)
+            .limit(1);
+          if (!remaining || remaining.length === 0) {
+            await supabase
+              .from("faturas")
+              .delete()
+              .eq("id", existingItem.fatura_id);
+          }
+        }
+      } else {
+        // Same invoice, update item
+        const diff = numValor - Number(existingItem.total);
+        await supabase
+          .from("fatura_itens")
+          .update({
+            descricao,
+            valor_unitario: numValor,
+            total: numValor
+          })
+          .eq("id", existingItem.id);
+
+        if (diff !== 0) {
+          await supabase
+            .from("faturas")
+            .update({ valor: faturaValor + diff })
+            .eq("id", faturaId);
+        }
+      }
+    } else {
+      // Create new item
+      await supabase
+        .from("fatura_itens")
+        .insert({
+          fatura_id: faturaId,
+          agendamento_id: agendamentoId,
+          descricao,
+          quantidade: 1,
+          valor_unitario: numValor,
+          total: numValor
+        });
+      // Add to invoice
+      await supabase
+        .from("faturas")
+        .update({ valor: faturaValor + numValor })
+        .eq("id", faturaId);
+    }
+  } catch (err) {
+    console.error("Error in syncAgendamentoFinanceiro:", err);
+  }
+};
+
 function FragmentRow({ h, days, ags, onCellClick, onEdit }: any) {
   return (
     <>
@@ -559,6 +750,14 @@ Fico à disposição para qualquer dúvida!`;
         ? (tipoAgendamento === "anamnese" ? "[Tipo: Anamnese]\n" : "[Tipo: Sessão Padrão]\n")
         : "";
 
+      // Calculate valor for sync
+      let valor = 0;
+      if (specialtyUpper !== "AP" && currentPricing) {
+        valor = tipoAgendamento === "sessao"
+          ? Number(currentPricing.valor_sessao ?? 0)
+          : Number(currentPricing.valor_avaliacao ?? currentPricing.valor_sessao ?? 0);
+      }
+
       if (editing) {
         const hasOtherFieldsChanged = 
           form.paciente_id !== (editing.paciente_id ?? "") ||
@@ -615,9 +814,36 @@ Fico à disposição para qualquer dúvida!`;
           });
 
           await Promise.all(updates);
+
+          if (futureAgs && futureAgs.length > 0) {
+            for (const occ of futureAgs) {
+              const occStart = new Date(new Date(occ.data_inicio).getTime() + startDiff).toISOString();
+              await syncAgendamentoFinanceiro(
+                occ.id,
+                form.paciente_id,
+                form.profissional_id,
+                occStart,
+                form.status,
+                tipoAgendamento,
+                selectedSpecialty,
+                valor
+              );
+            }
+          }
         } else {
           const { error } = await supabase.from("agendamentos").update(payload).eq("id", editing.id);
           if (error) throw error;
+
+          await syncAgendamentoFinanceiro(
+            editing.id,
+            form.paciente_id,
+            form.profissional_id,
+            start,
+            form.status,
+            tipoAgendamento,
+            selectedSpecialty,
+            valor
+          );
         }
       } else {
         if (form.recorrencia !== "unica") {
@@ -655,8 +881,26 @@ Fico à disposição para qualquer dúvida!`;
             };
             occurrences.push(payload);
           }
-          const { error } = await supabase.from("agendamentos").insert(occurrences);
+          const { data: insertedAgs, error } = await supabase
+            .from("agendamentos")
+            .insert(occurrences)
+            .select("id, data_inicio, status");
           if (error) throw error;
+
+          if (insertedAgs && insertedAgs.length > 0) {
+            for (const occ of insertedAgs) {
+              await syncAgendamentoFinanceiro(
+                occ.id,
+                form.paciente_id,
+                form.profissional_id,
+                occ.data_inicio,
+                occ.status,
+                tipoAgendamento,
+                selectedSpecialty,
+                valor
+              );
+            }
+          }
         } else {
           const payload: any = {
             ...form,
@@ -666,8 +910,25 @@ Fico à disposição para qualquer dúvida!`;
             data_fim: end,
             observacoes: typePrefix + form.observacoes,
           };
-          const { error } = await supabase.from("agendamentos").insert(payload);
+          const { data: insertedAg, error } = await supabase
+            .from("agendamentos")
+            .insert(payload)
+            .select("id")
+            .single();
           if (error) throw error;
+
+          if (insertedAg) {
+            await syncAgendamentoFinanceiro(
+              insertedAg.id,
+              form.paciente_id,
+              form.profissional_id,
+              start,
+              form.status,
+              tipoAgendamento,
+              selectedSpecialty,
+              valor
+            );
+          }
         }
       }
     },
@@ -678,18 +939,50 @@ Fico à disposição para qualquer dúvida!`;
   const deleteMutation = useMutation({
     mutationFn: async (deleteAllFuture: boolean) => {
       if (deleteAllFuture && editing?.recorrencia_grupo) {
+        const { data: futureAgs } = await supabase
+          .from("agendamentos")
+          .select("id, data_inicio")
+          .eq("recorrencia_grupo", editing.recorrencia_grupo)
+          .gte("data_inicio", editing.data_inicio);
+
         const { error } = await supabase
           .from("agendamentos")
           .delete()
           .eq("recorrencia_grupo", editing.recorrencia_grupo)
           .gte("data_inicio", editing.data_inicio);
         if (error) throw error;
+
+        if (futureAgs && futureAgs.length > 0) {
+          for (const occ of futureAgs) {
+            await syncAgendamentoFinanceiro(
+              occ.id,
+              editing.paciente_id,
+              editing.profissional_id,
+              occ.data_inicio,
+              "cancelado",
+              tipoAgendamento,
+              selectedSpecialty,
+              0
+            );
+          }
+        }
       } else {
         const { error } = await supabase
           .from("agendamentos")
           .delete()
           .eq("id", editing.id);
         if (error) throw error;
+
+        await syncAgendamentoFinanceiro(
+          editing.id,
+          editing.paciente_id,
+          editing.profissional_id,
+          editing.data_inicio,
+          "cancelado",
+          tipoAgendamento,
+          selectedSpecialty,
+          0
+        );
       }
     },
     onSuccess: () => {
@@ -1036,18 +1329,54 @@ function CancelDialog({ ag, onDone }: any) {
     mutationFn: async (cancelAllFuture: boolean) => {
       if (!motivo.trim()) throw new Error("Informe o motivo");
       if (cancelAllFuture && ag.recorrencia_grupo) {
+        const { data: futureAgs } = await supabase
+          .from("agendamentos")
+          .select("id, data_inicio, observacoes, paciente_id, profissional_id, servicos(nome), pacientes(cids_secundarios), profissionais(especialidade)")
+          .eq("recorrencia_grupo", ag.recorrencia_grupo)
+          .gte("data_inicio", ag.data_inicio);
+
         const { error } = await supabase
           .from("agendamentos")
           .update({ status: "cancelado", motivo_cancelamento: motivo })
           .eq("recorrencia_grupo", ag.recorrencia_grupo)
           .gte("data_inicio", ag.data_inicio);
         if (error) throw error;
+
+        if (futureAgs && futureAgs.length > 0) {
+          for (const occ of futureAgs) {
+            const occTipo = occ.observacoes?.startsWith("[Tipo: Anamnese]") ? "anamnese" : "sessao";
+            const occSpec = getEspecialidade(occ) || "";
+            await syncAgendamentoFinanceiro(
+              occ.id,
+              ag.paciente_id,
+              ag.profissional_id,
+              occ.data_inicio,
+              "cancelado",
+              occTipo,
+              occSpec,
+              0
+            );
+          }
+        }
       } else {
         const { error } = await supabase
           .from("agendamentos")
           .update({ status: "cancelado", motivo_cancelamento: motivo })
           .eq("id", ag.id);
         if (error) throw error;
+
+        const occTipo = ag.observacoes?.startsWith("[Tipo: Anamnese]") ? "anamnese" : "sessao";
+        const occSpec = getEspecialidade(ag) || "";
+        await syncAgendamentoFinanceiro(
+          ag.id,
+          ag.paciente_id,
+          ag.profissional_id,
+          ag.data_inicio,
+          "cancelado",
+          occTipo,
+          occSpec,
+          0
+        );
       }
     },
     onSuccess: () => { toast.success("Agendamento cancelado"); onDone(); },
