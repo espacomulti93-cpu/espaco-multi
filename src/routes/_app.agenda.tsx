@@ -101,6 +101,7 @@ function Agenda() {
               setDialog({ open: false });
               qc.invalidateQueries({ queryKey: ["ags"] });
               qc.invalidateQueries({ queryKey: ["patient-ags-dialog"] });
+              qc.invalidateQueries({ queryKey: ["faturas"] });
             }}
             onCancel={(a: any) => { setDialog({ open: false }); setCancelTarget(a); }}
           />
@@ -115,6 +116,7 @@ function Agenda() {
               setCancelTarget(null);
               qc.invalidateQueries({ queryKey: ["ags"] });
               qc.invalidateQueries({ queryKey: ["patient-ags-dialog"] });
+              qc.invalidateQueries({ queryKey: ["faturas"] });
             }}
           />
         )}
