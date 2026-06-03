@@ -97,7 +97,11 @@ function Agenda() {
           <AgendamentoDialog
             editing={dialog.editing}
             defaults={dialog.defaults}
-            onSaved={() => { setDialog({ open: false }); qc.invalidateQueries({ queryKey: ["ags"] }); }}
+            onSaved={() => {
+              setDialog({ open: false });
+              qc.invalidateQueries({ queryKey: ["ags"] });
+              qc.invalidateQueries({ queryKey: ["patient-ags-dialog"] });
+            }}
             onCancel={(a: any) => { setDialog({ open: false }); setCancelTarget(a); }}
           />
         )}
@@ -107,7 +111,11 @@ function Agenda() {
         {cancelTarget && (
           <CancelDialog
             ag={cancelTarget}
-            onDone={() => { setCancelTarget(null); qc.invalidateQueries({ queryKey: ["ags"] }); }}
+            onDone={() => {
+              setCancelTarget(null);
+              qc.invalidateQueries({ queryKey: ["ags"] });
+              qc.invalidateQueries({ queryKey: ["patient-ags-dialog"] });
+            }}
           />
         )}
       </Dialog>
@@ -246,6 +254,12 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
     },
     enabled: !!form.paciente_id,
   });
+
+  const sortedPatientAgs = useMemo(() => {
+    return [...patientAgs].sort(
+      (a, b) => new Date(b.data_inicio).getTime() - new Date(a.data_inicio).getTime()
+    );
+  }, [patientAgs]);
 
   const displayedPacientes = useMemo(() => {
     if (editing) {
@@ -657,11 +671,11 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
                 <div className="font-medium text-primary text-[10px] uppercase flex items-center justify-between">
                   <span>Todos os Agendamentos do Paciente ({patientAgs.length})</span>
                 </div>
-                {patientAgs.length === 0 ? (
+                 {sortedPatientAgs.length === 0 ? (
                   <p className="text-muted-foreground italic">Nenhum outro agendamento encontrado.</p>
                 ) : (
                   <div className="space-y-1.5">
-                    {patientAgs.map((a: any) => (
+                    {sortedPatientAgs.map((a: any) => (
                       <div key={a.id} className={cn(
                         "p-1.5 rounded border flex items-center justify-between text-[11px] transition",
                         a.id === editing.id ? "bg-primary/5 border-primary/30" : "bg-card border-border/40"
