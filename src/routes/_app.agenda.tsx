@@ -951,7 +951,7 @@ Fico à disposição para qualquer dúvida!`;
                     {Object.entries(STATUS_LABEL).map(([v, l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}
                   </SelectContent>
                 </Select>
-                {editing && form.status !== "confirmado" && (
+                {form.status !== "confirmado" && (
                   <Button
                     type="button"
                     variant="outline"
