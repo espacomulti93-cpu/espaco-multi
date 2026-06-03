@@ -214,7 +214,7 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
     data_inicio: initialStart,
     data_fim: initialEnd,
     status: editing?.status ?? "pendente",
-    recorrencia: editing?.recorrencia ?? "unica",
+    recorrencia: editing?.recorrencia ?? "semanal",
     observacoes: initialObservacoes,
   });
 
