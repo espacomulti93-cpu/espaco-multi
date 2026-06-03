@@ -250,12 +250,13 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
         .eq("paciente_id", form.paciente_id)
         .order("data_inicio", { ascending: true });
       if (error) throw error;
-      return data;
+      return data ?? [];
     },
     enabled: !!form.paciente_id,
   });
 
   const sortedPatientAgs = useMemo(() => {
+    if (!Array.isArray(patientAgs)) return [];
     return [...patientAgs].sort(
       (a, b) => new Date(a.data_inicio).getTime() - new Date(b.data_inicio).getTime()
     );
@@ -270,15 +271,15 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
         .select("telefone, whatsapp, nome")
         .eq("paciente_id", form.paciente_id);
       if (error) throw error;
-      return data;
+      return data ?? [];
     },
     enabled: !!form.paciente_id,
   });
 
   const whatsappUrl = useMemo(() => {
-    if (!responsaveisPaciente.length) return null;
-    const respWithWhats = responsaveisPaciente.find((r: any) => r.whatsapp);
-    const respWithTel = responsaveisPaciente.find((r: any) => r.telefone);
+    if (!Array.isArray(responsaveisPaciente) || !responsaveisPaciente.length) return null;
+    const respWithWhats = responsaveisPaciente.find((r: any) => r?.whatsapp);
+    const respWithTel = responsaveisPaciente.find((r: any) => r?.telefone);
     const num = respWithWhats?.whatsapp || respWithWhats?.telefone || respWithTel?.whatsapp || respWithTel?.telefone;
     if (!num) return null;
 
