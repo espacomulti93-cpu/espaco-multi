@@ -18,6 +18,7 @@ import { Route as AppPacientesRouteImport } from './routes/_app.pacientes'
 import { Route as AppDiretoriaRouteImport } from './routes/_app.diretoria'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
 import { Route as AppAgendaRouteImport } from './routes/_app.agenda'
+import { Route as ApiPublicFixGabyRouteImport } from './routes/api/public/_fix-gaby'
 import { Route as AppPacientesIdRouteImport } from './routes/_app.pacientes.$id'
 
 const LoginRoute = LoginRouteImport.update({
@@ -64,6 +65,11 @@ const AppAgendaRoute = AppAgendaRouteImport.update({
   path: '/agenda',
   getParentRoute: () => AppRoute,
 } as any)
+const ApiPublicFixGabyRoute = ApiPublicFixGabyRouteImport.update({
+  id: '/api/public/_fix-gaby',
+  path: '/api/public',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AppPacientesIdRoute = AppPacientesIdRouteImport.update({
   id: '/$id',
   path: '/$id',
@@ -80,6 +86,7 @@ export interface FileRoutesByFullPath {
   '/profissionais': typeof AppProfissionaisRoute
   '/relatorios': typeof AppRelatoriosRoute
   '/pacientes/$id': typeof AppPacientesIdRoute
+  '/api/public': typeof ApiPublicFixGabyRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -91,6 +98,7 @@ export interface FileRoutesByTo {
   '/profissionais': typeof AppProfissionaisRoute
   '/relatorios': typeof AppRelatoriosRoute
   '/pacientes/$id': typeof AppPacientesIdRoute
+  '/api/public': typeof ApiPublicFixGabyRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -104,6 +112,7 @@ export interface FileRoutesById {
   '/_app/profissionais': typeof AppProfissionaisRoute
   '/_app/relatorios': typeof AppRelatoriosRoute
   '/_app/pacientes/$id': typeof AppPacientesIdRoute
+  '/api/public/_fix-gaby': typeof ApiPublicFixGabyRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -117,6 +126,7 @@ export interface FileRouteTypes {
     | '/profissionais'
     | '/relatorios'
     | '/pacientes/$id'
+    | '/api/public'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -128,6 +138,7 @@ export interface FileRouteTypes {
     | '/profissionais'
     | '/relatorios'
     | '/pacientes/$id'
+    | '/api/public'
   id:
     | '__root__'
     | '/'
@@ -140,12 +151,14 @@ export interface FileRouteTypes {
     | '/_app/profissionais'
     | '/_app/relatorios'
     | '/_app/pacientes/$id'
+    | '/api/public/_fix-gaby'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
   LoginRoute: typeof LoginRoute
+  ApiPublicFixGabyRoute: typeof ApiPublicFixGabyRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -213,6 +226,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAgendaRouteImport
       parentRoute: typeof AppRoute
     }
+    '/api/public/_fix-gaby': {
+      id: '/api/public/_fix-gaby'
+      path: '/api/public'
+      fullPath: '/api/public'
+      preLoaderRoute: typeof ApiPublicFixGabyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_app/pacientes/$id': {
       id: '/_app/pacientes/$id'
       path: '/$id'
@@ -259,7 +279,18 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
   LoginRoute: LoginRoute,
+  ApiPublicFixGabyRoute: ApiPublicFixGabyRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
