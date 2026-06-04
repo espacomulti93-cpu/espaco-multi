@@ -31,6 +31,8 @@ import {
   ChevronsUpDown,
   Trash2,
   MessageCircle,
+  Filter,
+  Users,
 } from "lucide-react";
 import { toast } from "sonner";
 import { addDays, addWeeks, endOfWeek, format, isSameDay, startOfWeek } from "date-fns";
@@ -45,6 +47,8 @@ import {
   CommandGroup,
   CommandItem,
 } from "@/components/ui/command";
+import { Checkbox } from "@/components/ui/checkbox";
+
 
 export const Route = createFileRoute("/_app/agenda")({
   component: Agenda,
@@ -75,6 +79,20 @@ function Agenda() {
   }>({ open: false });
   const [cancelTarget, setCancelTarget] = useState<any>(null);
 
+  const [selectedProfs, setSelectedProfs] = useState<string[]>([]);
+
+  const { data: profissionais = [] } = useQuery({
+    queryKey: ["prof-min"],
+    queryFn: async () =>
+      (
+        await supabase
+          .from("profissionais")
+          .select("id, nome, cor, especialidade, valor_sessao, valores_config")
+          .eq("ativo", true)
+          .order("nome")
+      ).data ?? [],
+  });
+
   const { data: ags = [] } = useQuery({
     queryKey: ["ags", weekStart.toISOString()],
     queryFn: async () => {
@@ -90,6 +108,12 @@ function Agenda() {
       return data;
     },
   });
+
+  const filteredAgs = useMemo(() => {
+    if (selectedProfs.length === 0) return ags;
+    return ags.filter((a) => selectedProfs.includes(a.profissional_id));
+  }, [ags, selectedProfs]);
+
 
   return (
     <div className="space-y-4">
@@ -111,6 +135,97 @@ function Agenda() {
           {format(weekStart, "d 'de' MMM", { locale: ptBR })} –{" "}
           {format(weekEnd, "d 'de' MMM yyyy", { locale: ptBR })}
         </div>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              className={cn(
+                "h-9 gap-2 transition-all hover:bg-accent border-dashed ml-2",
+                selectedProfs.length > 0 && "border-solid border-primary bg-primary/5"
+              )}
+            >
+              <Filter className="h-4 w-4" />
+              <span>Profissionais</span>
+              {selectedProfs.length > 0 && (
+                <>
+                  <div className="h-4 w-[1px] bg-border mx-1" />
+                  <Badge variant="secondary" className="rounded-sm px-1 font-normal lg:hidden">
+                    {selectedProfs.length}
+                  </Badge>
+                  <div className="hidden space-x-1 lg:flex items-center">
+                    {selectedProfs.length > 2 ? (
+                      <Badge variant="secondary" className="rounded-sm px-1 font-normal">
+                        {selectedProfs.length} selecionados
+                      </Badge>
+                    ) : (
+                      profissionais
+                        .filter((p: any) => selectedProfs.includes(p.id))
+                        .map((p: any) => (
+                          <Badge
+                            variant="secondary"
+                            key={p.id}
+                            className="rounded-sm px-1 font-normal"
+                          >
+                            {p.nome.split(" ")[0]}
+                          </Badge>
+                        ))
+                    )}
+                  </div>
+                </>
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-[200px] p-0" align="start">
+            <Command>
+              <CommandInput placeholder="Buscar profissional..." />
+              <CommandList>
+                <CommandEmpty>Nenhum profissional encontrado.</CommandEmpty>
+                <CommandGroup>
+                  {profissionais.map((p: any) => {
+                    const isSelected = selectedProfs.includes(p.id);
+                    return (
+                      <CommandItem
+                        key={p.id}
+                        onSelect={() => {
+                          if (isSelected) {
+                            setSelectedProfs(selectedProfs.filter((id) => id !== p.id));
+                          } else {
+                            setSelectedProfs([...selectedProfs, p.id]);
+                          }
+                        }}
+                        className="flex items-center gap-2 cursor-pointer"
+                      >
+                        <Checkbox
+                          checked={isSelected}
+                          className="pointer-events-none"
+                        />
+                        <div
+                          className="h-2.5 w-2.5 rounded-full shrink-0"
+                          style={{ backgroundColor: p.cor || "var(--primary)" }}
+                        />
+                        <span className="truncate">{p.nome}</span>
+                      </CommandItem>
+                    );
+                  })}
+                </CommandGroup>
+                {selectedProfs.length > 0 && (
+                  <>
+                    <div className="border-t border-border" />
+                    <CommandGroup>
+                      <CommandItem
+                        onSelect={() => setSelectedProfs([])}
+                        className="justify-center text-center text-xs text-muted-foreground font-medium hover:text-foreground py-2 cursor-pointer"
+                      >
+                        Limpar filtros
+                      </CommandItem>
+                    </CommandGroup>
+                  </>
+                )}
+              </CommandList>
+            </Command>
+          </PopoverContent>
+        </Popover>
         <Button className="ml-auto gap-1.5" onClick={() => setDialog({ open: true })}>
           <Plus className="h-4 w-4" /> Novo agendamento
         </Button>
@@ -134,7 +249,7 @@ function Agenda() {
                 key={h}
                 h={h}
                 days={days}
-                ags={ags}
+                ags={filteredAgs}
                 onCellClick={(date: Date) => setDialog({ open: true, defaults: { date, hour: h } })}
                 onEdit={(a: any) => setDialog({ open: true, editing: a })}
               />
@@ -501,7 +616,7 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
       (
         await supabase
           .from("profissionais")
-          .select("id, nome, especialidade, valor_sessao, valores_config")
+          .select("id, nome, cor, especialidade, valor_sessao, valores_config")
           .eq("ativo", true)
           .order("nome")
       ).data ?? [],
