@@ -1,1 +1,5 @@
 project_id = "xjlmsgwqjjpuqpbrlvwr"
+
+[auth]
+minimum_password_length = 6
+password_requirements = ""
