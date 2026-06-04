@@ -5,16 +5,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { CheckCircle2, Calendar, Users, DollarSign } from "lucide-react";
+import { CheckCircle2, Calendar, Users } from "lucide-react";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 
 export const Route = createFileRoute("/_app/relatorios")({
   component: RelatoriosPage,
 });
-
-function brl(n: number | null | undefined) {
-  return (n ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-}
 
 function RelatoriosPage() {
   const today = new Date();
@@ -29,19 +25,6 @@ function RelatoriosPage() {
         .select("id, status, data_inicio, profissional:profissionais(nome)")
         .gte("data_inicio", `${inicio}T00:00:00`)
         .lte("data_inicio", `${fim}T23:59:59`);
-      if (error) throw error;
-      return data as any[];
-    },
-  });
-
-  const { data: faturas = [] } = useQuery({
-    queryKey: ["rel-faturas", inicio, fim],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("faturas")
-        .select("id, valor, status, competencia, pago_em")
-        .gte("competencia", inicio)
-        .lte("competencia", fim);
       if (error) throw error;
       return data as any[];
     },
@@ -65,16 +48,6 @@ function RelatoriosPage() {
     const cancelados = agendamentos.filter((a) => a.status === "cancelado").length;
     const taxa = total > 0 ? Math.round((realizados / total) * 100) : 0;
 
-    const receita = faturas
-      .filter((f) => f.status === "paga")
-      .reduce((s, f) => s + Number(f.valor), 0);
-    const aReceber = faturas
-      .filter((f) => f.status === "aberta")
-      .reduce((s, f) => s + Number(f.valor), 0);
-    const vencido = faturas
-      .filter((f) => f.status === "vencida")
-      .reduce((s, f) => s + Number(f.valor), 0);
-
     const porProfissional: Record<string, number> = {};
     agendamentos.forEach((a) => {
       const nome = a.profissional?.nome ?? "—";
@@ -82,8 +55,8 @@ function RelatoriosPage() {
     });
     const ranking = Object.entries(porProfissional).sort((a, b) => b[1] - a[1]);
 
-    return { total, realizados, cancelados, taxa, receita, aReceber, vencido, ranking };
-  }, [agendamentos, faturas]);
+    return { total, realizados, cancelados, taxa, ranking };
+  }, [agendamentos]);
 
   return (
     <div className="space-y-4">
@@ -100,29 +73,17 @@ function RelatoriosPage() {
         </CardContent>
       </Card>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <RelatorioStat icon={Calendar} label="Agendamentos" value={String(stats.total)} />
         <RelatorioStat
           icon={CheckCircle2}
           label="Realizados"
           value={`${stats.realizados} (${stats.taxa}%)`}
         />
-        <RelatorioStat icon={DollarSign} label="Receita recebida" value={brl(stats.receita)} />
         <RelatorioStat icon={Users} label="Pacientes ativos" value={String(pacientesAtivos)} />
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Financeiro do período</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2 text-sm">
-            <RelatorioRow label="Recebido" value={brl(stats.receita)} />
-            <RelatorioRow label="A receber" value={brl(stats.aReceber)} />
-            <RelatorioRow label="Vencido" value={brl(stats.vencido)} tone="destructive" />
-          </CardContent>
-        </Card>
-
+      <div className="grid gap-4">
         <Card>
           <CardHeader>
             <CardTitle>Agendamentos por profissional</CardTitle>
@@ -166,24 +127,5 @@ function RelatorioStat({ icon: Icon, label, value }: { icon: any; label: string;
         </div>
       </CardContent>
     </Card>
-  );
-}
-
-function RelatorioRow({
-  label,
-  value,
-  tone,
-}: {
-  label: string;
-  value: string;
-  tone?: "destructive";
-}) {
-  return (
-    <div className="flex items-center justify-between border-b py-2 last:border-0">
-      <span className="text-muted-foreground">{label}</span>
-      <span className={`font-semibold ${tone === "destructive" ? "text-destructive" : ""}`}>
-        {value}
-      </span>
-    </div>
   );
 }

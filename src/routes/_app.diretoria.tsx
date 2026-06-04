@@ -249,10 +249,18 @@ function DiretoriaPageContent() {
       .filter((f) => f.status === "paga")
       .reduce((acc, f) => acc + Number(f.valor), 0);
 
-    // Faturamento Pendente (Abertas/Vencidas)
-    const faturamentoPendente = faturas
-      .filter((f) => f.status === "aberta" || f.status === "vencida")
+    // Faturamento A Receber (Abertas)
+    const faturamentoAReceber = faturas
+      .filter((f) => f.status === "aberta")
       .reduce((acc, f) => acc + Number(f.valor), 0);
+
+    // Faturamento Vencido (Vencidas)
+    const faturamentoVencido = faturas
+      .filter((f) => f.status === "vencida")
+      .reduce((acc, f) => acc + Number(f.valor), 0);
+
+    // Faturamento Pendente (Abertas/Vencidas)
+    const faturamentoPendente = faturamentoAReceber + faturamentoVencido;
 
     // Faturamento Geral (Total Faturas)
     const faturamentoTotal = faturas
@@ -268,6 +276,8 @@ function DiretoriaPageContent() {
 
     return {
       faturamentoRecebido,
+      faturamentoAReceber,
+      faturamentoVencido,
       faturamentoPendente,
       faturamentoTotal,
       totalDespesas,
@@ -322,7 +332,7 @@ function DiretoriaPageContent() {
             </div>
             <div className="space-y-1">
               <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Faturamento Recebido
+                Receita Recebida
               </div>
               <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
                 {brl(stats.faturamentoRecebido)}
@@ -399,79 +409,111 @@ function DiretoriaPageContent() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
-        {/* Register Expense Form Card */}
-        <Card className="border-border shadow-sm lg:col-span-1">
-          <CardHeader>
-            <CardTitle className="text-lg">Cadastrar Despesa</CardTitle>
-            <CardDescription>
-              Registre os custos e gastos operacionais da clínica.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="expense-desc">Descrição</Label>
-                <Input
-                  id="expense-desc"
-                  placeholder="Ex: Aluguel da clínica"
-                  value={descricao}
-                  onChange={(e) => setDescricao(e.target.value)}
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-6 lg:col-span-1">
+          {/* Register Expense Form Card */}
+          <Card className="border-border shadow-sm">
+            <CardHeader>
+              <CardTitle className="text-lg">Cadastrar Despesa</CardTitle>
+              <CardDescription>
+                Registre os custos e gastos operacionais da clínica.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-1.5">
-                  <Label htmlFor="expense-value">Valor (R$)</Label>
+                  <Label htmlFor="expense-desc">Descrição</Label>
                   <Input
-                    id="expense-value"
-                    placeholder="0.00"
-                    value={valor}
-                    onChange={(e) => setValor(e.target.value)}
+                    id="expense-desc"
+                    placeholder="Ex: Aluguel da clínica"
+                    value={descricao}
+                    onChange={(e) => setDescricao(e.target.value)}
                     required
                   />
                 </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="expense-date">Data</Label>
-                  <Input
-                    id="expense-date"
-                    type="date"
-                    value={data}
-                    onChange={(e) => setData(e.target.value)}
-                    required
-                  />
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="expense-value">Valor (R$)</Label>
+                    <Input
+                      id="expense-value"
+                      placeholder="0.00"
+                      value={valor}
+                      onChange={(e) => setValor(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="expense-date">Data</Label>
+                    <Input
+                      id="expense-date"
+                      type="date"
+                      value={data}
+                      onChange={(e) => setData(e.target.value)}
+                      required
+                    />
+                  </div>
                 </div>
-              </div>
 
-              <div className="space-y-1.5">
-                <Label htmlFor="expense-category">Categoria</Label>
-                <Select value={categoria} onValueChange={setCategoria}>
-                  <SelectTrigger id="expense-category" className="w-full">
-                    <SelectValue placeholder="Selecione uma categoria" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Aluguel">Aluguel / Condomínio</SelectItem>
-                    <SelectItem value="Salários">Salários / Honorários</SelectItem>
-                    <SelectItem value="Impostos">Impostos / Taxas</SelectItem>
-                    <SelectItem value="Materiais">Materiais Clínicos/Escritório</SelectItem>
-                    <SelectItem value="Limpeza">Limpeza / Conservação</SelectItem>
-                    <SelectItem value="Utilidades">Água / Luz / Internet</SelectItem>
-                    <SelectItem value="Marketing">Marketing / Divulgação</SelectItem>
-                    <SelectItem value="Outros">Outros Gastos</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="expense-category">Categoria</Label>
+                  <Select value={categoria} onValueChange={setCategoria}>
+                    <SelectTrigger id="expense-category" className="w-full">
+                      <SelectValue placeholder="Selecione uma categoria" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Aluguel">Aluguel / Condomínio</SelectItem>
+                      <SelectItem value="Salários">Salários / Honorários</SelectItem>
+                      <SelectItem value="Impostos">Impostos / Taxas</SelectItem>
+                      <SelectItem value="Materiais">Materiais Clínicos/Escritório</SelectItem>
+                      <SelectItem value="Limpeza">Limpeza / Conservação</SelectItem>
+                      <SelectItem value="Utilidades">Água / Luz / Internet</SelectItem>
+                      <SelectItem value="Marketing">Marketing / Divulgação</SelectItem>
+                      <SelectItem value="Outros">Outros Gastos</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
 
-              <Button
-                type="submit"
-                disabled={isMutating}
-                className="w-full flex items-center justify-center gap-2"
-              >
-                <Plus className="h-4 w-4" /> Cadastrar Despesa
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
+                <Button
+                  type="submit"
+                  disabled={isMutating}
+                  className="w-full flex items-center justify-center gap-2"
+                >
+                  <Plus className="h-4 w-4" /> Cadastrar Despesa
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+
+          {/* Financeiro do Período Card */}
+          <Card className="border-border shadow-sm">
+            <CardHeader>
+              <CardTitle className="text-lg">Financeiro do período</CardTitle>
+              <CardDescription>
+                Detalhamento de faturas por status no período selecionado.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-2 text-sm">
+              <div className="flex items-center justify-between border-b py-2 last:border-0">
+                <span className="text-muted-foreground font-medium">Recebido</span>
+                <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                  {brl(stats.faturamentoRecebido)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between border-b py-2 last:border-0">
+                <span className="text-muted-foreground font-medium">A receber</span>
+                <span className="font-semibold">
+                  {brl(stats.faturamentoAReceber)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between border-b py-2 last:border-0">
+                <span className="text-muted-foreground font-medium">Vencido</span>
+                <span className="font-semibold text-rose-600 dark:text-rose-400">
+                  {brl(stats.faturamentoVencido)}
+                </span>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
         {/* Expenses List Table Card */}
         <Card className="border-border shadow-sm lg:col-span-2">
