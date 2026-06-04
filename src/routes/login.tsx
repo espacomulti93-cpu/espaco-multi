@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Brain } from "lucide-react";
+import { Brain, Eye, EyeOff } from "lucide-react";
 
 export const Route = createFileRoute("/login")({
   component: LoginPage,
@@ -26,6 +26,10 @@ function LoginPage() {
   const [nome, setNome] = useState("");
   const [emailUp, setEmailUp] = useState("");
   const [passUp, setPassUp] = useState("");
+
+  // Password visibility states
+  const [showPassword, setShowPassword] = useState(false);
+  const [showPassUp, setShowPassUp] = useState(false);
 
   useEffect(() => {
     if (session) navigate({ to: "/dashboard", replace: true });
@@ -98,13 +102,27 @@ function LoginPage() {
                   </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="password">Senha</Label>
-                    <Input
-                      id="password"
-                      type="password"
-                      required
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                    />
+                    <div className="relative">
+                      <Input
+                        id="password"
+                        type={showPassword ? "text" : "password"}
+                        required
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                      >
+                        {showPassword ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
+                      </button>
+                    </div>
                   </div>
                   <Button type="submit" disabled={loading} className="w-full">
                     {loading ? "Entrando…" : "Entrar"}
@@ -134,13 +152,27 @@ function LoginPage() {
                   </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="passUp">Senha</Label>
-                    <Input
-                      id="passUp"
-                      type="password"
-                      required
-                      value={passUp}
-                      onChange={(e) => setPassUp(e.target.value)}
-                    />
+                    <div className="relative">
+                      <Input
+                        id="passUp"
+                        type={showPassUp ? "text" : "password"}
+                        required
+                        value={passUp}
+                        onChange={(e) => setPassUp(e.target.value)}
+                        className="pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassUp(!showPassUp)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                      >
+                        {showPassUp ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
+                      </button>
+                    </div>
                   </div>
                   <Button type="submit" disabled={loading} className="w-full">
                     {loading ? "Criando…" : "Criar conta"}

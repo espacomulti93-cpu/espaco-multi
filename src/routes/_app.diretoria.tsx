@@ -50,6 +50,8 @@ import {
   Calendar,
   AlertTriangle,
   ArrowRightLeft,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 
 export const Route = createFileRoute("/_app/diretoria")({
@@ -59,6 +61,7 @@ export const Route = createFileRoute("/_app/diretoria")({
 function PasswordGate({ onUnlock }: { onUnlock: () => void }) {
   const [password, setPassword] = useState("");
   const [verifying, setVerifying] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const { user, signIn } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -101,17 +104,30 @@ function PasswordGate({ onUnlock }: { onUnlock: () => void }) {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="password">Senha do Administrador</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                className="text-center tracking-widest"
-                autoFocus
-                disabled={verifying}
-              />
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  className="text-center tracking-widest pr-10"
+                  autoFocus
+                  disabled={verifying}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
             </div>
             <Button type="submit" className="w-full" disabled={verifying}>
               {verifying ? "Verificando..." : "Confirmar Senha"}
