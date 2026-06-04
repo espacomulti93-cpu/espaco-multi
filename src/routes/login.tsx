@@ -48,9 +48,18 @@ function LoginPage() {
     e.preventDefault();
     setLoading(true);
     const { error } = await signUp(nome, emailUp, passUp);
+    if (error) {
+      setLoading(false);
+      toast.error(error);
+      return;
+    }
+    const { error: signInError } = await signIn(emailUp, passUp);
     setLoading(false);
-    if (error) toast.error(error);
-    else toast.success("Conta criada com sucesso!");
+    if (signInError) {
+      toast.success("Conta criada com sucesso! Faça login para entrar.");
+    } else {
+      toast.success("Conta criada e login efetuado com sucesso!");
+    }
   }
 
   return (
