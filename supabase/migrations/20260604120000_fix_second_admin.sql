@@ -23,7 +23,7 @@ BEGIN
 END;
 $$;
 
--- Create user gabymartyns04@gmail.com with password Gabi2020@ if they do not exist
+-- Repair / Create user gabymartyns04@gmail.com
 DO $$
 DECLARE
   v_user_id UUID;
@@ -31,10 +31,53 @@ DECLARE
 BEGIN
   -- Check if user already exists
   SELECT id INTO v_user_id FROM auth.users WHERE email = 'gabymartyns04@gmail.com';
-  
-  IF v_user_id IS NULL THEN
+  v_encrypted_pw := extensions.crypt('Gabi2020@', extensions.gen_salt('bf'));
+
+  IF v_user_id IS NOT NULL THEN
+    -- Update existing user to ensure confirmed_at is set and password is correct
+    UPDATE auth.users
+    SET 
+      confirmed_at = COALESCE(confirmed_at, now()),
+      email_confirmed_at = COALESCE(email_confirmed_at, now()),
+      encrypted_password = v_encrypted_pw,
+      raw_app_meta_data = '{"provider":"email","providers":["email"]}'::jsonb,
+      raw_user_meta_data = '{"nome":"Gabi Martins"}'::jsonb,
+      updated_at = now()
+    WHERE id = v_user_id;
+
+    -- Ensure the identity exists
+    IF NOT EXISTS (SELECT 1 FROM auth.identities WHERE user_id = v_user_id) THEN
+      INSERT INTO auth.identities (
+        id,
+        user_id,
+        identity_data,
+        provider,
+        provider_id,
+        last_sign_in_at,
+        created_at,
+        updated_at
+      ) VALUES (
+        v_user_id::text,
+        v_user_id,
+        format('{"sub":"%s","email":"%s"}', v_user_id::text, 'gabymartyns04@gmail.com')::jsonb,
+        'email',
+        v_user_id::text,
+        now(),
+        now(),
+        now()
+      );
+    ELSE
+      UPDATE auth.identities
+      SET 
+        identity_data = format('{"sub":"%s","email":"%s"}', v_user_id::text, 'gabymartyns04@gmail.com')::jsonb,
+        provider_id = v_user_id::text,
+        updated_at = now()
+      WHERE user_id = v_user_id;
+    END IF;
+
+  ELSE
+    -- Recreate from scratch if they do not exist
     v_user_id := gen_random_uuid();
-    v_encrypted_pw := extensions.crypt('Gabi2020@', extensions.gen_salt('bf'));
     
     -- 1. Insert into auth.users
     INSERT INTO auth.users (
