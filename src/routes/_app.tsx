@@ -3,7 +3,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { Calendar } from "lucide-react";
+import { Calendar, Lock } from "lucide-react";
 
 export const Route = createFileRoute("/_app")({
   component: AppLayout,
@@ -27,10 +27,11 @@ function AppLayout() {
       <div className="grid min-h-screen place-items-center text-muted-foreground">Carregando…</div>
     );
   }
-  if (!session) return <Navigate to="/login" replace />;
 
   const title =
     Object.entries(titles).find(([k]) => path === k || path.startsWith(k + "/"))?.[1] ?? "";
+
+  const isDiretoriaUnlocked = typeof window !== "undefined" && window.sessionStorage.getItem("diretoria_unlocked") === "true";
 
   return (
     <SidebarProvider>
@@ -41,6 +42,19 @@ function AppLayout() {
             <SidebarTrigger />
             <h1 className="text-base font-semibold">{title}</h1>
             <div className="ml-auto flex items-center gap-2">
+              {path === "/diretoria" && isDiretoriaUnlocked && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 border-rose-500/30 text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/20"
+                  onClick={() => {
+                    window.sessionStorage.removeItem("diretoria_unlocked");
+                    window.location.reload();
+                  }}
+                >
+                  <Lock className="h-4 w-4" /> Bloquear Acesso
+                </Button>
+              )}
               <Button asChild size="sm" className="gap-1.5">
                 <Link to="/agenda">
                   <Calendar className="h-4 w-4" /> Acessar Agenda

@@ -4,8 +4,6 @@ import {
   Calendar,
   Users,
   Stethoscope,
-  Settings,
-  LogOut,
   Brain,
   DollarSign,
   BarChart3,
@@ -22,8 +20,6 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { useAuth } from "@/hooks/useAuth";
-import { Button } from "@/components/ui/button";
 
 const items = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
@@ -35,14 +31,11 @@ const items = [
 
 export function AppSidebar() {
   const path = useRouterState({ select: (r) => r.location.pathname });
-  const { user, roles, signOut } = useAuth();
-  const { setOpen, setOpenMobile } = useSidebar();
+  const { setOpenMobile } = useSidebar();
 
   const menuItems = [
     ...items,
-    ...(roles.includes("admin")
-      ? [{ title: "Diretoria", url: "/diretoria", icon: DollarSign }]
-      : []),
+    { title: "Diretoria", url: "/diretoria", icon: DollarSign },
   ];
 
   return (
@@ -86,12 +79,8 @@ export function AppSidebar() {
       </SidebarContent>
       <SidebarFooter>
         <div className="px-2 pb-2 group-data-[collapsible=icon]:hidden">
-          <div className="truncate text-xs text-muted-foreground">{user?.email}</div>
+          <div className="truncate text-xs font-medium text-muted-foreground">Clínica Multi</div>
         </div>
-        <Button variant="ghost" size="sm" onClick={() => signOut()} className="justify-start gap-2">
-          <LogOut className="h-4 w-4" />
-          <span className="group-data-[collapsible=icon]:hidden">Sair</span>
-        </Button>
       </SidebarFooter>
     </Sidebar>
   );

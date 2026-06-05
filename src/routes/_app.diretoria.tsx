@@ -62,19 +62,13 @@ function PasswordGate({ onUnlock }: { onUnlock: () => void }) {
   const [password, setPassword] = useState("");
   const [verifying, setVerifying] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const { user, signIn } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user?.email) {
-      toast.error("Usuário não identificado!");
-      return;
-    }
-
     setVerifying(true);
     try {
-      const { error } = await signIn(user.email, password);
-      if (!error) {
+      const expectedPassword = import.meta.env.VITE_DIRETORIA_PASSWORD || "Gabi2020@";
+      if (password === expectedPassword) {
         onUnlock();
         toast.success("Acesso liberado!");
       } else {
@@ -608,7 +602,7 @@ function DiretoriaPageContent() {
 }
 
 function DiretoriaPage() {
-  const { roles, loading } = useAuth();
+  const { loading } = useAuth();
   const [unlocked, setUnlocked] = useState(() => {
     if (typeof window !== "undefined") {
       return window.sessionStorage.getItem("diretoria_unlocked") === "true";
@@ -620,26 +614,6 @@ function DiretoriaPage() {
     return (
       <div className="grid min-h-screen place-items-center text-muted-foreground">
         Carregando...
-      </div>
-    );
-  }
-
-  if (!roles.includes("admin")) {
-    return (
-      <div className="flex min-h-[60vh] items-center justify-center p-4">
-        <Card className="w-full max-w-md border-destructive/20 shadow-lg">
-          <CardHeader className="text-center space-y-1">
-            <div className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-destructive/10 text-destructive mb-3">
-              <AlertTriangle className="h-6 w-6" />
-            </div>
-            <CardTitle className="text-2xl font-bold text-destructive">
-              Não Autorizado
-            </CardTitle>
-            <CardDescription>
-              Esta página é exclusiva para administradores do sistema.
-            </CardDescription>
-          </CardHeader>
-        </Card>
       </div>
     );
   }
