@@ -589,7 +589,7 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
     data_inicio: initialStart,
     data_fim: initialEnd,
     status: editing?.status ?? "pendente",
-    recorrencia: editing?.recorrencia ?? "semanal",
+    recorrencia: editing?.recorrencia ?? "unica",
     observacoes: initialObservacoes,
   });
 
@@ -1023,12 +1023,12 @@ Fico à disposição para qualquer dúvida!`;
             new Date(form.data_inicio).getTime() - new Date(editing.data_inicio).getTime();
           const endDiff = new Date(form.data_fim).getTime() - new Date(editing.data_fim).getTime();
 
-          const updates = (futureAgs ?? []).map((occ) => {
+          const updates = (futureAgs ?? []).map(async (occ) => {
             const occStart = new Date(
               new Date(occ.data_inicio).getTime() + startDiff,
             ).toISOString();
             const occEnd = new Date(new Date(occ.data_fim).getTime() + endDiff).toISOString();
-            return supabase
+            const { error } = await supabase
               .from("agendamentos")
               .update({
                 paciente_id: form.paciente_id,
@@ -1036,10 +1036,13 @@ Fico à disposição para qualquer dúvida!`;
                 servico_id: matchingServico ? matchingServico.id : null,
                 data_inicio: occStart,
                 data_fim: occEnd,
+                status: form.status,
+                sala_id: null,
                 recorrencia: form.recorrencia,
                 observacoes: typePrefix + form.observacoes,
               })
               .eq("id", occ.id);
+            if (error) throw error;
           });
 
           await Promise.all(updates);
