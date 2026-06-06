@@ -175,7 +175,7 @@ function DiretoriaPageContent() {
   });
 
   const patientMap = useMemo(() => {
-    return new Map(pacientes.map((p) => [p.id, p.nome]));
+    return new Map((pacientes || []).map((p) => [p.id, p.nome]));
   }, [pacientes]);
 
   // Fetch Invoices
@@ -361,17 +361,17 @@ function DiretoriaPageContent() {
   // Calculations
   const stats = useMemo(() => {
     // Faturamento Recebido (Pagas)
-    const faturamentoRecebido = faturas
+    const faturamentoRecebido = (faturas || [])
       .filter((f) => f.status === "paga")
       .reduce((acc, f) => acc + Number(f.valor), 0);
 
     // Faturamento A Receber (Abertas)
-    const faturamentoAReceber = faturas
+    const faturamentoAReceber = (faturas || [])
       .filter((f) => f.status === "aberta")
       .reduce((acc, f) => acc + Number(f.valor), 0);
 
     // Faturamento Vencido (Vencidas)
-    const faturamentoVencido = faturas
+    const faturamentoVencido = (faturas || [])
       .filter((f) => f.status === "vencida")
       .reduce((acc, f) => acc + Number(f.valor), 0);
 
@@ -379,7 +379,7 @@ function DiretoriaPageContent() {
     const faturamentoPendente = faturamentoAReceber + faturamentoVencido;
 
     // Faturamento Geral (Total Faturas)
-    const faturamentoTotal = faturas
+    const faturamentoTotal = (faturas || [])
       .filter((f) => f.status !== "cancelada")
       .reduce((acc, f) => acc + Number(f.valor), 0);
 
@@ -475,7 +475,7 @@ function DiretoriaPageContent() {
   };
 
   const filteredFaturas = useMemo(() => {
-    return faturas.filter((f) => {
+    return (faturas || []).filter((f) => {
       const patientName = patientMap.get(f.paciente_id) || "";
       const matchesSearch = patientName.toLowerCase().includes(searchPatient.toLowerCase());
       const matchesStatus = statusFilter === "all" || f.status === statusFilter;
@@ -1254,7 +1254,7 @@ function DiretoriaPageContent() {
                   <SelectValue placeholder="Selecione o paciente..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {pacientes.map((p) => (
+                  {(pacientes || []).map((p) => (
                     <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>
                   ))}
                 </SelectContent>
