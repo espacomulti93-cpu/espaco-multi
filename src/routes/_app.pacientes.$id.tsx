@@ -149,10 +149,7 @@ function PacienteDetail() {
                 : "Particular"
             }
           />
-          <Info
-            label="Valor mensal"
-            value={paciente.valor_mensal ? `R$ ${Number(paciente.valor_mensal).toFixed(2)}` : "—"}
-          />
+
           <Info label="Cadastrado em" value={format(new Date(paciente.created_at), "dd/MM/yyyy")} />
           {paciente.observacoes && (
             <div className="sm:col-span-2">

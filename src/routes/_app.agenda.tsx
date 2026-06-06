@@ -1442,7 +1442,7 @@ Fico à disposição para qualquer dúvida!`;
                       {displayedPacientes.map((p: any) => (
                         <CommandItem
                           key={p.id}
-                          value={p.nome}
+                          value={p.nome.toLowerCase()}
                           onSelect={() => {
                             handlePacienteChange(p.id);
                             setPacienteOpen(false);

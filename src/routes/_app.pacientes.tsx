@@ -309,7 +309,6 @@ export function PacienteFormDialog({ paciente, onSaved }: { paciente?: any; onSa
     cids_secundarios: (paciente?.cids_secundarios as string[]) ?? [],
     tipo_atendimento: paciente?.tipo_atendimento ?? "particular",
     convenio_nome: paciente?.convenio_nome ?? "",
-    valor_mensal: paciente?.valor_mensal ?? "",
     status: paciente?.status ?? "ativo",
     observacoes: paciente?.observacoes ?? "",
     responsavel: "",
@@ -386,7 +385,6 @@ export function PacienteFormDialog({ paciente, onSaved }: { paciente?: any; onSa
         cids_secundarios: form.cids_secundarios,
         tipo_atendimento: form.tipo_atendimento,
         convenio_nome: form.tipo_atendimento === "convenio" ? form.convenio_nome : null,
-        valor_mensal: form.valor_mensal ? Number(form.valor_mensal) : null,
         status: form.status,
         observacoes: form.observacoes || null,
       };
@@ -570,15 +568,7 @@ export function PacienteFormDialog({ paciente, onSaved }: { paciente?: any; onSa
             />
           </div>
         )}
-        <div className="space-y-1.5">
-          <Label>Valor mensal (R$)</Label>
-          <Input
-            type="number"
-            step="0.01"
-            value={form.valor_mensal}
-            onChange={(e) => setForm({ ...form, valor_mensal: e.target.value })}
-          />
-        </div>
+
         <div className="space-y-1.5">
           <Label>Observações clínicas</Label>
           <Textarea

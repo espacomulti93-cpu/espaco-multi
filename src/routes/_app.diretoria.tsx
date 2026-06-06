@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useState, useMemo } from "react";
-import { format, startOfMonth, endOfMonth } from "date-fns";
+import { format, startOfMonth, endOfMonth, differenceInDays, startOfDay } from "date-fns";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import {
@@ -15,6 +15,16 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Table,
   TableBody,
@@ -52,6 +62,12 @@ import {
   ArrowRightLeft,
   Eye,
   EyeOff,
+  Check,
+  Pencil,
+  Search,
+  DollarSign,
+  AlertCircle,
+  Clock,
 } from "lucide-react";
 
 export const Route = createFileRoute("/_app/diretoria")({
@@ -151,17 +167,123 @@ function DiretoriaPageContent() {
   const [data, setData] = useState(format(new Date(), "yyyy-MM-dd"));
   const [categoria, setCategoria] = useState("Outros");
 
+  // Fetch Patients
+  const { data: pacientes = [] } = useQuery({
+    queryKey: ["dir-pacientes-min"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("pacientes")
+        .select("id, nome")
+        .order("nome");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const patientMap = useMemo(() => {
+    return new Map(pacientes.map((p) => [p.id, p.nome]));
+  }, [pacientes]);
+
   // Fetch Invoices
   const { data: faturas = [], isLoading: loadingFaturas } = useQuery({
     queryKey: ["dir-faturas", inicio, fim],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("faturas")
-        .select("id, valor, status, competencia")
+        .select("id, valor, status, competencia, vencimento, pago_em, metodo, observacoes, paciente_id")
         .gte("competencia", inicio)
         .lte("competencia", fim);
       if (error) throw error;
       return data;
+    },
+  });
+
+  // Confirm payment mutation
+  const confirmPaymentMutation = useMutation({
+    mutationFn: async ({ id, pago_em, metodo, observacoes }: { id: string; pago_em: string; metodo: string; observacoes?: string }) => {
+      const { error } = await supabase
+        .from("faturas")
+        .update({
+          status: "paga",
+          pago_em,
+          metodo: metodo as any,
+          observacoes: observacoes || null,
+        })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["dir-faturas"] });
+      toast.success("Pagamento confirmado com sucesso!");
+    },
+    onError: (err: any) => {
+      toast.error("Erro ao confirmar pagamento: " + err.message);
+    },
+  });
+
+  // Create billing (manual) mutation
+  const createFaturaMutation = useMutation({
+    mutationFn: async (newFatura: { paciente_id: string; competencia: string; vencimento?: string | null; valor: number; status: string; observacoes?: string | null }) => {
+      const { error } = await supabase
+        .from("faturas")
+        .insert({
+          paciente_id: newFatura.paciente_id,
+          competencia: newFatura.competencia,
+          vencimento: newFatura.vencimento || null,
+          valor: newFatura.valor,
+          status: newFatura.status as any,
+          observacoes: newFatura.observacoes || null,
+        });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["dir-faturas"] });
+      toast.success("Cobrança criada com sucesso!");
+    },
+    onError: (err: any) => {
+      toast.error("Erro ao criar cobrança: " + err.message);
+    },
+  });
+
+  // Edit billing mutation
+  const editFaturaMutation = useMutation({
+    mutationFn: async (updatedFatura: { id: string; competencia: string; vencimento?: string | null; valor: number; status: string; pago_em?: string | null; metodo?: string | null; observacoes?: string | null }) => {
+      const { error } = await supabase
+        .from("faturas")
+        .update({
+          competencia: updatedFatura.competencia,
+          vencimento: updatedFatura.vencimento || null,
+          valor: updatedFatura.valor,
+          status: updatedFatura.status as any,
+          pago_em: updatedFatura.status === "paga" ? (updatedFatura.pago_em || new Date().toISOString()) : null,
+          metodo: updatedFatura.status === "paga" ? (updatedFatura.metodo as any) : null,
+          observacoes: updatedFatura.observacoes || null,
+        })
+        .eq("id", updatedFatura.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["dir-faturas"] });
+      toast.success("Cobrança atualizada com sucesso!");
+    },
+    onError: (err: any) => {
+      toast.error("Erro ao atualizar cobrança: " + err.message);
+    },
+  });
+
+  // Delete billing mutation
+  const deleteFaturaMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await supabase.from("fatura_itens").delete().eq("fatura_id", id);
+      const { error } = await supabase.from("faturas").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["dir-faturas"] });
+      toast.success("Cobrança excluída com sucesso!");
+    },
+    onError: (err: any) => {
+      toast.error("Erro ao excluir cobrança: " + err.message);
     },
   });
 
@@ -292,6 +414,81 @@ function DiretoriaPageContent() {
 
   const isMutating = createExpenseMutation.isPending || deleteExpenseMutation.isPending;
 
+  // Billing Filters
+  const [searchPatient, setSearchPatient] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+
+  // Billing Modals
+  const [payDialog, setPayDialog] = useState<{ open: boolean; fatura: any }>({ open: false, fatura: null });
+  const [editDialog, setEditDialog] = useState<{ open: boolean; fatura: any }>({ open: false, fatura: null });
+  const [createDialog, setCreateDialog] = useState(false);
+
+  // Form states
+  const [payForm, setPayForm] = useState({
+    pago_em: format(new Date(), "yyyy-MM-dd"),
+    metodo: "pix",
+    observacoes: "",
+  });
+
+  const [faturaForm, setFaturaForm] = useState({
+    paciente_id: "",
+    competencia: format(startOfMonth(new Date()), "yyyy-MM-dd"),
+    vencimento: "",
+    valor: "",
+    status: "aberta",
+    observacoes: "",
+  });
+
+  const handleOpenConfirmPayment = (fatura: any) => {
+    setPayForm({
+      pago_em: format(new Date(), "yyyy-MM-dd"),
+      metodo: fatura.metodo || "pix",
+      observacoes: fatura.observacoes || "",
+    });
+    setPayDialog({ open: true, fatura });
+  };
+
+  const handleOpenEdit = (fatura: any) => {
+    setFaturaForm({
+      paciente_id: fatura.paciente_id,
+      competencia: fatura.competencia,
+      vencimento: fatura.vencimento || "",
+      valor: String(fatura.valor),
+      status: fatura.status,
+      observacoes: fatura.observacoes || "",
+    });
+    setEditDialog({ open: true, fatura });
+  };
+
+  const getDaysDelayed = (fatura: any) => {
+    if (fatura.status === "paga") {
+      if (fatura.pago_em && fatura.vencimento) {
+        const payDate = startOfDay(new Date(fatura.pago_em));
+        const dueDate = startOfDay(new Date(fatura.vencimento + "T12:00:00"));
+        const diff = differenceInDays(payDate, dueDate);
+        return diff > 0 ? diff : 0;
+      }
+      return 0;
+    }
+    if (fatura.status === "cancelada") return 0;
+    if (fatura.vencimento) {
+      const today = startOfDay(new Date());
+      const dueDate = startOfDay(new Date(fatura.vencimento + "T12:00:00"));
+      const diff = differenceInDays(today, dueDate);
+      return diff > 0 ? diff : 0;
+    }
+    return 0;
+  };
+
+  const filteredFaturas = useMemo(() => {
+    return faturas.filter((f) => {
+      const patientName = patientMap.get(f.paciente_id) || "";
+      const matchesSearch = patientName.toLowerCase().includes(searchPatient.toLowerCase());
+      const matchesStatus = statusFilter === "all" || f.status === statusFilter;
+      return matchesSearch && matchesStatus;
+    });
+  }, [faturas, searchPatient, statusFilter, patientMap]);
+
   return (
     <div className="space-y-6">
       {/* Date Filter */}
@@ -408,201 +605,734 @@ function DiretoriaPageContent() {
         </Card>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="space-y-6 lg:col-span-1">
-          {/* Register Expense Form Card */}
+      <Tabs defaultValue="overview" className="w-full space-y-6">
+        <TabsList className="bg-muted p-1 rounded-xl inline-flex">
+          <TabsTrigger value="overview" className="rounded-lg px-4 py-2 text-sm font-medium">
+            Despesas & Resumo
+          </TabsTrigger>
+          <TabsTrigger value="cobrancas" className="rounded-lg px-4 py-2 text-sm font-medium">
+            Cobranças por Paciente
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overview" className="space-y-6 mt-0">
+          <div className="grid gap-6 lg:grid-cols-3">
+            <div className="space-y-6 lg:col-span-1">
+              {/* Register Expense Form Card */}
+              <Card className="border-border shadow-sm">
+                <CardHeader>
+                  <CardTitle className="text-lg">Cadastrar Despesa</CardTitle>
+                  <CardDescription>
+                    Registre os custos e gastos operacionais da clínica.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <form onSubmit={handleSubmit} className="space-y-4">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="expense-desc">Descrição</Label>
+                      <Input
+                        id="expense-desc"
+                        placeholder="Ex: Aluguel da clínica"
+                        value={descricao}
+                        onChange={(e) => setDescricao(e.target.value)}
+                        required
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <Label htmlFor="expense-value">Valor (R$)</Label>
+                        <Input
+                          id="expense-value"
+                          placeholder="0.00"
+                          value={valor}
+                          onChange={(e) => setValor(e.target.value)}
+                          required
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="expense-date">Data</Label>
+                        <Input
+                          id="expense-date"
+                          type="date"
+                          value={data}
+                          onChange={(e) => setData(e.target.value)}
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label htmlFor="expense-category">Categoria</Label>
+                      <Select value={categoria} onValueChange={setCategoria}>
+                        <SelectTrigger id="expense-category" className="w-full">
+                          <SelectValue placeholder="Selecione uma categoria" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Aluguel">Aluguel / Condomínio</SelectItem>
+                          <SelectItem value="Salários">Salários / Honorários</SelectItem>
+                          <SelectItem value="Impostos">Impostos / Taxas</SelectItem>
+                          <SelectItem value="Materiais">Materiais Clínicos/Escritório</SelectItem>
+                          <SelectItem value="Limpeza">Limpeza / Conservação</SelectItem>
+                          <SelectItem value="Utilidades">Água / Luz / Internet</SelectItem>
+                          <SelectItem value="Marketing">Marketing / Divulgação</SelectItem>
+                          <SelectItem value="Outros">Outros Gastos</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <Button
+                      type="submit"
+                      disabled={isMutating}
+                      className="w-full flex items-center justify-center gap-2"
+                    >
+                      <Plus className="h-4 w-4" /> Cadastrar Despesa
+                    </Button>
+                  </form>
+                </CardContent>
+              </Card>
+
+              {/* Financeiro do Período Card */}
+              <Card className="border-border shadow-sm">
+                <CardHeader>
+                  <CardTitle className="text-lg">Financeiro do período</CardTitle>
+                  <CardDescription>
+                    Detalhamento de faturas por status no período selecionado.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-2 text-sm">
+                  <div className="flex items-center justify-between border-b py-2 last:border-0">
+                    <span className="text-muted-foreground font-medium">Recebido</span>
+                    <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                      {brl(stats.faturamentoRecebido)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between border-b py-2 last:border-0">
+                    <span className="text-muted-foreground font-medium">A receber</span>
+                    <span className="font-semibold">
+                      {brl(stats.faturamentoAReceber)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between border-b py-2 last:border-0">
+                    <span className="text-muted-foreground font-medium">Vencido</span>
+                    <span className="font-semibold text-rose-600 dark:text-rose-400">
+                      {brl(stats.faturamentoVencido)}
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Expenses List Table Card */}
+            <Card className="border-border shadow-sm lg:col-span-2">
+              <CardHeader>
+                <CardTitle className="text-lg">Despesas Registradas</CardTitle>
+                <CardDescription>
+                  Lista de gastos efetuados no período selecionado.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-0 sm:p-6 sm:pt-0">
+                {loadingDespesas ? (
+                  <div className="p-8 text-center text-sm text-muted-foreground">
+                    Carregando despesas...
+                  </div>
+                ) : despesas.length === 0 ? (
+                  <div className="p-8 text-center text-sm text-muted-foreground">
+                    Nenhuma despesa cadastrada neste período.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Data</TableHead>
+                          <TableHead>Descrição</TableHead>
+                          <TableHead>Categoria</TableHead>
+                          <TableHead className="text-right">Valor</TableHead>
+                          <TableHead className="w-[50px]"></TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {despesas.map((d: any) => (
+                          <TableRow key={d.id}>
+                            <TableCell className="font-medium">
+                              {format(new Date(d.data + "T12:00:00"), "dd/MM/yyyy")}
+                            </TableCell>
+                            <TableCell className="max-w-[200px] truncate" title={d.descricao}>
+                              {d.descricao}
+                            </TableCell>
+                            <TableCell>
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-muted text-muted-foreground">
+                                {d.categoria || "Outros"}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-right font-semibold text-rose-600 dark:text-rose-400">
+                              {brl(Number(d.valor))}
+                            </TableCell>
+                            <TableCell>
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>
+                                      Tem certeza que deseja excluir esta despesa?
+                                    </AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Esta ação é irreversível. A despesa "{d.descricao}" no valor
+                                      de {brl(Number(d.valor))} será excluída permanentemente.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                    <AlertDialogAction
+                                      onClick={() => deleteExpenseMutation.mutate(d.id)}
+                                      className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+                                    >
+                                      Excluir
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="cobrancas" className="mt-0">
           <Card className="border-border shadow-sm">
-            <CardHeader>
-              <CardTitle className="text-lg">Cadastrar Despesa</CardTitle>
-              <CardDescription>
-                Registre os custos e gastos operacionais da clínica.
-              </CardDescription>
+            <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <CardTitle className="text-lg">Cobranças de Pacientes</CardTitle>
+                <CardDescription>
+                  Gerenciamento de faturas de pacientes e confirmação de pagamentos.
+                </CardDescription>
+              </div>
+              <Button onClick={() => {
+                setFaturaForm({
+                  paciente_id: "",
+                  competencia: format(startOfMonth(new Date()), "yyyy-MM-dd"),
+                  vencimento: "",
+                  valor: "",
+                  status: "aberta",
+                  observacoes: "",
+                });
+                setCreateDialog(true);
+              }} className="gap-1.5 self-start sm:self-center">
+                <Plus className="h-4 w-4" /> Nova Cobrança
+              </Button>
             </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-1.5">
-                  <Label htmlFor="expense-desc">Descrição</Label>
+            <CardContent className="space-y-4">
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="relative flex-1 min-w-[200px] max-w-sm">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                   <Input
-                    id="expense-desc"
-                    placeholder="Ex: Aluguel da clínica"
-                    value={descricao}
-                    onChange={(e) => setDescricao(e.target.value)}
-                    required
+                    placeholder="Buscar paciente..."
+                    value={searchPatient}
+                    onChange={(e) => setSearchPatient(e.target.value)}
+                    className="pl-9 h-10"
                   />
                 </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="expense-value">Valor (R$)</Label>
-                    <Input
-                      id="expense-value"
-                      placeholder="0.00"
-                      value={valor}
-                      onChange={(e) => setValor(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="expense-date">Data</Label>
-                    <Input
-                      id="expense-date"
-                      type="date"
-                      value={data}
-                      onChange={(e) => setData(e.target.value)}
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label htmlFor="expense-category">Categoria</Label>
-                  <Select value={categoria} onValueChange={setCategoria}>
-                    <SelectTrigger id="expense-category" className="w-full">
-                      <SelectValue placeholder="Selecione uma categoria" />
+                <div className="w-[180px]">
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="h-10">
+                      <SelectValue placeholder="Status" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Aluguel">Aluguel / Condomínio</SelectItem>
-                      <SelectItem value="Salários">Salários / Honorários</SelectItem>
-                      <SelectItem value="Impostos">Impostos / Taxas</SelectItem>
-                      <SelectItem value="Materiais">Materiais Clínicos/Escritório</SelectItem>
-                      <SelectItem value="Limpeza">Limpeza / Conservação</SelectItem>
-                      <SelectItem value="Utilidades">Água / Luz / Internet</SelectItem>
-                      <SelectItem value="Marketing">Marketing / Divulgação</SelectItem>
-                      <SelectItem value="Outros">Outros Gastos</SelectItem>
+                      <SelectItem value="all">Todos os Status</SelectItem>
+                      <SelectItem value="aberta">Em Aberto</SelectItem>
+                      <SelectItem value="paga">Pagas</SelectItem>
+                      <SelectItem value="vencida">Vencidas</SelectItem>
+                      <SelectItem value="cancelada">Canceladas</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
 
-                <Button
-                  type="submit"
-                  disabled={isMutating}
-                  className="w-full flex items-center justify-center gap-2"
-                >
-                  <Plus className="h-4 w-4" /> Cadastrar Despesa
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
-
-          {/* Financeiro do Período Card */}
-          <Card className="border-border shadow-sm">
-            <CardHeader>
-              <CardTitle className="text-lg">Financeiro do período</CardTitle>
-              <CardDescription>
-                Detalhamento de faturas por status no período selecionado.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-2 text-sm">
-              <div className="flex items-center justify-between border-b py-2 last:border-0">
-                <span className="text-muted-foreground font-medium">Recebido</span>
-                <span className="font-semibold text-emerald-600 dark:text-emerald-400">
-                  {brl(stats.faturamentoRecebido)}
-                </span>
-              </div>
-              <div className="flex items-center justify-between border-b py-2 last:border-0">
-                <span className="text-muted-foreground font-medium">A receber</span>
-                <span className="font-semibold">
-                  {brl(stats.faturamentoAReceber)}
-                </span>
-              </div>
-              <div className="flex items-center justify-between border-b py-2 last:border-0">
-                <span className="text-muted-foreground font-medium">Vencido</span>
-                <span className="font-semibold text-rose-600 dark:text-rose-400">
-                  {brl(stats.faturamentoVencido)}
-                </span>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Expenses List Table Card */}
-        <Card className="border-border shadow-sm lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="text-lg">Despesas Registradas</CardTitle>
-            <CardDescription>
-              Lista de gastos efetuados no período selecionado.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="p-0 sm:p-6 sm:pt-0">
-            {loadingDespesas ? (
-              <div className="p-8 text-center text-sm text-muted-foreground">
-                Carregando despesas...
-              </div>
-            ) : despesas.length === 0 ? (
-              <div className="p-8 text-center text-sm text-muted-foreground">
-                Nenhuma despesa cadastrada neste período.
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Data</TableHead>
-                      <TableHead>Descrição</TableHead>
-                      <TableHead>Categoria</TableHead>
-                      <TableHead className="text-right">Valor</TableHead>
-                      <TableHead className="w-[50px]"></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {despesas.map((d: any) => (
-                      <TableRow key={d.id}>
-                        <TableCell className="font-medium">
-                          {format(new Date(d.data + "T12:00:00"), "dd/MM/yyyy")}
-                        </TableCell>
-                        <TableCell className="max-w-[200px] truncate" title={d.descricao}>
-                          {d.descricao}
-                        </TableCell>
-                        <TableCell>
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-muted text-muted-foreground">
-                            {d.categoria || "Outros"}
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-right font-semibold text-rose-600 dark:text-rose-400">
-                          {brl(Number(d.valor))}
-                        </TableCell>
-                        <TableCell>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>
-                                  Tem certeza que deseja excluir esta despesa?
-                                </AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Esta ação é irreversível. A despesa "{d.descricao}" no valor
-                                  de {brl(Number(d.valor))} será excluída permanentemente.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                <AlertDialogAction
-                                  onClick={() => deleteExpenseMutation.mutate(d.id)}
-                                  className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
-                                >
-                                  Excluir
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </TableCell>
+              {loadingFaturas ? (
+                <div className="p-8 text-center text-sm text-muted-foreground">
+                  Carregando cobranças...
+                </div>
+              ) : filteredFaturas.length === 0 ? (
+                <div className="p-8 text-center text-sm text-muted-foreground border border-dashed rounded-lg">
+                  Nenhuma cobrança encontrada para os filtros selecionados.
+                </div>
+              ) : (
+                <div className="overflow-x-auto rounded-lg border border-border">
+                  <Table>
+                    <TableHeader className="bg-muted/40">
+                      <TableRow>
+                        <TableHead>Paciente</TableHead>
+                        <TableHead>Competência</TableHead>
+                        <TableHead>Vencimento</TableHead>
+                        <TableHead>Valor</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Pagamento</TableHead>
+                        <TableHead>Dias de Atraso</TableHead>
+                        <TableHead className="w-[140px] text-right">Ações</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredFaturas.map((f: any) => {
+                        const daysDelayed = getDaysDelayed(f);
+                        const patientName = patientMap.get(f.paciente_id) || "—";
+                        
+                        return (
+                          <TableRow key={f.id}>
+                            <TableCell className="font-semibold text-foreground">
+                              {patientName}
+                            </TableCell>
+                            <TableCell>
+                              {f.competencia ? format(new Date(f.competencia + "T12:00:00"), "MM/yyyy") : "—"}
+                            </TableCell>
+                            <TableCell>
+                              {f.vencimento ? format(new Date(f.vencimento + "T12:00:00"), "dd/MM/yyyy") : "—"}
+                            </TableCell>
+                            <TableCell className="font-semibold">
+                              {brl(Number(f.valor))}
+                            </TableCell>
+                            <TableCell>
+                              <Badge
+                                variant={
+                                  f.status === "paga"
+                                    ? "default"
+                                    : f.status === "vencida" || (f.status === "aberta" && daysDelayed > 0)
+                                    ? "destructive"
+                                    : f.status === "cancelada"
+                                    ? "secondary"
+                                    : "outline"
+                                }
+                                className={
+                                  f.status === "paga"
+                                    ? "bg-emerald-500 hover:bg-emerald-600 text-white border-transparent"
+                                    : f.status === "aberta" && daysDelayed > 0
+                                    ? "bg-rose-500 hover:bg-rose-600 text-white border-transparent"
+                                    : f.status === "aberta"
+                                    ? "bg-sky-500 hover:bg-sky-600 text-white border-transparent"
+                                    : ""
+                                }
+                              >
+                                {f.status === "aberta" && daysDelayed > 0
+                                  ? "Vencida (Atrasada)"
+                                  : f.status === "aberta"
+                                  ? "Em Aberto"
+                                  : f.status === "paga"
+                                  ? "Pago"
+                                  : f.status === "vencida"
+                                  ? "Vencida"
+                                  : "Cancelada"}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-xs text-muted-foreground">
+                              {f.status === "paga" ? (
+                                <div className="space-y-0.5">
+                                  <div>{f.pago_em ? format(new Date(f.pago_em), "dd/MM/yyyy") : "—"}</div>
+                                  <div className="font-semibold uppercase tracking-wider text-[10px] text-emerald-600 dark:text-emerald-400">
+                                    {f.metodo || ""}
+                                  </div>
+                                </div>
+                              ) : (
+                                "—"
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {f.status === "paga" ? (
+                                daysDelayed > 0 ? (
+                                  <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">
+                                    Pago com {daysDelayed}d de atraso
+                                  </span>
+                                ) : (
+                                  <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
+                                    <Check className="h-3 w-3" /> Pago em dia
+                                  </span>
+                                )
+                              ) : f.status === "cancelada" ? (
+                                "—"
+                              ) : f.vencimento ? (
+                                daysDelayed > 0 ? (
+                                  <span className="text-xs text-rose-600 dark:text-rose-400 font-semibold flex items-center gap-1">
+                                    <AlertCircle className="h-3.5 w-3.5 shrink-0" /> {daysDelayed} dias de atraso
+                                  </span>
+                                ) : (
+                                  <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
+                                    <Clock className="h-3 w-3" /> No prazo
+                                  </span>
+                                )
+                              ) : (
+                                <span className="text-xs text-muted-foreground italic">Sem vencimento</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
+                                {f.status !== "paga" && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    title="Confirmar Pagamento"
+                                    className="h-8 w-8 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/20"
+                                    onClick={() => handleOpenConfirmPayment(f)}
+                                  >
+                                    <Check className="h-4 w-4" />
+                                  </Button>
+                                )}
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  title="Editar Cobrança"
+                                  className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                                  onClick={() => handleOpenEdit(f)}
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      title="Excluir Cobrança"
+                                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Excluir Cobrança</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        Tem certeza que deseja excluir esta cobrança? Todos os itens de faturamento associados a agendamentos serão mantidos, mas a cobrança em si será excluída.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                      <AlertDialogAction
+                                        className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+                                        onClick={() => deleteFaturaMutation.mutate(f.id)}
+                                      >
+                                        Excluir
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      {/* Confirmar Pagamento Dialog */}
+      <Dialog open={payDialog.open} onOpenChange={(open) => setPayDialog({ open, fatura: open ? payDialog.fatura : null })}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Confirmar Pagamento</DialogTitle>
+          </DialogHeader>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (payDialog.fatura) {
+                confirmPaymentMutation.mutate({
+                  id: payDialog.fatura.id,
+                  pago_em: new Date(payForm.pago_em + "T12:00:00").toISOString(),
+                  metodo: payForm.metodo,
+                  observacoes: payForm.observacoes,
+                }, {
+                  onSuccess: () => setPayDialog({ open: false, fatura: null })
+                });
+              }
+            }}
+            className="space-y-4 pt-2"
+          >
+            <div className="space-y-1.5">
+              <Label>Paciente</Label>
+              <Input value={payDialog.fatura ? (patientMap.get(payDialog.fatura.paciente_id) || "—") : ""} disabled className="bg-muted" />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label>Valor</Label>
+                <Input value={payDialog.fatura ? brl(Number(payDialog.fatura.valor)) : ""} disabled className="bg-muted" />
               </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+              <div className="space-y-1.5">
+                <Label>Data de Pagamento</Label>
+                <Input
+                  type="date"
+                  required
+                  value={payForm.pago_em}
+                  onChange={(e) => setPayForm({ ...payForm, pago_em: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Método de Pagamento</Label>
+              <Select value={payForm.metodo} onValueChange={(val) => setPayForm({ ...payForm, metodo: val })}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pix">PIX</SelectItem>
+                  <SelectItem value="dinheiro">Dinheiro</SelectItem>
+                  <SelectItem value="cartao_credito">Cartão de Crédito</SelectItem>
+                  <SelectItem value="cartao_debito">Cartão de Débito</SelectItem>
+                  <SelectItem value="transferencia">Transferência Bancária</SelectItem>
+                  <SelectItem value="boleto">Boleto</SelectItem>
+                  <SelectItem value="convenio">Convênio</SelectItem>
+                  <SelectItem value="outro">Outro</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Observações</Label>
+              <Textarea
+                placeholder="Alguma observação sobre o pagamento..."
+                rows={2}
+                value={payForm.observacoes}
+                onChange={(e) => setPayForm({ ...payForm, observacoes: e.target.value })}
+              />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setPayDialog({ open: false, fatura: null })}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={confirmPaymentMutation.isPending}>
+                {confirmPaymentMutation.isPending ? "Confirmando..." : "Confirmar Pagamento"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Editar Cobrança Dialog */}
+      <Dialog open={editDialog.open} onOpenChange={(open) => setEditDialog({ open, fatura: open ? editDialog.fatura : null })}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Editar Cobrança</DialogTitle>
+          </DialogHeader>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (editDialog.fatura) {
+                editFaturaMutation.mutate({
+                  id: editDialog.fatura.id,
+                  competencia: faturaForm.competencia,
+                  vencimento: faturaForm.vencimento ? faturaForm.vencimento : null,
+                  valor: parseFloat(faturaForm.valor.replace(",", ".")),
+                  status: faturaForm.status,
+                  observacoes: faturaForm.observacoes,
+                }, {
+                  onSuccess: () => setEditDialog({ open: false, fatura: null })
+                });
+              }
+            }}
+            className="space-y-4 pt-2"
+          >
+            <div className="space-y-1.5">
+              <Label>Paciente</Label>
+              <Input value={editDialog.fatura ? (patientMap.get(editDialog.fatura.paciente_id) || "—") : ""} disabled className="bg-muted" />
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label>Mês de Competência</Label>
+                <Input
+                  type="date"
+                  required
+                  value={faturaForm.competencia}
+                  onChange={(e) => setFaturaForm({ ...faturaForm, competencia: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Data de Vencimento</Label>
+                <Input
+                  type="date"
+                  value={faturaForm.vencimento}
+                  onChange={(e) => setFaturaForm({ ...faturaForm, vencimento: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label>Valor (R$)</Label>
+                <Input
+                  required
+                  placeholder="0.00"
+                  value={faturaForm.valor}
+                  onChange={(e) => setFaturaForm({ ...faturaForm, valor: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Status</Label>
+                <Select value={faturaForm.status} onValueChange={(val) => setFaturaForm({ ...faturaForm, status: val })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="aberta">Em Aberto</SelectItem>
+                    <SelectItem value="paga">Pago</SelectItem>
+                    <SelectItem value="vencida">Vencida</SelectItem>
+                    <SelectItem value="cancelada">Cancelada</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>Observações</Label>
+              <Textarea
+                placeholder="Observações da cobrança..."
+                rows={2}
+                value={faturaForm.observacoes}
+                onChange={(e) => setFaturaForm({ ...faturaForm, observacoes: e.target.value })}
+              />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setEditDialog({ open: false, fatura: null })}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={editFaturaMutation.isPending}>
+                {editFaturaMutation.isPending ? "Salvando..." : "Salvar Alterações"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Nova Cobrança Dialog */}
+      <Dialog open={createDialog} onOpenChange={setCreateDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Nova Cobrança Manual</DialogTitle>
+          </DialogHeader>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!faturaForm.paciente_id) {
+                toast.error("Selecione um paciente.");
+                return;
+              }
+              createFaturaMutation.mutate({
+                paciente_id: faturaForm.paciente_id,
+                competencia: faturaForm.competencia,
+                vencimento: faturaForm.vencimento ? faturaForm.vencimento : null,
+                valor: parseFloat(faturaForm.valor.replace(",", ".")),
+                status: faturaForm.status,
+                observacoes: faturaForm.observacoes,
+              }, {
+                onSuccess: () => {
+                  setCreateDialog(false);
+                  setFaturaForm({
+                    paciente_id: "",
+                    competencia: format(startOfMonth(new Date()), "yyyy-MM-dd"),
+                    vencimento: "",
+                    valor: "",
+                    status: "aberta",
+                    observacoes: "",
+                  });
+                }
+              });
+            }}
+            className="space-y-4 pt-2"
+          >
+            <div className="space-y-1.5">
+              <Label>Paciente</Label>
+              <Select value={faturaForm.paciente_id} onValueChange={(val) => setFaturaForm({ ...faturaForm, paciente_id: val })}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o paciente..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {pacientes.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label>Mês de Competência</Label>
+                <Input
+                  type="date"
+                  required
+                  value={faturaForm.competencia}
+                  onChange={(e) => setFaturaForm({ ...faturaForm, competencia: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Data de Vencimento</Label>
+                <Input
+                  type="date"
+                  value={faturaForm.vencimento}
+                  onChange={(e) => setFaturaForm({ ...faturaForm, vencimento: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label>Valor (R$)</Label>
+                <Input
+                  required
+                  placeholder="0.00"
+                  value={faturaForm.valor}
+                  onChange={(e) => setFaturaForm({ ...faturaForm, valor: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Status</Label>
+                <Select value={faturaForm.status} onValueChange={(val) => setFaturaForm({ ...faturaForm, status: val })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="aberta">Em Aberto</SelectItem>
+                    <SelectItem value="paga">Pago</SelectItem>
+                    <SelectItem value="vencida">Vencida</SelectItem>
+                    <SelectItem value="cancelada">Cancelada</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>Observações</Label>
+              <Textarea
+                placeholder="Observações da cobrança..."
+                rows={2}
+                value={faturaForm.observacoes}
+                onChange={(e) => setFaturaForm({ ...faturaForm, observacoes: e.target.value })}
+              />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setCreateDialog(false)}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={createFaturaMutation.isPending}>
+                {createFaturaMutation.isPending ? "Criando..." : "Criar Cobrança"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
