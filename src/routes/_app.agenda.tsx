@@ -266,11 +266,13 @@ function Agenda() {
           <AgendamentoDialog
             editing={dialog.editing}
             defaults={dialog.defaults}
-            onSaved={() => {
+            onSaved={async () => {
+              await Promise.all([
+                qc.invalidateQueries({ queryKey: ["ags"] }),
+                qc.invalidateQueries({ queryKey: ["patient-ags-dialog"] }),
+                qc.invalidateQueries({ queryKey: ["faturas"] }),
+              ]);
               setDialog({ open: false });
-              qc.invalidateQueries({ queryKey: ["ags"] });
-              qc.invalidateQueries({ queryKey: ["patient-ags-dialog"] });
-              qc.invalidateQueries({ queryKey: ["faturas"] });
             }}
             onCancel={(a: any) => {
               setDialog({ open: false });
