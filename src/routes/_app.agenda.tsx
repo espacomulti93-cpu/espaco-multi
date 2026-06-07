@@ -657,55 +657,10 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
 
   const sortedPatientAgs = useMemo(() => {
     if (!Array.isArray(patientAgs)) return [];
-    
-    // Map patientAgs to override the currently edited item with current form values
-    const mappedAgs = patientAgs.map((a: any) => {
-      if (editing && a.id === editing.id) {
-        const currentProf = profissionais.find((p: any) => p.id === form.profissional_id);
-        return {
-          ...a,
-          data_inicio: form.data_inicio,
-          data_fim: form.data_fim,
-          profissional_id: form.profissional_id,
-          status: form.status,
-          profissionais: currentProf ? { ...a.profissionais, nome: currentProf.nome, cor: currentProf.cor } : a.profissionais,
-          servicos: selectedSpecialty ? { nome: selectedSpecialty } : null,
-        };
-      }
-      return a;
-    });
-
-    // If we changed the patient, the new patient's agendamentos won't have editing.id in the DB yet.
-    // So we manually inject the current appointment being edited into the list.
-    const hasEditingItem = mappedAgs.some((a: any) => editing && a.id === editing.id);
-    if (editing && !hasEditingItem && form.paciente_id) {
-      const currentProf = profissionais.find((p: any) => p.id === form.profissional_id);
-      mappedAgs.push({
-        id: editing.id,
-        paciente_id: form.paciente_id,
-        data_inicio: form.data_inicio,
-        data_fim: form.data_fim,
-        profissional_id: form.profissional_id,
-        status: form.status,
-        profissionais: currentProf ? { nome: currentProf.nome, cor: currentProf.cor } : null,
-        servicos: selectedSpecialty ? { nome: selectedSpecialty } : null,
-      });
-    }
-
-    return mappedAgs
+    return [...patientAgs]
       .filter((a: any) => a?.data_inicio && !isNaN(new Date(a.data_inicio).getTime()))
       .sort((a, b) => new Date(a.data_inicio).getTime() - new Date(b.data_inicio).getTime());
-  }, [
-    patientAgs,
-    editing,
-    form.data_inicio,
-    form.data_fim,
-    form.profissional_id,
-    form.status,
-    form.paciente_id,
-    profissionais,
-    selectedSpecialty,
-  ]);
+  }, [patientAgs]);
 
   const { data: responsaveisPaciente = [] } = useQuery({
     queryKey: ["responsaveis-paciente-dialog", form.paciente_id],
