@@ -659,10 +659,55 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
 
   const sortedPatientAgs = useMemo(() => {
     if (!Array.isArray(patientAgs)) return [];
-    return [...patientAgs]
+    
+    // Map patientAgs to override the currently edited item with current form values
+    const mappedAgs = patientAgs.map((a: any) => {
+      if (editing && a.id === editing.id) {
+        const currentProf = profissionais.find((p: any) => p.id === form.profissional_id);
+        return {
+          ...a,
+          data_inicio: form.data_inicio,
+          data_fim: form.data_fim,
+          profissional_id: form.profissional_id,
+          status: form.status,
+          profissionais: currentProf ? { ...a.profissionais, nome: currentProf.nome, cor: currentProf.cor } : a.profissionais,
+          servicos: selectedSpecialty ? { nome: selectedSpecialty } : null,
+        };
+      }
+      return a;
+    });
+
+    // If we changed the patient, the new patient's agendamentos won't have editing.id in the DB yet.
+    // So we manually inject the current appointment being edited into the list.
+    const hasEditingItem = mappedAgs.some((a: any) => editing && a.id === editing.id);
+    if (editing && !hasEditingItem && form.paciente_id) {
+      const currentProf = profissionais.find((p: any) => p.id === form.profissional_id);
+      mappedAgs.push({
+        id: editing.id,
+        paciente_id: form.paciente_id,
+        data_inicio: form.data_inicio,
+        data_fim: form.data_fim,
+        profissional_id: form.profissional_id,
+        status: form.status,
+        profissionais: currentProf ? { nome: currentProf.nome, cor: currentProf.cor } : null,
+        servicos: selectedSpecialty ? { nome: selectedSpecialty } : null,
+      });
+    }
+
+    return mappedAgs
       .filter((a: any) => a?.data_inicio && !isNaN(new Date(a.data_inicio).getTime()))
       .sort((a, b) => new Date(a.data_inicio).getTime() - new Date(b.data_inicio).getTime());
-  }, [patientAgs]);
+  }, [
+    patientAgs,
+    editing,
+    form.data_inicio,
+    form.data_fim,
+    form.profissional_id,
+    form.status,
+    form.paciente_id,
+    profissionais,
+    selectedSpecialty,
+  ]);
 
   const { data: responsaveisPaciente = [] } = useQuery({
     queryKey: ["responsaveis-paciente-dialog", form.paciente_id],
@@ -1263,31 +1308,31 @@ Fico à disposição para qualquer dúvida!`;
                   <div>
                     <span className="text-muted-foreground font-medium">Paciente:</span>{" "}
                     <span className="text-foreground font-semibold">
-                      {editing.pacientes?.nome || "—"}
+                      {selectedPaciente ? selectedPaciente.nome : "—"}
                     </span>
                   </div>
                   <div>
                     <span className="text-muted-foreground font-medium">Profissional:</span>{" "}
                     <span className="text-foreground font-semibold">
-                      {editing.profissionais?.nome || "—"}
+                      {profissionais.find((p: any) => p.id === form.profissional_id)?.nome || "—"}
                     </span>
                   </div>
                   <div>
                     <span className="text-muted-foreground font-medium">Especialidade:</span>{" "}
                     <span className="text-foreground font-semibold">
-                      {editing.servicos?.nome || editing.profissionais?.especialidade || "—"}
+                      {selectedSpecialty || "—"}
                     </span>
                   </div>
                   <div>
                     <span className="text-muted-foreground font-medium">Data/Hora:</span>{" "}
                     <span className="text-foreground font-semibold">
-                      {safeFormatDate(editing.data_inicio, "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                      {safeFormatDate(form.data_inicio, "dd/MM/yyyy HH:mm", { locale: ptBR })}
                     </span>
                   </div>
                   <div className="flex items-center flex-wrap gap-1">
                     <span className="text-muted-foreground font-medium">Status:</span>{" "}
                     <Badge variant="secondary" className="h-4 px-1 text-[9px] font-semibold">
-                      {STATUS_LABEL[editing.status] || editing.status || ""}
+                      {STATUS_LABEL[form.status] || form.status || ""}
                     </Badge>
                     {editing.status !== "confirmado" && whatsappUrl && (
                       <a
@@ -1304,15 +1349,15 @@ Fico à disposição para qualquer dúvida!`;
                   <div>
                     <span className="text-muted-foreground font-medium">Recorrência:</span>{" "}
                     <span className="text-foreground font-semibold capitalize">
-                      {editing.recorrencia || "única"}
+                      {form.recorrencia || "única"}
                     </span>
                   </div>
                 </div>
-                {editing.observacoes && (
+                {form.observacoes && (
                   <div className="mt-1">
                     <span className="text-muted-foreground font-medium">Observações:</span>{" "}
                     <span className="text-foreground whitespace-pre-wrap">
-                      {editing.observacoes.replace(/^\[Tipo: (Anamnese|Sessão Padrão)\]\n?/, "")}
+                      {form.observacoes}
                     </span>
                   </div>
                 )}
