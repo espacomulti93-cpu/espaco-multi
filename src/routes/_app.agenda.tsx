@@ -897,14 +897,10 @@ Fico à disposição para qualquer dúvida!`;
   };
 
   const handleProfissionalChange = (profId: string) => {
-    setForm((prev) => {
-      const newPacienteId = prev.paciente_id === editing?.paciente_id ? prev.paciente_id : "";
-      return {
-        ...prev,
-        profissional_id: profId,
-        paciente_id: newPacienteId,
-      };
-    });
+    setForm((prev) => ({
+      ...prev,
+      profissional_id: profId,
+    }));
     setSelectedSpecialty("");
   };
 
@@ -916,22 +912,10 @@ Fico à disposição para qualquer dúvida!`;
       new Date(form.data_inicio).getTime() + duration * 60000,
       "yyyy-MM-dd'T'HH:mm",
     );
-    setForm((prev) => {
-      const currentPac = pacientes.find((pac: any) => pac.id === prev.paciente_id);
-      const pacSpecs = (
-        Array.isArray(currentPac?.cids_secundarios) ? currentPac.cids_secundarios : []
-      )
-        .filter((s: any): s is string => typeof s === "string")
-        .map((s: string) => s.toLowerCase());
-      const hasSpec = pacSpecs.includes(spec?.toLowerCase());
-      const newPacienteId =
-        hasSpec || prev.paciente_id === editing?.paciente_id ? prev.paciente_id : "";
-      return {
-        ...prev,
-        paciente_id: newPacienteId,
-        data_fim: newEnd,
-      };
-    });
+    setForm((prev) => ({
+      ...prev,
+      data_fim: newEnd,
+    }));
   };
 
   const save = useMutation({
