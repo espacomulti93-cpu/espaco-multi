@@ -189,12 +189,17 @@ function Agenda() {
                     return (
                       <CommandItem
                         key={p.id}
+                        value={`${p.nome?.toLowerCase() || ""}-${p.id}`}
                         onSelect={() => {
                           if (isSelected) {
                             setSelectedProfs(selectedProfs.filter((id) => id !== p.id));
                           } else {
                             setSelectedProfs([...selectedProfs, p.id]);
                           }
+                        }}
+                        onPointerDown={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
                         }}
                         className="flex items-center gap-2 cursor-pointer"
                       >
@@ -729,20 +734,8 @@ Fico à disposição para qualquer dúvida!`;
   ]);
 
   const displayedPacientes = useMemo(() => {
-    if (editing) {
-      if (!form.profissional_id || !selectedSpecialty) return pacientes;
-    } else {
-      if (!form.profissional_id || !selectedSpecialty) return [];
-    }
-
-    return pacientes.filter((pac: any) => {
-      if (pac.id === editing?.paciente_id) return true;
-      const pacSpecs = (Array.isArray(pac.cids_secundarios) ? pac.cids_secundarios : [])
-        .filter((s: any): s is string => typeof s === "string")
-        .map((s: string) => s.toLowerCase());
-      return pacSpecs.includes(selectedSpecialty.toLowerCase());
-    });
-  }, [pacientes, form.profissional_id, selectedSpecialty, editing]);
+    return pacientes;
+  }, [pacientes]);
 
   const formDate = form.data_inicio ? form.data_inicio.split("T")[0] : "";
   const formTime = form.data_inicio ? form.data_inicio.split("T")[1] : "";
@@ -1433,10 +1426,14 @@ Fico à disposição para qualquer dúvida!`;
                         {displayedPacientes.map((p: any) => (
                           <CommandItem
                             key={p.id}
-                            value={p.nome?.toLowerCase() || ""}
+                            value={`${p.nome?.toLowerCase() || ""}-${p.id}`}
                             onSelect={() => {
                               handlePacienteChange(p.id);
                               setPacienteOpen(false);
+                            }}
+                            onPointerDown={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
                             }}
                           >
                             <Check
