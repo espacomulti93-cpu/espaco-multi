@@ -20,3 +20,13 @@ const errorMiddleware = createMiddleware().server(async ({ next }) => {
 export const startInstance = createStart(() => ({
   requestMiddleware: [errorMiddleware],
 }));
+
+import type { getRouter } from "./router";
+
+declare module "@tanstack/react-start" {
+  interface Register {
+    ssr: true;
+    router: ReturnType<typeof getRouter>;
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>;
+  }
+}
