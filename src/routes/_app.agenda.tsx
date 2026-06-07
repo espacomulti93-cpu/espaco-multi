@@ -266,11 +266,13 @@ function Agenda() {
           <AgendamentoDialog
             editing={dialog.editing}
             defaults={dialog.defaults}
-            onSaved={() => {
+            onSaved={async () => {
+              await Promise.all([
+                qc.invalidateQueries({ queryKey: ["ags"] }),
+                qc.invalidateQueries({ queryKey: ["patient-ags-dialog"] }),
+                qc.invalidateQueries({ queryKey: ["faturas"] }),
+              ]);
               setDialog({ open: false });
-              qc.invalidateQueries({ queryKey: ["ags"] });
-              qc.invalidateQueries({ queryKey: ["patient-ags-dialog"] });
-              qc.invalidateQueries({ queryKey: ["faturas"] });
             }}
             onCancel={(a: any) => {
               setDialog({ open: false });
@@ -574,12 +576,12 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
       ? safeFormatDate(editing.data_fim, "yyyy-MM-dd'T'HH:mm")
       : format(new Date(new Date(initialStart).getTime() + 50 * 60000), "yyyy-MM-dd'T'HH:mm");
 
-  const [tipoAgendamento, setTipoAgendamento] = useState<"sessao" | "anamnese">(() => {
-    if (editing?.observacoes?.startsWith("[Tipo: Anamnese]")) {
-      return "anamnese";
-    }
-    return "sessao";
-  });
+  const initialTipo: "sessao" | "anamnese" = editing?.observacoes?.startsWith(
+    "[Tipo: Anamnese]",
+  )
+    ? "anamnese"
+    : "sessao";
+  const [tipoAgendamento, setTipoAgendamento] = useState<"sessao" | "anamnese">(initialTipo);
 
   const initialObservacoes = editing?.observacoes
     ? editing.observacoes.replace(/^\[Tipo: (Anamnese|Sessão Padrão)\]\n?/, "")
@@ -655,55 +657,10 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
 
   const sortedPatientAgs = useMemo(() => {
     if (!Array.isArray(patientAgs)) return [];
-    
-    // Map patientAgs to override the currently edited item with current form values
-    const mappedAgs = patientAgs.map((a: any) => {
-      if (editing && a.id === editing.id) {
-        const currentProf = profissionais.find((p: any) => p.id === form.profissional_id);
-        return {
-          ...a,
-          data_inicio: form.data_inicio,
-          data_fim: form.data_fim,
-          profissional_id: form.profissional_id,
-          status: form.status,
-          profissionais: currentProf ? { ...a.profissionais, nome: currentProf.nome, cor: currentProf.cor } : a.profissionais,
-          servicos: selectedSpecialty ? { nome: selectedSpecialty } : null,
-        };
-      }
-      return a;
-    });
-
-    // If we changed the patient, the new patient's agendamentos won't have editing.id in the DB yet.
-    // So we manually inject the current appointment being edited into the list.
-    const hasEditingItem = mappedAgs.some((a: any) => editing && a.id === editing.id);
-    if (editing && !hasEditingItem && form.paciente_id) {
-      const currentProf = profissionais.find((p: any) => p.id === form.profissional_id);
-      mappedAgs.push({
-        id: editing.id,
-        paciente_id: form.paciente_id,
-        data_inicio: form.data_inicio,
-        data_fim: form.data_fim,
-        profissional_id: form.profissional_id,
-        status: form.status,
-        profissionais: currentProf ? { nome: currentProf.nome, cor: currentProf.cor } : null,
-        servicos: selectedSpecialty ? { nome: selectedSpecialty } : null,
-      });
-    }
-
-    return mappedAgs
+    return [...patientAgs]
       .filter((a: any) => a?.data_inicio && !isNaN(new Date(a.data_inicio).getTime()))
       .sort((a, b) => new Date(a.data_inicio).getTime() - new Date(b.data_inicio).getTime());
-  }, [
-    patientAgs,
-    editing,
-    form.data_inicio,
-    form.data_fim,
-    form.profissional_id,
-    form.status,
-    form.paciente_id,
-    profissionais,
-    selectedSpecialty,
-  ]);
+  }, [patientAgs]);
 
   const { data: responsaveisPaciente = [] } = useQuery({
     queryKey: ["responsaveis-paciente-dialog", form.paciente_id],
@@ -1014,15 +971,21 @@ Fico à disposição para qualquer dúvida!`;
           form.data_inicio !== initialStart ||
           form.data_fim !== initialEnd ||
           form.recorrencia !== (editing.recorrencia ?? "unica") ||
-          form.observacoes !== initialObservacoes;
+          form.observacoes !== initialObservacoes ||
+          form.status !== (editing.status ?? "pendente") ||
+          tipoAgendamento !== initialTipo;
+        void hasOtherFieldsChanged;
 
-        const payload: any = {
-          ...form,
-          sala_id: null,
+        const explicitPayload = {
+          paciente_id: form.paciente_id,
+          profissional_id: form.profissional_id,
           servico_id: matchingServico ? matchingServico.id : null,
           data_inicio: start,
           data_fim: end,
+          status: form.status,
+          recorrencia: form.recorrencia,
           observacoes: typePrefix + form.observacoes,
+          sala_id: null,
         };
 
         if (updateAllFuture) {
@@ -1043,7 +1006,7 @@ Fico à disposição para qualquer dúvida!`;
               new Date(occ.data_inicio).getTime() + startDiff,
             ).toISOString();
             const occEnd = new Date(new Date(occ.data_fim).getTime() + endDiff).toISOString();
-            const { error } = await supabase
+            const { data: updated, error } = await supabase
               .from("agendamentos")
               .update({
                 paciente_id: form.paciente_id,
@@ -1056,8 +1019,14 @@ Fico à disposição para qualquer dúvida!`;
                 recorrencia: form.recorrencia,
                 observacoes: typePrefix + form.observacoes,
               })
-              .eq("id", occ.id);
+              .eq("id", occ.id)
+              .select("id");
             if (error) throw error;
+            if (!updated || updated.length === 0) {
+              throw new Error(
+                "Atualização bloqueada (sem permissão para editar este agendamento).",
+              );
+            }
           });
 
           await Promise.all(updates);
@@ -1080,11 +1049,17 @@ Fico à disposição para qualquer dúvida!`;
             }
           }
         } else {
-          const { error } = await supabase
+          const { data: updated, error } = await supabase
             .from("agendamentos")
-            .update(payload)
-            .eq("id", editing.id);
+            .update(explicitPayload)
+            .eq("id", editing.id)
+            .select("id");
           if (error) throw error;
+          if (!updated || updated.length === 0) {
+            throw new Error(
+              "Atualização bloqueada (sem permissão para editar este agendamento).",
+            );
+          }
 
           await syncAgendamentoFinanceiro(
             editing.id,
@@ -1270,7 +1245,9 @@ Fico à disposição para qualquer dúvida!`;
       form.data_inicio !== initialStart ||
       form.data_fim !== initialEnd ||
       form.recorrencia !== (editing?.recorrencia ?? "unica") ||
-      form.observacoes !== initialObservacoes;
+      form.observacoes !== initialObservacoes ||
+      form.status !== (editing?.status ?? "pendente") ||
+      tipoAgendamento !== initialTipo;
 
     if (editing?.recorrencia_grupo && hasOtherFieldsChanged) {
       setRecorrenciaConfirmOpen(true);
