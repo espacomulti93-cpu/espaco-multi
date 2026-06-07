@@ -197,10 +197,6 @@ function Agenda() {
                             setSelectedProfs([...selectedProfs, p.id]);
                           }
                         }}
-                        onPointerDown={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                        }}
                         className="flex items-center gap-2 cursor-pointer"
                       >
                         <Checkbox
@@ -1489,10 +1485,6 @@ Fico à disposição para qualquer dúvida!`;
                             onSelect={() => {
                               handlePacienteChange(p.id);
                               setPacienteOpen(false);
-                            }}
-                            onPointerDown={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
                             }}
                           >
                             <Check
