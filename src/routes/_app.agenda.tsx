@@ -1259,13 +1259,55 @@ Fico à disposição para qualquer dúvida!`;
   return (
     <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
       <DialogHeader>
-        <DialogTitle>{editing ? "Editar agendamento" : "Novo agendamento"}</DialogTitle>
+        <DialogTitle>
+          {recorrenciaConfirmOpen
+            ? "Editar agendamento recorrente"
+            : editing
+              ? "Editar agendamento"
+              : "Novo agendamento"}
+        </DialogTitle>
       </DialogHeader>
       <form
         onSubmit={handleSubmit}
         className="space-y-3"
       >
-        {editing && (
+        {recorrenciaConfirmOpen ? (
+          <div className="space-y-4 py-2 animate-in fade-in duration-200">
+            <p className="text-sm text-muted-foreground">
+              Este agendamento faz parte de uma série recorrente. Deseja aplicar estas alterações também para todas as datas futuras da série?
+            </p>
+            <div className="flex justify-end gap-2 pt-4 border-t mt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setRecorrenciaConfirmOpen(false)}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={save.isPending}
+                onClick={() => {
+                  save.mutate(false);
+                }}
+              >
+                Não
+              </Button>
+              <Button
+                type="button"
+                disabled={save.isPending}
+                onClick={() => {
+                  save.mutate(true);
+                }}
+              >
+                Ok
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <>
+            {editing && (
           <div className="rounded-lg border bg-muted/40 p-3 text-xs space-y-3 animate-in fade-in duration-200">
             <div className="font-semibold text-muted-foreground uppercase tracking-wider text-[10px]">
               Dados Agendados & Histórico
@@ -1671,7 +1713,7 @@ Fico à disposição para qualquer dúvida!`;
                 {save.isPending ? "Salvando…" : "Salvar"}
               </Button>
             </DialogFooter>
-          </div>
+          </>
         )}
       </form>
       <Dialog open={editPatientOpen} onOpenChange={setEditPatientOpen}>
@@ -1684,48 +1726,6 @@ Fico à disposição para qualquer dúvida!`;
               await qc.invalidateQueries({ queryKey: ["pacientes"] });
             }}
           />
-        )}
-      </Dialog>
-      <Dialog open={recorrenciaConfirmOpen} onOpenChange={setRecorrenciaConfirmOpen}>
-        {recorrenciaConfirmOpen && (
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>Editar agendamento recorrente</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 py-2">
-              <p className="text-sm text-muted-foreground">
-                Este agendamento faz parte de uma série recorrente. Deseja aplicar estas alterações também para todas as datas futuras da série?
-              </p>
-            </div>
-            <DialogFooter className="flex flex-row justify-end gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setRecorrenciaConfirmOpen(false)}
-              >
-                Cancelar
-              </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => {
-                  setRecorrenciaConfirmOpen(false);
-                  save.mutate(false);
-                }}
-              >
-                Não
-              </Button>
-              <Button
-                type="button"
-                onClick={() => {
-                  setRecorrenciaConfirmOpen(false);
-                  save.mutate(true);
-                }}
-              >
-                Ok
-              </Button>
-            </DialogFooter>
-          </DialogContent>
         )}
       </Dialog>
     </DialogContent>
