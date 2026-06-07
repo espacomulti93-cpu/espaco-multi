@@ -1245,7 +1245,9 @@ Fico à disposição para qualquer dúvida!`;
       form.data_inicio !== initialStart ||
       form.data_fim !== initialEnd ||
       form.recorrencia !== (editing?.recorrencia ?? "unica") ||
-      form.observacoes !== initialObservacoes;
+      form.observacoes !== initialObservacoes ||
+      form.status !== (editing?.status ?? "pendente") ||
+      tipoAgendamento !== initialTipo;
 
     if (editing?.recorrencia_grupo && hasOtherFieldsChanged) {
       setRecorrenciaConfirmOpen(true);
