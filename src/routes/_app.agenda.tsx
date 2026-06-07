@@ -574,12 +574,12 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
       ? safeFormatDate(editing.data_fim, "yyyy-MM-dd'T'HH:mm")
       : format(new Date(new Date(initialStart).getTime() + 50 * 60000), "yyyy-MM-dd'T'HH:mm");
 
-  const [tipoAgendamento, setTipoAgendamento] = useState<"sessao" | "anamnese">(() => {
-    if (editing?.observacoes?.startsWith("[Tipo: Anamnese]")) {
-      return "anamnese";
-    }
-    return "sessao";
-  });
+  const initialTipo: "sessao" | "anamnese" = editing?.observacoes?.startsWith(
+    "[Tipo: Anamnese]",
+  )
+    ? "anamnese"
+    : "sessao";
+  const [tipoAgendamento, setTipoAgendamento] = useState<"sessao" | "anamnese">(initialTipo);
 
   const initialObservacoes = editing?.observacoes
     ? editing.observacoes.replace(/^\[Tipo: (Anamnese|Sessão Padrão)\]\n?/, "")
