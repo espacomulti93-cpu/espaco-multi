@@ -602,6 +602,7 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
 
   const [pacienteOpen, setPacienteOpen] = useState(false);
   const [editPatientOpen, setEditPatientOpen] = useState(false);
+  const [recorrenciaConfirmOpen, setRecorrenciaConfirmOpen] = useState(false);
 
   const [selectedSpecialty, setSelectedSpecialty] = useState(() => {
     if (editing) {
@@ -912,7 +913,7 @@ Fico à disposição para qualquer dúvida!`;
   };
 
   const save = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (updateAllFuture: boolean = false) => {
       if (!form.paciente_id || !form.profissional_id)
         throw new Error("Selecione paciente e profissional");
 
@@ -973,13 +974,6 @@ Fico à disposição para qualquer dúvida!`;
           form.data_fim !== initialEnd ||
           form.recorrencia !== (editing.recorrencia ?? "unica") ||
           form.observacoes !== initialObservacoes;
-
-        let updateAllFuture = false;
-        if (editing.recorrencia_grupo && hasOtherFieldsChanged) {
-          updateAllFuture = confirm(
-            "Este agendamento faz parte de uma série recorrente. Deseja aplicar estas alterações também para todas as datas futuras da série?",
-          );
-        }
 
         const payload: any = {
           ...form,
@@ -1221,16 +1215,36 @@ Fico à disposição para qualquer dúvida!`;
     onError: (e: any) => toast.error(e.message),
   });
 
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.paciente_id || !form.profissional_id) {
+      toast.error("Selecione paciente e profissional");
+      return;
+    }
+
+    const hasOtherFieldsChanged =
+      form.paciente_id !== (editing?.paciente_id ?? "") ||
+      form.profissional_id !== (editing?.profissional_id ?? "") ||
+      selectedSpecialty !== (editing?.servicos?.nome || getEspecialidade(editing) || "") ||
+      form.data_inicio !== initialStart ||
+      form.data_fim !== initialEnd ||
+      form.recorrencia !== (editing?.recorrencia ?? "unica") ||
+      form.observacoes !== initialObservacoes;
+
+    if (editing?.recorrencia_grupo && hasOtherFieldsChanged) {
+      setRecorrenciaConfirmOpen(true);
+    } else {
+      save.mutate(false);
+    }
+  };
+
   return (
     <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
       <DialogHeader>
         <DialogTitle>{editing ? "Editar agendamento" : "Novo agendamento"}</DialogTitle>
       </DialogHeader>
       <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          save.mutate();
-        }}
+        onSubmit={handleSubmit}
         className="space-y-3"
       >
         {editing && (
@@ -1656,6 +1670,48 @@ Fico à disposição para qualquer dúvida!`;
               await qc.invalidateQueries({ queryKey: ["pacientes"] });
             }}
           />
+        )}
+      </Dialog>
+      <Dialog open={recorrenciaConfirmOpen} onOpenChange={setRecorrenciaConfirmOpen}>
+        {recorrenciaConfirmOpen && (
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Editar agendamento recorrente</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+              <p className="text-sm text-muted-foreground">
+                Este agendamento faz parte de uma série recorrente. Deseja aplicar estas alterações também para todas as datas futuras da série?
+              </p>
+            </div>
+            <DialogFooter className="flex flex-row justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setRecorrenciaConfirmOpen(false)}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => {
+                  setRecorrenciaConfirmOpen(false);
+                  save.mutate(false);
+                }}
+              >
+                Não
+              </Button>
+              <Button
+                type="button"
+                onClick={() => {
+                  setRecorrenciaConfirmOpen(false);
+                  save.mutate(true);
+                }}
+              >
+                Ok
+              </Button>
+            </DialogFooter>
+          </DialogContent>
         )}
       </Dialog>
     </DialogContent>
