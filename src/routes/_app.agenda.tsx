@@ -1006,7 +1006,7 @@ Fico à disposição para qualquer dúvida!`;
               new Date(occ.data_inicio).getTime() + startDiff,
             ).toISOString();
             const occEnd = new Date(new Date(occ.data_fim).getTime() + endDiff).toISOString();
-            const { data: updated, error } = await supabase
+            const { error } = await supabase
               .from("agendamentos")
               .update({
                 paciente_id: form.paciente_id,
@@ -1019,14 +1019,8 @@ Fico à disposição para qualquer dúvida!`;
                 recorrencia: form.recorrencia,
                 observacoes: typePrefix + form.observacoes,
               })
-              .eq("id", occ.id)
-              .select("id");
+              .eq("id", occ.id);
             if (error) throw error;
-            if (!updated || updated.length === 0) {
-              throw new Error(
-                "Atualização bloqueada (sem permissão para editar este agendamento).",
-              );
-            }
           });
 
           await Promise.all(updates);
@@ -1049,17 +1043,11 @@ Fico à disposição para qualquer dúvida!`;
             }
           }
         } else {
-          const { data: updated, error } = await supabase
+          const { error } = await supabase
             .from("agendamentos")
             .update(explicitPayload)
-            .eq("id", editing.id)
-            .select("id");
+            .eq("id", editing.id);
           if (error) throw error;
-          if (!updated || updated.length === 0) {
-            throw new Error(
-              "Atualização bloqueada (sem permissão para editar este agendamento).",
-            );
-          }
 
           await syncAgendamentoFinanceiro(
             editing.id,
