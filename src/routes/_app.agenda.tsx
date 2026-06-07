@@ -33,6 +33,7 @@ import {
   MessageCircle,
   Filter,
   Users,
+  Pencil,
 } from "lucide-react";
 import { toast } from "sonner";
 import { addDays, addWeeks, endOfWeek, format, isSameDay, startOfWeek } from "date-fns";
@@ -48,6 +49,7 @@ import {
   CommandItem,
 } from "@/components/ui/command";
 import { Checkbox } from "@/components/ui/checkbox";
+import { PacienteFormDialog } from "./_app.pacientes";
 
 
 export const Route = createFileRoute("/_app/agenda")({
@@ -594,6 +596,7 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
   });
 
   const [pacienteOpen, setPacienteOpen] = useState(false);
+  const [editPatientOpen, setEditPatientOpen] = useState(false);
 
   const [selectedSpecialty, setSelectedSpecialty] = useState(() => {
     if (editing) {
@@ -607,7 +610,7 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
   const { data: pacientes = [] } = useQuery({
     queryKey: ["pac-min"],
     queryFn: async () =>
-      (await supabase.from("pacientes").select("id, nome, cids_secundarios").order("nome")).data ??
+      (await supabase.from("pacientes").select("*").order("nome")).data ??
       [],
   });
   const { data: profissionais = [] } = useQuery({
@@ -1424,47 +1427,62 @@ Fico à disposição para qualquer dúvida!`;
         {((form.profissional_id && selectedSpecialty) || editing) && (
           <div className="space-y-1.5 animate-in fade-in duration-200">
             <Label>Paciente *</Label>
-            <Popover open={pacienteOpen} onOpenChange={setPacienteOpen}>
-              <PopoverTrigger asChild>
+            <div className="flex gap-2">
+              <Popover open={pacienteOpen} onOpenChange={setPacienteOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={pacienteOpen}
+                    className="flex-1 justify-between font-normal text-left px-3"
+                  >
+                    {selectedPaciente ? selectedPaciente.nome : "Selecione o paciente..."}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Pesquisar paciente..." className="h-9" />
+                    <CommandList>
+                      <CommandEmpty>Nenhum paciente encontrado.</CommandEmpty>
+                      <CommandGroup>
+                        {displayedPacientes.map((p: any) => (
+                          <CommandItem
+                            key={p.id}
+                            value={p.nome?.toLowerCase() || ""}
+                            onSelect={() => {
+                              handlePacienteChange(p.id);
+                              setPacienteOpen(false);
+                            }}
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                form.paciente_id === p.id ? "opacity-100" : "opacity-0",
+                              )}
+                            />
+                            {p.nome}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+
+              {selectedPaciente && (
                 <Button
+                  type="button"
                   variant="outline"
-                  role="combobox"
-                  aria-expanded={pacienteOpen}
-                  className="w-full justify-between font-normal text-left px-3"
+                  size="icon"
+                  className="shrink-0"
+                  onClick={() => setEditPatientOpen(true)}
+                  title="Editar dados do paciente"
                 >
-                  {selectedPaciente ? selectedPaciente.nome : "Selecione o paciente..."}
-                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  <Pencil className="h-4 w-4" />
                 </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
-                <Command>
-                  <CommandInput placeholder="Pesquisar paciente..." className="h-9" />
-                  <CommandList>
-                    <CommandEmpty>Nenhum paciente encontrado.</CommandEmpty>
-                    <CommandGroup>
-                      {displayedPacientes.map((p: any) => (
-                        <CommandItem
-                          key={p.id}
-                          value={p.nome?.toLowerCase() || ""}
-                          onSelect={() => {
-                            handlePacienteChange(p.id);
-                            setPacienteOpen(false);
-                          }}
-                        >
-                          <Check
-                            className={cn(
-                              "mr-2 h-4 w-4",
-                              form.paciente_id === p.id ? "opacity-100" : "opacity-0",
-                            )}
-                          />
-                          {p.nome}
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  </CommandList>
-                </Command>
-              </PopoverContent>
-            </Popover>
+              )}
+            </div>
           </div>
         )}
 
@@ -1647,6 +1665,18 @@ Fico à disposição para qualquer dúvida!`;
           </div>
         )}
       </form>
+      <Dialog open={editPatientOpen} onOpenChange={setEditPatientOpen}>
+        {editPatientOpen && (
+          <PacienteFormDialog
+            paciente={selectedPaciente}
+            onSaved={async () => {
+              setEditPatientOpen(false);
+              await qc.invalidateQueries({ queryKey: ["pac-min"] });
+              await qc.invalidateQueries({ queryKey: ["pacientes"] });
+            }}
+          />
+        )}
+      </Dialog>
     </DialogContent>
   );
 }
