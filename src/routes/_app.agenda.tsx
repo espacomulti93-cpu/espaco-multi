@@ -1710,8 +1710,10 @@ Fico à disposição para qualquer dúvida!`;
                 {save.isPending ? "Salvando…" : "Salvar"}
               </Button>
             </DialogFooter>
-          </>
+          </div>
         )}
+      </>
+    )}
       </form>
       <Dialog open={editPatientOpen} onOpenChange={setEditPatientOpen}>
         {editPatientOpen && (
