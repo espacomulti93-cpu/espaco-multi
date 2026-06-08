@@ -68,6 +68,8 @@ import {
   DollarSign,
   AlertCircle,
   Clock,
+  MessageCircle,
+  ExternalLink,
 } from "lucide-react";
 
 export const Route = createFileRoute("/_app/diretoria")({
@@ -177,6 +179,28 @@ function DiretoriaPageContent() {
   const patientMap = useMemo(() => {
     return new Map((pacientes || []).map((p) => [p.id, p.nome]));
   }, [pacientes]);
+
+  // Fetch all responsaveis to map their contacts
+  const { data: responsaveis = [] } = useQuery({
+    queryKey: ["dir-responsaveis-all"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("responsaveis")
+        .select("id, paciente_id, nome, telefone, whatsapp, parentesco");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const responsaveisMap = useMemo(() => {
+    const map = new Map<string, any[]>();
+    for (const r of responsaveis || []) {
+      const list = map.get(r.paciente_id) || [];
+      list.push(r);
+      map.set(r.paciente_id, list);
+    }
+    return map;
+  }, [responsaveis]);
 
   // Fetch Invoices
   const { data: faturas = [], isLoading: loadingFaturas } = useQuery({
@@ -411,6 +435,127 @@ function DiretoriaPageContent() {
   // Billing Filters
   const [searchPatient, setSearchPatient] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [subTab, setSubTab] = useState<"consolidado" | "historico">("consolidado");
+
+  // Patient Faturas Modal state
+  const [patientFaturasDialog, setPatientFaturasDialog] = useState<{ open: boolean; pacienteId: string; pacienteNome: string }>({ open: false, pacienteId: "", pacienteNome: "" });
+
+  const handleOpenPatientFaturas = (pacienteId: string, pacienteNome: string) => {
+    setPatientFaturasDialog({ open: true, pacienteId, pacienteNome });
+  };
+
+  // Memoized consolidated billing by patient
+  const consolidatedPatients = useMemo(() => {
+    const map = new Map<string, {
+      pacienteId: string;
+      nome: string;
+      faturasPendentesCount: number;
+      totalPendente: number;
+      totalPago: number;
+      totalGeral: number;
+      temAtraso: boolean;
+      faturas: any[];
+    }>();
+
+    for (const f of faturas || []) {
+      const pId = f.paciente_id;
+      if (!pId) continue;
+      const patientName = patientMap.get(pId) || "Paciente Desconhecido";
+      
+      let entry = map.get(pId);
+      if (!entry) {
+        entry = {
+          pacienteId: pId,
+          nome: patientName,
+          faturasPendentesCount: 0,
+          totalPendente: 0,
+          totalPago: 0,
+          totalGeral: 0,
+          temAtraso: false,
+          faturas: [],
+        };
+        map.set(pId, entry);
+      }
+
+      entry.faturas.push(f);
+      const val = Number(f.valor) || 0;
+      
+      if (f.status === "paga") {
+        entry.totalPago += val;
+      } else if (f.status === "aberta" || f.status === "vencida") {
+        entry.totalPendente += val;
+        entry.faturasPendentesCount += 1;
+        
+        // Calculate delay days
+        if (f.vencimento) {
+          const today = startOfDay(new Date());
+          const dueDate = startOfDay(new Date(f.vencimento + "T12:00:00"));
+          const diff = differenceInDays(today, dueDate);
+          if (diff > 0 || f.status === "vencida") {
+            entry.temAtraso = true;
+          }
+        }
+      }
+      
+      if (f.status !== "cancelada") {
+        entry.totalGeral += val;
+      }
+    }
+
+    return Array.from(map.values()).sort((a, b) => a.nome.localeCompare(b.nome));
+  }, [faturas, patientMap]);
+
+  const filteredConsolidated = useMemo(() => {
+    return consolidatedPatients.filter((c) => {
+      const matchesSearch = c.nome.toLowerCase().includes(searchPatient.toLowerCase());
+      if (statusFilter === "aberta" && c.totalPendente === 0) return false;
+      if (statusFilter === "paga" && c.totalPago === 0) return false;
+      if (statusFilter === "vencida" && !c.temAtraso) return false;
+      return matchesSearch;
+    });
+  }, [consolidatedPatients, searchPatient, statusFilter]);
+
+  const patientFaturas = useMemo(() => {
+    if (!patientFaturasDialog.pacienteId) return [];
+    return (faturas || [])
+      .filter((f) => f.paciente_id === patientFaturasDialog.pacienteId)
+      .sort((a, b) => new Date(b.competencia).getTime() - new Date(a.competencia).getTime());
+  }, [faturas, patientFaturasDialog.pacienteId]);
+
+  const handleWhatsAppClick = (pacienteId: string, totalPendente: number, patientName: string) => {
+    const resps = responsaveisMap.get(pacienteId) || [];
+    const primaryResp = resps.find(r => r.whatsapp) || resps.find(r => r.telefone) || resps[0];
+    if (!primaryResp) {
+      toast.error("Nenhum responsável com telefone cadastrado para este paciente.");
+      return;
+    }
+    const num = primaryResp.whatsapp || primaryResp.telefone;
+    if (!num) {
+      toast.error("Responsável sem telefone ou WhatsApp cadastrado.");
+      return;
+    }
+    const cleanNum = String(num).replace(/\D/g, "");
+    if (!cleanNum) {
+      toast.error("Número de telefone inválido.");
+      return;
+    }
+    let phoneWithCountry = cleanNum;
+    if (cleanNum.length === 10 || cleanNum.length === 11) {
+      phoneWithCountry = "55" + cleanNum;
+    }
+
+    const textMsg = `Olá, ${primaryResp.nome}!
+Gostaríamos de lembrar que constam pendências financeiras em aberto referentes aos atendimentos de *${patientName}* no valor total de *${brl(totalPendente)}*.
+
+Poderia, por gentileza, realizar a confirmação do pagamento?
+Caso já tenha pago, por favor nos envie o comprovante.
+
+Agradecemos a atenção!
+*Espaço Multi*`;
+
+    const url = `https://wa.me/${phoneWithCountry}?text=${encodeURIComponent(textMsg)}`;
+    window.open(url, "_blank");
+  };
 
   // Billing Modals
   const [payDialog, setPayDialog] = useState<{ open: boolean; fatura: any }>({ open: false, fatura: null });
@@ -809,11 +954,11 @@ function DiretoriaPageContent() {
 
         <TabsContent value="cobrancas" className="mt-0">
           <Card className="border-border shadow-sm">
-            <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4">
               <div>
-                <CardTitle className="text-lg">Cobranças de Pacientes</CardTitle>
+                <CardTitle className="text-lg">Central de Cobrança</CardTitle>
                 <CardDescription>
-                  Gerenciamento de faturas de pacientes e confirmação de pagamentos.
+                  Acompanhamento consolidado de valores, contato com responsáveis e confirmação de pagamentos.
                 </CardDescription>
               </div>
               <Button onClick={() => {
@@ -831,6 +976,30 @@ function DiretoriaPageContent() {
               </Button>
             </CardHeader>
             <CardContent className="space-y-4">
+              {/* Sub-tabs Switcher */}
+              <div className="flex border-b border-border pb-px mb-2">
+                <button
+                  onClick={() => setSubTab("consolidado")}
+                  className={`px-4 py-2 text-sm font-semibold border-b-2 -mb-px transition-colors cursor-pointer ${
+                    subTab === "consolidado"
+                      ? "border-primary text-primary"
+                      : "border-transparent text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  Resumo por Paciente
+                </button>
+                <button
+                  onClick={() => setSubTab("historico")}
+                  className={`px-4 py-2 text-sm font-semibold border-b-2 -mb-px transition-colors cursor-pointer ${
+                    subTab === "historico"
+                      ? "border-primary text-primary"
+                      : "border-transparent text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  Histórico de Faturas
+                </button>
+              </div>
+
               <div className="flex flex-wrap items-center gap-3">
                 <div className="relative flex-1 min-w-[200px] max-w-sm">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
@@ -857,178 +1026,326 @@ function DiretoriaPageContent() {
                 </div>
               </div>
 
-              {loadingFaturas ? (
-                <div className="p-8 text-center text-sm text-muted-foreground">
-                  Carregando cobranças...
-                </div>
-              ) : filteredFaturas.length === 0 ? (
-                <div className="p-8 text-center text-sm text-muted-foreground border border-dashed rounded-lg">
-                  Nenhuma cobrança encontrada para os filtros selecionados.
-                </div>
-              ) : (
-                <div className="overflow-x-auto rounded-lg border border-border">
-                  <Table>
-                    <TableHeader className="bg-muted/40">
-                      <TableRow>
-                        <TableHead>Paciente</TableHead>
-                        <TableHead>Competência</TableHead>
-                        <TableHead>Vencimento</TableHead>
-                        <TableHead>Valor</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Pagamento</TableHead>
-                        <TableHead>Dias de Atraso</TableHead>
-                        <TableHead className="w-[140px] text-right">Ações</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredFaturas.map((f: any) => {
-                        const daysDelayed = getDaysDelayed(f);
-                        const patientName = patientMap.get(f.paciente_id) || "—";
-                        
-                        return (
-                          <TableRow key={f.id}>
-                            <TableCell className="font-semibold text-foreground">
-                              {patientName}
-                            </TableCell>
-                            <TableCell>
-                              {f.competencia ? format(new Date(f.competencia + "T12:00:00"), "MM/yyyy") : "—"}
-                            </TableCell>
-                            <TableCell>
-                              {f.vencimento ? format(new Date(f.vencimento + "T12:00:00"), "dd/MM/yyyy") : "—"}
-                            </TableCell>
-                            <TableCell className="font-semibold">
-                              {brl(Number(f.valor))}
-                            </TableCell>
-                            <TableCell>
-                              <Badge
-                                variant={
-                                  f.status === "paga"
-                                    ? "default"
-                                    : f.status === "vencida" || (f.status === "aberta" && daysDelayed > 0)
-                                    ? "destructive"
-                                    : f.status === "cancelada"
-                                    ? "secondary"
-                                    : "outline"
-                                }
-                                className={
-                                  f.status === "paga"
-                                    ? "bg-emerald-500 hover:bg-emerald-600 text-white border-transparent"
-                                    : f.status === "aberta" && daysDelayed > 0
-                                    ? "bg-rose-500 hover:bg-rose-600 text-white border-transparent"
-                                    : f.status === "aberta"
-                                    ? "bg-sky-500 hover:bg-sky-600 text-white border-transparent"
-                                    : ""
-                                }
-                              >
-                                {f.status === "aberta" && daysDelayed > 0
-                                  ? "Vencida (Atrasada)"
-                                  : f.status === "aberta"
-                                  ? "Em Aberto"
-                                  : f.status === "paga"
-                                  ? "Pago"
-                                  : f.status === "vencida"
-                                  ? "Vencida"
-                                  : "Cancelada"}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="text-xs text-muted-foreground">
-                              {f.status === "paga" ? (
-                                <div className="space-y-0.5">
-                                  <div>{f.pago_em ? format(new Date(f.pago_em), "dd/MM/yyyy") : "—"}</div>
-                                  <div className="font-semibold uppercase tracking-wider text-[10px] text-emerald-600 dark:text-emerald-400">
-                                    {f.metodo || ""}
+              {subTab === "consolidado" ? (
+                loadingFaturas ? (
+                  <div className="p-8 text-center text-sm text-muted-foreground">
+                    Carregando cobranças consolidadas...
+                  </div>
+                ) : filteredConsolidated.length === 0 ? (
+                  <div className="p-8 text-center text-sm text-muted-foreground border border-dashed rounded-lg">
+                    Nenhuma cobrança consolidada encontrada para os filtros selecionados.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto rounded-lg border border-border">
+                    <Table>
+                      <TableHeader className="bg-muted/40 font-semibold text-foreground">
+                        <TableRow>
+                          <TableHead>Paciente</TableHead>
+                          <TableHead>Responsável Financeiro</TableHead>
+                          <TableHead className="text-center">Faturas Pendentes</TableHead>
+                          <TableHead>Soma Pendente</TableHead>
+                          <TableHead>Soma Paga</TableHead>
+                          <TableHead>Soma Geral</TableHead>
+                          <TableHead>Situação</TableHead>
+                          <TableHead className="w-[180px] text-right">Ações</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredConsolidated.map((c) => {
+                          const resps = responsaveisMap.get(c.pacienteId) || [];
+                          const primaryResp = resps.find(r => r.whatsapp) || resps.find(r => r.telefone) || resps[0];
+                          
+                          return (
+                            <TableRow key={c.pacienteId} className="hover:bg-muted/30">
+                              <TableCell className="font-semibold text-foreground">
+                                {c.nome}
+                              </TableCell>
+                              <TableCell>
+                                {primaryResp ? (
+                                  <div className="flex items-center gap-2">
+                                    <div className="text-sm">
+                                      <span className="font-semibold text-foreground block leading-tight">{primaryResp.nome}</span>
+                                      {primaryResp.parentesco && (
+                                        <span className="text-muted-foreground text-[11px]">
+                                          {primaryResp.parentesco}
+                                        </span>
+                                      )}
+                                    </div>
+                                    {(primaryResp.whatsapp || primaryResp.telefone) && (
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-7 px-2.5 text-xs text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 border-emerald-500/20 hover:border-emerald-500/40 flex items-center gap-1"
+                                        onClick={() => handleWhatsAppClick(c.pacienteId, c.totalPendente, c.nome)}
+                                        title={`Chamar no WhatsApp: ${primaryResp.whatsapp || primaryResp.telefone}`}
+                                      >
+                                        <MessageCircle className="h-3.5 w-3.5 fill-emerald-600/10 shrink-0" />
+                                        WhatsApp
+                                      </Button>
+                                    )}
                                   </div>
-                                </div>
-                              ) : (
-                                "—"
-                              )}
-                            </TableCell>
-                            <TableCell>
-                              {f.status === "paga" ? (
-                                daysDelayed > 0 ? (
-                                  <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">
-                                    Pago com {daysDelayed}d de atraso
-                                  </span>
                                 ) : (
-                                  <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
-                                    <Check className="h-3 w-3" /> Pago em dia
+                                  <span className="text-xs text-muted-foreground italic">
+                                    Nenhum responsável
                                   </span>
-                                )
-                              ) : f.status === "cancelada" ? (
-                                "—"
-                              ) : f.vencimento ? (
-                                daysDelayed > 0 ? (
-                                  <span className="text-xs text-rose-600 dark:text-rose-400 font-semibold flex items-center gap-1">
-                                    <AlertCircle className="h-3.5 w-3.5 shrink-0" /> {daysDelayed} dias de atraso
-                                  </span>
-                                ) : (
-                                  <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
-                                    <Clock className="h-3 w-3" /> No prazo
-                                  </span>
-                                )
-                              ) : (
-                                <span className="text-xs text-muted-foreground italic">Sem vencimento</span>
-                              )}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <div className="flex justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
-                                {f.status !== "paga" && (
+                                )}
+                              </TableCell>
+                              <TableCell className="text-center font-medium">
+                                {c.faturasPendentesCount}
+                              </TableCell>
+                              <TableCell className={`font-semibold ${c.totalPendente > 0 ? "text-rose-600 dark:text-rose-400" : "text-muted-foreground"}`}>
+                                {brl(c.totalPendente)}
+                              </TableCell>
+                              <TableCell className={`font-medium ${c.totalPago > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"}`}>
+                                {brl(c.totalPago)}
+                              </TableCell>
+                              <TableCell className="font-medium text-foreground">
+                                {brl(c.totalGeral)}
+                              </TableCell>
+                              <TableCell>
+                                <Badge
+                                  variant={
+                                    c.temAtraso
+                                      ? "destructive"
+                                      : c.totalPendente > 0
+                                      ? "outline"
+                                      : c.totalPago > 0
+                                      ? "default"
+                                      : "secondary"
+                                  }
+                                  className={
+                                    c.temAtraso
+                                      ? "bg-rose-500 hover:bg-rose-600 text-white border-transparent"
+                                      : c.totalPendente > 0
+                                      ? "bg-sky-500 hover:bg-sky-600 text-white border-transparent"
+                                      : c.totalPago > 0
+                                      ? "bg-emerald-500 hover:bg-emerald-600 text-white border-transparent"
+                                      : ""
+                                  }
+                                >
+                                  {c.temAtraso
+                                    ? "Atrasado"
+                                    : c.totalPendente > 0
+                                    ? "No Prazo"
+                                    : c.totalPago > 0
+                                    ? "Em Dia"
+                                    : "Sem Faturas"}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <div className="flex justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-8 gap-1 font-medium"
+                                    onClick={() => handleOpenPatientFaturas(c.pacienteId, c.nome)}
+                                  >
+                                    <Eye className="h-3.5 w-3.5" />
+                                    Ver Faturas
+                                  </Button>
                                   <Button
                                     variant="ghost"
                                     size="icon"
-                                    title="Confirmar Pagamento"
-                                    className="h-8 w-8 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/20"
-                                    onClick={() => handleOpenConfirmPayment(f)}
+                                    title="Nova Cobrança para este Paciente"
+                                    className="h-8 w-8 text-primary hover:bg-primary/5"
+                                    onClick={() => {
+                                      setFaturaForm({
+                                        paciente_id: c.pacienteId,
+                                        competencia: format(startOfMonth(new Date()), "yyyy-MM-dd"),
+                                        vencimento: "",
+                                        valor: "",
+                                        status: "aberta",
+                                        observacoes: "",
+                                      });
+                                      setCreateDialog(true);
+                                    }}
                                   >
-                                    <Check className="h-4 w-4" />
+                                    <Plus className="h-4 w-4" />
                                   </Button>
-                                )}
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  title="Editar Cobrança"
-                                  className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                                  onClick={() => handleOpenEdit(f)}
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )
+              ) : (
+                /* Histórico de Faturas */
+                loadingFaturas ? (
+                  <div className="p-8 text-center text-sm text-muted-foreground">
+                    Carregando cobranças...
+                  </div>
+                ) : filteredFaturas.length === 0 ? (
+                  <div className="p-8 text-center text-sm text-muted-foreground border border-dashed rounded-lg">
+                    Nenhuma cobrança encontrada para os filtros selecionados.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto rounded-lg border border-border">
+                    <Table>
+                      <TableHeader className="bg-muted/40 font-semibold text-foreground">
+                        <TableRow>
+                          <TableHead>Paciente</TableHead>
+                          <TableHead>Competência</TableHead>
+                          <TableHead>Vencimento</TableHead>
+                          <TableHead>Valor</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Pagamento</TableHead>
+                          <TableHead>Dias de Atraso</TableHead>
+                          <TableHead className="w-[140px] text-right">Ações</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredFaturas.map((f: any) => {
+                          const daysDelayed = getDaysDelayed(f);
+                          const patientName = patientMap.get(f.paciente_id) || "—";
+                          
+                          return (
+                            <TableRow key={f.id}>
+                              <TableCell className="font-semibold text-foreground">
+                                {patientName}
+                              </TableCell>
+                              <TableCell>
+                                {f.competencia ? format(new Date(f.competencia + "T12:00:00"), "MM/yyyy") : "—"}
+                              </TableCell>
+                              <TableCell>
+                                {f.vencimento ? format(new Date(f.vencimento + "T12:00:00"), "dd/MM/yyyy") : "—"}
+                              </TableCell>
+                              <TableCell className="font-semibold">
+                                {brl(Number(f.valor))}
+                              </TableCell>
+                              <TableCell>
+                                <Badge
+                                  variant={
+                                    f.status === "paga"
+                                      ? "default"
+                                      : f.status === "vencida" || (f.status === "aberta" && daysDelayed > 0)
+                                      ? "destructive"
+                                      : f.status === "cancelada"
+                                      ? "secondary"
+                                      : "outline"
+                                  }
+                                  className={
+                                    f.status === "paga"
+                                      ? "bg-emerald-500 hover:bg-emerald-600 text-white border-transparent"
+                                      : f.status === "aberta" && daysDelayed > 0
+                                      ? "bg-rose-500 hover:bg-rose-600 text-white border-transparent"
+                                      : f.status === "aberta"
+                                      ? "bg-sky-500 hover:bg-sky-600 text-white border-transparent"
+                                      : ""
+                                  }
                                 >
-                                  <Pencil className="h-4 w-4" />
-                                </Button>
-                                <AlertDialog>
-                                  <AlertDialogTrigger asChild>
+                                  {f.status === "aberta" && daysDelayed > 0
+                                    ? "Vencida (Atrasada)"
+                                    : f.status === "aberta"
+                                    ? "Em Aberto"
+                                    : f.status === "paga"
+                                    ? "Pago"
+                                    : f.status === "vencida"
+                                    ? "Vencida"
+                                    : "Cancelada"}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-xs text-muted-foreground">
+                                {f.status === "paga" ? (
+                                  <div className="space-y-0.5">
+                                    <div>{f.pago_em ? format(new Date(f.pago_em), "dd/MM/yyyy") : "—"}</div>
+                                    <div className="font-semibold uppercase tracking-wider text-[10px] text-emerald-600 dark:text-emerald-400">
+                                      {f.metodo || ""}
+                                    </div>
+                                  </div>
+                                ) : (
+                                  "—"
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                {f.status === "paga" ? (
+                                  daysDelayed > 0 ? (
+                                    <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">
+                                      Pago com {daysDelayed}d de atraso
+                                    </span>
+                                  ) : (
+                                    <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
+                                      <Check className="h-3 w-3" /> Pago em dia
+                                    </span>
+                                  )
+                                ) : f.status === "cancelada" ? (
+                                  "—"
+                                ) : f.vencimento ? (
+                                  daysDelayed > 0 ? (
+                                    <span className="text-xs text-rose-600 dark:text-rose-400 font-semibold flex items-center gap-1">
+                                      <AlertCircle className="h-3.5 w-3.5 shrink-0" /> {daysDelayed} dias de atraso
+                                    </span>
+                                  ) : (
+                                    <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
+                                      <Clock className="h-3 w-3" /> No prazo
+                                    </span>
+                                  )
+                                ) : (
+                                  <span className="text-xs text-muted-foreground italic">Sem vencimento</span>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <div className="flex justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
+                                  {f.status !== "paga" && (
                                     <Button
                                       variant="ghost"
                                       size="icon"
-                                      title="Excluir Cobrança"
-                                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                      title="Confirmar Pagamento"
+                                      className="h-8 w-8 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/20"
+                                      onClick={() => handleOpenConfirmPayment(f)}
                                     >
-                                      <Trash2 className="h-4 w-4" />
+                                      <Check className="h-4 w-4" />
                                     </Button>
-                                  </AlertDialogTrigger>
-                                  <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                      <AlertDialogTitle>Excluir Cobrança</AlertDialogTitle>
-                                      <AlertDialogDescription>
-                                        Tem certeza que deseja excluir esta cobrança? Todos os itens de faturamento associados a agendamentos serão mantidos, mas a cobrança em si será excluída.
-                                      </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                      <AlertDialogAction
-                                        className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
-                                        onClick={() => deleteFaturaMutation.mutate(f.id)}
+                                  )}
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    title="Editar Cobrança"
+                                    className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                                    onClick={() => handleOpenEdit(f)}
+                                  >
+                                    <Pencil className="h-4 w-4" />
+                                  </Button>
+                                  <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        title="Excluir Cobrança"
+                                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
                                       >
-                                        Excluir
-                                      </AlertDialogAction>
-                                    </AlertDialogFooter>
-                                  </AlertDialogContent>
-                                </AlertDialog>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                </div>
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                      <AlertDialogHeader>
+                                        <AlertDialogTitle>Excluir Cobrança</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                          Tem certeza que deseja excluir esta cobrança? Todos os itens de faturamento associados a agendamentos serão mantidos, mas a cobrança em si será excluída.
+                                        </AlertDialogDescription>
+                                      </AlertDialogHeader>
+                                      <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                        <AlertDialogAction
+                                          className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+                                          onClick={() => deleteFaturaMutation.mutate(f.id)}
+                                        >
+                                          Excluir
+                                        </AlertDialogAction>
+                                      </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                  </AlertDialog>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )
               )}
             </CardContent>
           </Card>
@@ -1325,6 +1642,203 @@ function DiretoriaPageContent() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Faturas do Paciente Dialog */}
+      <Dialog open={patientFaturasDialog.open} onOpenChange={(open) => setPatientFaturasDialog({ open, pacienteId: open ? patientFaturasDialog.pacienteId : "", pacienteNome: open ? patientFaturasDialog.pacienteNome : "" })}>
+        <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader className="flex flex-row items-center justify-between">
+            <div>
+              <DialogTitle className="text-xl">Faturas de {patientFaturasDialog.pacienteNome}</DialogTitle>
+              <div className="text-sm text-muted-foreground mt-1">
+                Visualização de todas as cobranças vinculadas a este paciente.
+              </div>
+            </div>
+            <Button
+              size="sm"
+              className="gap-1.5 mr-6 font-semibold cursor-pointer"
+              onClick={() => {
+                setFaturaForm({
+                  paciente_id: patientFaturasDialog.pacienteId,
+                  competencia: format(startOfMonth(new Date()), "yyyy-MM-dd"),
+                  vencimento: "",
+                  valor: "",
+                  status: "aberta",
+                  observacoes: "",
+                });
+                setCreateDialog(true);
+              }}
+            >
+              <Plus className="h-4 w-4" /> Nova Cobrança
+            </Button>
+          </DialogHeader>
+          
+          <div className="py-4">
+            {patientFaturas.length === 0 ? (
+              <div className="p-8 text-center text-sm text-muted-foreground border border-dashed rounded-lg">
+                Nenhuma fatura cadastrada para este paciente no período selecionado.
+              </div>
+            ) : (
+              <div className="overflow-x-auto rounded-lg border border-border">
+                <Table>
+                  <TableHeader className="bg-muted/40 font-semibold text-foreground">
+                    <TableRow>
+                      <TableHead>Competência</TableHead>
+                      <TableHead>Vencimento</TableHead>
+                      <TableHead>Valor</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Pagamento</TableHead>
+                      <TableHead>Dias de Atraso</TableHead>
+                      <TableHead className="w-[140px] text-right">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {patientFaturas.map((f: any) => {
+                      const daysDelayed = getDaysDelayed(f);
+                      return (
+                        <TableRow key={f.id}>
+                          <TableCell>
+                            {f.competencia ? format(new Date(f.competencia + "T12:00:00"), "MM/yyyy") : "—"}
+                          </TableCell>
+                          <TableCell>
+                            {f.vencimento ? format(new Date(f.vencimento + "T12:00:00"), "dd/MM/yyyy") : "—"}
+                          </TableCell>
+                          <TableCell className="font-semibold">
+                            {brl(Number(f.valor))}
+                          </TableCell>
+                          <TableCell>
+                            <Badge
+                              variant={
+                                f.status === "paga"
+                                  ? "default"
+                                  : f.status === "vencida" || (f.status === "aberta" && daysDelayed > 0)
+                                  ? "destructive"
+                                  : f.status === "cancelada"
+                                  ? "secondary"
+                                  : "outline"
+                              }
+                              className={
+                                f.status === "paga"
+                                  ? "bg-emerald-500 hover:bg-emerald-600 text-white border-transparent"
+                                  : f.status === "aberta" && daysDelayed > 0
+                                  ? "bg-rose-500 hover:bg-rose-600 text-white border-transparent"
+                                  : f.status === "aberta"
+                                  ? "bg-sky-500 hover:bg-sky-600 text-white border-transparent"
+                                  : ""
+                              }
+                            >
+                              {f.status === "aberta" && daysDelayed > 0
+                                ? "Vencida (Atrasada)"
+                                : f.status === "aberta"
+                                ? "Em Aberto"
+                                : f.status === "paga"
+                                ? "Pago"
+                                : f.status === "vencida"
+                                ? "Vencida"
+                                : "Cancelada"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-xs text-muted-foreground">
+                            {f.status === "paga" ? (
+                              <div className="space-y-0.5">
+                                <div>{f.pago_em ? format(new Date(f.pago_em), "dd/MM/yyyy") : "—"}</div>
+                                <div className="font-semibold uppercase tracking-wider text-[10px] text-emerald-600 dark:text-emerald-400">
+                                  {f.metodo || ""}
+                                </div>
+                              </div>
+                            ) : (
+                              "—"
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {f.status === "paga" ? (
+                              daysDelayed > 0 ? (
+                                <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">
+                                  Pago com {daysDelayed}d de atraso
+                                </span>
+                              ) : (
+                                <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
+                                  <Check className="h-3 w-3" /> Pago em dia
+                                </span>
+                              )
+                            ) : f.status === "cancelada" ? (
+                              "—"
+                            ) : f.vencimento ? (
+                              daysDelayed > 0 ? (
+                                <span className="text-xs text-rose-600 dark:text-rose-400 font-semibold flex items-center gap-1">
+                                  <AlertCircle className="h-3.5 w-3.5 shrink-0" /> {daysDelayed} dias de atraso
+                                </span>
+                              ) : (
+                                <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
+                                  <Clock className="h-3 w-3" /> No prazo
+                                </span>
+                              )
+                            ) : (
+                              <span className="text-xs text-muted-foreground italic">Sem vencimento</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
+                              {f.status !== "paga" && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  title="Confirmar Pagamento"
+                                  className="h-8 w-8 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/20"
+                                  onClick={() => handleOpenConfirmPayment(f)}
+                                >
+                                  <Check className="h-4 w-4" />
+                                </Button>
+                              )}
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                title="Editar Cobrança"
+                                className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                                onClick={() => handleOpenEdit(f)}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    title="Excluir Cobrança"
+                                    className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Excluir Cobrança</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Tem certeza que deseja excluir esta cobrança? Todos os itens de faturamento associados a agendamentos serão mantidos, mas a cobrança em si será excluída.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                    <AlertDialogAction
+                                      className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+                                      onClick={() => deleteFaturaMutation.mutate(f.id)}
+                                    >
+                                      Excluir
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>
