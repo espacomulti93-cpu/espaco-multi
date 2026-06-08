@@ -1061,6 +1061,8 @@ Fico à disposição para qualquer dúvida!`;
           );
         }
       } else {
+        const { data: { user } } = await supabase.auth.getUser();
+
         if (form.recorrencia !== "unica") {
           const occurrences: any[] = [];
           const numOccurrences = 12;
@@ -1105,6 +1107,7 @@ Fico à disposição para qualquer dúvida!`;
               data_fim: occEnd.toISOString(),
               observacoes: typePrefix + form.observacoes,
               recorrencia_grupo: groupId,
+              created_by: user?.id || null,
             };
             occurrences.push(payload);
           }
@@ -1136,6 +1139,7 @@ Fico à disposição para qualquer dúvida!`;
             data_inicio: start,
             data_fim: end,
             observacoes: typePrefix + form.observacoes,
+            created_by: user?.id || null,
           };
           const { data: insertedAg, error } = await supabase
             .from("agendamentos")
