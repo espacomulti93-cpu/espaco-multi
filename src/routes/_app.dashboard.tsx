@@ -17,6 +17,7 @@ const statusColors: Record<string, string> = {
   cancelado: "bg-destructive/15 text-destructive",
   realizado: "bg-primary/15 text-primary",
   falta: "bg-muted text-muted-foreground",
+  pago: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
 };
 
 function Dashboard() {

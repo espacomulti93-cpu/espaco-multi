@@ -63,6 +63,7 @@ const STATUS_LABEL: Record<string, string> = {
   cancelado: "Cancelado",
   realizado: "Realizado",
   falta: "Falta",
+  pago: "Pago",
 };
 
 function Agenda() {
@@ -356,11 +357,11 @@ const syncAgendamentoFinanceiro = async (
     const existingItem = existingItens?.[0];
     const oldFatura = existingItem?.faturas as any;
 
-    // If status is NOT confirmed:
-    if (status !== "confirmado") {
+    // If status is NOT confirmed and NOT pago:
+    if (status !== "confirmado" && status !== "pago") {
       // If there is an existing item, delete it and subtract its value from the fatura
       if (existingItem) {
-        if (oldFatura?.status === "aberta") {
+        if (oldFatura?.status === "aberta" || oldFatura?.status === "paga") {
           const newFaturaValor = Math.max(0, Number(oldFatura.valor) - Number(existingItem.total));
           await supabase
             .from("faturas")
@@ -371,7 +372,7 @@ const syncAgendamentoFinanceiro = async (
         await supabase.from("fatura_itens").delete().eq("id", existingItem.id);
 
         // Clean up fatura if it has no more items
-        if (oldFatura?.status === "aberta") {
+        if (oldFatura?.status === "aberta" || oldFatura?.status === "paga") {
           const { data: remaining } = await supabase
             .from("fatura_itens")
             .select("id")
@@ -385,7 +386,8 @@ const syncAgendamentoFinanceiro = async (
       return;
     }
 
-    // If status IS confirmed:
+    // If status IS confirmed or pago:
+    const targetStatus = status === "pago" ? "paga" : "aberta";
     const d = new Date(dataInicio);
     const competencia = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
     const dateStr = format(d, "dd/MM/yyyy HH:mm");
@@ -394,16 +396,16 @@ const syncAgendamentoFinanceiro = async (
         ? `${especialidade || "Avaliação"} (Avaliação) - ${dateStr}`
         : `${especialidade || "Sessão"} - ${dateStr}`;
 
-    // Find or create open invoice
+    // Find or create matching invoice
     let faturaId = "";
     let faturaValor = 0;
 
-    const { data: openFaturas, error: fetchFaturaErr } = await supabase
+    const { data: matchedFaturas, error: fetchFaturaErr } = await supabase
       .from("faturas")
       .select("id, valor")
       .eq("paciente_id", pacienteId)
       .eq("competencia", competencia)
-      .eq("status", "aberta")
+      .eq("status", targetStatus)
       .limit(1);
 
     if (fetchFaturaErr) {
@@ -411,18 +413,23 @@ const syncAgendamentoFinanceiro = async (
       return;
     }
 
-    if (openFaturas && openFaturas.length > 0) {
-      faturaId = openFaturas[0].id;
-      faturaValor = Number(openFaturas[0].valor);
+    if (matchedFaturas && matchedFaturas.length > 0) {
+      faturaId = matchedFaturas[0].id;
+      faturaValor = Number(matchedFaturas[0].valor);
     } else {
+      const insertData: any = {
+        paciente_id: pacienteId,
+        competencia,
+        valor: 0,
+        status: targetStatus,
+      };
+      if (targetStatus === "paga") {
+        insertData.pago_em = dataInicio || new Date().toISOString();
+        insertData.metodo = "pix";
+      }
       const { data: newFatura, error: createFaturaErr } = await supabase
         .from("faturas")
-        .insert({
-          paciente_id: pacienteId,
-          competencia,
-          valor: 0,
-          status: "aberta",
-        })
+        .insert(insertData)
         .select()
         .single();
 
@@ -437,7 +444,7 @@ const syncAgendamentoFinanceiro = async (
     if (existingItem) {
       if (existingItem.fatura_id !== faturaId) {
         // Subtract from old invoice
-        if (oldFatura?.status === "aberta") {
+        if (oldFatura?.status === "aberta" || oldFatura?.status === "paga") {
           await supabase
             .from("faturas")
             .update({ valor: Math.max(0, Number(oldFatura.valor) - Number(existingItem.total)) })
@@ -460,7 +467,7 @@ const syncAgendamentoFinanceiro = async (
           .eq("id", faturaId);
 
         // Clean up old invoice if empty
-        if (oldFatura?.status === "aberta") {
+        if (oldFatura?.status === "aberta" || oldFatura?.status === "paga") {
           const { data: remaining } = await supabase
             .from("fatura_itens")
             .select("id")
@@ -1341,7 +1348,7 @@ Fico à disposição para qualquer dúvida!`;
                     <Badge variant="secondary" className="h-4 px-1 text-[9px] font-semibold">
                       {STATUS_LABEL[form.status] || form.status || ""}
                     </Badge>
-                    {editing.status !== "confirmado" && whatsappUrl && (
+                    {editing.status !== "confirmado" && editing.status !== "pago" && whatsappUrl && (
                       <a
                         href={whatsappUrl}
                         target="_blank"
@@ -1412,6 +1419,8 @@ Fico à disposição para qualquer dúvida!`;
                             "h-4 px-1 text-[8px] uppercase font-bold shrink-0",
                             a.status === "confirmado" &&
                               "border-green-500/30 text-green-600 bg-green-50/50",
+                            a.status === "pago" &&
+                              "border-emerald-500/30 text-emerald-600 bg-emerald-50/50",
                             a.status === "cancelado" &&
                               "border-red-500/30 text-red-600 bg-red-50/50",
                             a.status === "realizado" &&
@@ -1625,7 +1634,7 @@ Fico à disposição para qualquer dúvida!`;
                     ))}
                   </SelectContent>
                 </Select>
-                {form.status !== "confirmado" && (
+                {form.status !== "confirmado" && form.status !== "pago" && (
                   <Button
                     type="button"
                     variant="outline"

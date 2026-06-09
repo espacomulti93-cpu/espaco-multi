@@ -480,7 +480,13 @@ export type Database = {
       };
     };
     Enums: {
-      agendamento_status: "pendente" | "confirmado" | "cancelado" | "realizado" | "falta";
+      agendamento_status:
+        | "pendente"
+        | "confirmado"
+        | "cancelado"
+        | "realizado"
+        | "falta"
+        | "pago";
       app_role: "admin" | "recepcionista" | "profissional";
       fatura_status: "aberta" | "paga" | "vencida" | "cancelada";
       metodo_pagamento:
@@ -620,7 +626,14 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      agendamento_status: ["pendente", "confirmado", "cancelado", "realizado", "falta"],
+      agendamento_status: [
+        "pendente",
+        "confirmado",
+        "cancelado",
+        "realizado",
+        "falta",
+        "pago",
+      ],
       app_role: ["admin", "recepcionista", "profissional"],
       fatura_status: ["aberta", "paga", "vencida", "cancelada"],
       metodo_pagamento: [
