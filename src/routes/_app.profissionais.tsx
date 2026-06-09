@@ -78,6 +78,17 @@ function ProfissionaisPage() {
     queryFn: async () => (await supabase.from("pacientes").select("id, nome")).data ?? [],
   });
 
+  const { data: pacienteProfissional = [] } = useQuery({
+    queryKey: ["paciente-profissional"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("paciente_profissional")
+        .select("paciente_id, profissional_id, pacientes(nome)");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
   const [orderedData, setOrderedData] = useState<any[]>([]);
 
   useEffect(() => {
@@ -294,6 +305,24 @@ function ProfissionaisPage() {
                         })}
                       </div>
                     )}
+                    {(() => {
+                      const acompanhados = pacienteProfissional.filter((m: any) => m.profissional_id === p.id);
+                      if (acompanhados.length === 0) return null;
+                      return (
+                        <div className="mt-2 pt-2 border-t text-[11px] text-muted-foreground space-y-1">
+                          <span className="font-semibold text-foreground block">
+                            Pacientes Acompanhados:
+                          </span>
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {acompanhados.map((item: any) => (
+                              <Badge key={item.paciente_id} variant="outline" className="text-[10px] px-1.5 py-0">
+                                {item.pacientes?.nome}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
                   <Badge
                     variant={p.ativo ? "default" : "secondary"}
@@ -461,6 +490,7 @@ function ProfForm({ prof, onSaved }: { prof: any; onSaved: () => void }) {
     },
     onSuccess: () => {
       toast.success(prof ? "Atualizado" : "Cadastrado");
+      qc.invalidateQueries({ queryKey: ["paciente-profissional"] });
       onSaved();
     },
     onError: (e: any) => toast.error(e.message),

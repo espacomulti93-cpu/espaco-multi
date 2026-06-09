@@ -66,6 +66,18 @@ function PacienteDetail() {
     },
   });
 
+  const { data: accompanyingProfs = [] } = useQuery({
+    queryKey: ["paciente-profissionais-detail", id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("paciente_profissional")
+        .select("*, profissionais(nome, cor)")
+        .eq("paciente_id", id);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
   const delResp = useMutation({
     mutationFn: async (rid: string) => {
       const { error } = await supabase.from("responsaveis").delete().eq("id", rid);
@@ -134,6 +146,25 @@ function PacienteDetail() {
                 (paciente.cids_secundarios as string[]).map((spec: string) => (
                   <Badge key={spec} variant="secondary">
                     {spec}
+                  </Badge>
+                ))
+              ) : (
+                <span className="text-sm font-medium">—</span>
+              )}
+            </div>
+          </div>
+          <div className="sm:col-span-1">
+            <div className="text-xs text-muted-foreground">Profissionais Acompanhantes</div>
+            <div className="mt-1 flex flex-wrap gap-1">
+              {accompanyingProfs.length > 0 ? (
+                accompanyingProfs.map((item: any) => (
+                  <Badge
+                    key={item.profissional_id}
+                    variant="outline"
+                    className="px-2 py-0.5 border-l-[3px]"
+                    style={{ borderLeftColor: item.profissionais?.cor || "var(--primary)" }}
+                  >
+                    {item.profissionais?.nome}
                   </Badge>
                 ))
               ) : (

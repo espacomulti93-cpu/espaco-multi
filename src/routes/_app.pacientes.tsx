@@ -65,6 +65,17 @@ function PacientesPage() {
     },
   });
 
+  const { data: pacienteProfissionais = [] } = useQuery({
+    queryKey: ["paciente-profissional-all"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("paciente_profissional")
+        .select("paciente_id, profissional_id, profissionais(nome, cor)");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
   const deleteMutation = useMutation({
     mutationFn: async (ids: string[]) => {
       // 1. Delete fatura_itens for faturas belonging to these patients
@@ -246,6 +257,24 @@ function PacientesPage() {
                         ))}
                       </div>
                     )}
+                    {(() => {
+                      const profs = pacienteProfissionais.filter((m: any) => m.paciente_id === p.id);
+                      if (profs.length === 0) return null;
+                      return (
+                        <div className="mt-1.5 flex flex-wrap gap-1 items-center">
+                          {profs.map((item: any) => (
+                            <Badge
+                              key={item.profissional_id}
+                              variant="secondary"
+                              className="text-[9px] px-1.5 py-0 border-l-[3px]"
+                              style={{ borderLeftColor: item.profissionais?.cor || "var(--primary)" }}
+                            >
+                              {item.profissionais?.nome}
+                            </Badge>
+                          ))}
+                        </div>
+                      );
+                    })()}
                     <div className="mt-3 flex items-center justify-between gap-2 text-xs text-muted-foreground">
                       <div>
                         {p.tipo_atendimento === "convenio"
@@ -324,6 +353,43 @@ export function PacienteFormDialog({ paciente, onSaved }: { paciente?: any; onSa
     },
   });
 
+  const { data: profissionaisList = [] } = useQuery({
+    queryKey: ["profissionais-list-form"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("profissionais")
+        .select("id, nome, cor, especialidade")
+        .eq("ativo", true)
+        .order("nome");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const { data: currentProfs = [] } = useQuery({
+    queryKey: ["paciente-profissionais", paciente?.id],
+    queryFn: async () => {
+      if (!paciente?.id) return [];
+      const { data, error } = await supabase
+        .from("paciente_profissional")
+        .select("profissional_id")
+        .eq("paciente_id", paciente.id);
+      if (error) throw error;
+      return data.map((d) => d.profissional_id);
+    },
+    enabled: !!paciente?.id,
+  });
+
+  const [selectedProfs, setSelectedProfs] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (currentProfs.length > 0) {
+      setSelectedProfs(currentProfs);
+    } else {
+      setSelectedProfs([]);
+    }
+  }, [currentProfs]);
+
   const availableSpecialties = Array.from(
     new Set(
       profissionais
@@ -394,6 +460,19 @@ export function PacienteFormDialog({ paciente, onSaved }: { paciente?: any; onSa
         const { error } = await supabase.from("pacientes").update(payload).eq("id", paciente.id);
         if (error) throw error;
 
+        // Clear existing mappings
+        await supabase.from("paciente_profissional").delete().eq("paciente_id", paciente.id);
+        
+        // Insert new mappings
+        if (selectedProfs.length > 0) {
+          const mappings = selectedProfs.map((profId) => ({
+            paciente_id: paciente.id,
+            profissional_id: profId,
+          }));
+          const { error: ppError } = await supabase.from("paciente_profissional").insert(mappings);
+          if (ppError) throw ppError;
+        }
+
         if (form.responsavel.trim() || form.telefone.trim()) {
           if (responsaveis.length > 0) {
             const { error: rError } = await supabase
@@ -422,6 +501,16 @@ export function PacienteFormDialog({ paciente, onSaved }: { paciente?: any; onSa
           .single();
         if (error) throw error;
 
+        // Insert new mappings
+        if (selectedProfs.length > 0 && newPaciente) {
+          const mappings = selectedProfs.map((profId) => ({
+            paciente_id: newPaciente.id,
+            profissional_id: profId,
+          }));
+          const { error: ppError } = await supabase.from("paciente_profissional").insert(mappings);
+          if (ppError) throw ppError;
+        }
+
         if ((form.responsavel.trim() || form.telefone.trim()) && newPaciente) {
           const { error: rError } = await supabase.from("responsaveis").insert({
             paciente_id: newPaciente.id,
@@ -434,6 +523,10 @@ export function PacienteFormDialog({ paciente, onSaved }: { paciente?: any; onSa
     },
     onSuccess: () => {
       toast.success(paciente ? "Paciente atualizado" : "Paciente cadastrado");
+      qc.invalidateQueries({ queryKey: ["paciente-profissional-all"] });
+      qc.invalidateQueries({ queryKey: ["paciente-profissionais-detail", paciente?.id] });
+      qc.invalidateQueries({ queryKey: ["paciente-profissionais", paciente?.id] });
+      qc.invalidateQueries({ queryKey: ["paciente-profissional"] });
       onSaved();
     },
     onError: (e: any) => toast.error(e.message),
@@ -481,7 +574,7 @@ export function PacienteFormDialog({ paciente, onSaved }: { paciente?: any; onSa
             />
           </div>
         </div>
-        <div className="space-y-1.5">
+        <div className="space-y-1.5 animate-in fade-in duration-200">
           <Label>Especialidades desejadas</Label>
           <div className="flex flex-wrap gap-2">
             {availableSpecialties.map((spec) => {
@@ -506,6 +599,40 @@ export function PacienteFormDialog({ paciente, onSaved }: { paciente?: any; onSa
                 </button>
               );
             })}
+          </div>
+        </div>
+        <div className="space-y-1.5 animate-in fade-in duration-200">
+          <Label>Profissionais Acompanhantes</Label>
+          <div className="flex flex-wrap gap-2">
+            {profissionaisList.map((prof: any) => {
+              const selected = selectedProfs.includes(prof.id);
+              return (
+                <button
+                  type="button"
+                  key={prof.id}
+                  onClick={() => {
+                    const next = selected
+                      ? selectedProfs.filter((id) => id !== prof.id)
+                      : [...selectedProfs, prof.id];
+                    setSelectedProfs(next);
+                  }}
+                  className={`rounded-full px-3 py-1 text-[11px] font-medium border transition ${
+                    selected
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-background text-muted-foreground border-input hover:bg-accent hover:text-accent-foreground"
+                  }`}
+                >
+                  <span
+                    className="inline-block h-1.5 w-1.5 rounded-full mr-1.5 shrink-0"
+                    style={{ backgroundColor: prof.cor || "var(--primary)" }}
+                  />
+                  {prof.nome}
+                </button>
+              );
+            })}
+            {profissionaisList.length === 0 && (
+              <span className="text-xs text-muted-foreground italic">Nenhum profissional ativo cadastrado.</span>
+            )}
           </div>
         </div>
         <div className="grid grid-cols-2 gap-3">

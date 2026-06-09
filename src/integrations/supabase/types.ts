@@ -287,6 +287,42 @@ export type Database = {
         };
         Relationships: [];
       };
+      paciente_profissional: {
+        Row: {
+          created_at: string;
+          id: string;
+          paciente_id: string;
+          profissional_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          id?: string;
+          paciente_id: string;
+          profissional_id: string;
+        };
+        Update: {
+          created_at?: string;
+          id?: string;
+          paciente_id?: string;
+          profissional_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "paciente_profissional_paciente_id_fkey";
+            columns: ["paciente_id"];
+            isOneToOne: false;
+            referencedRelation: "pacientes";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "paciente_profissional_profissional_id_fkey";
+            columns: ["profissional_id"];
+            isOneToOne: false;
+            referencedRelation: "profissionais";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
       profiles: {
         Row: {
           created_at: string;
