@@ -61,7 +61,7 @@ function PacientesPage() {
     queryFn: async () => {
       const { data, error } = await supabase.from("pacientes").select("*").order("nome");
       if (error) throw error;
-      return data;
+      return data ?? [];
     },
   });
 
@@ -118,7 +118,7 @@ function PacientesPage() {
     }
   };
 
-  const filtered = pacientes.filter((p) => p.nome.toLowerCase().includes(q.toLowerCase()));
+  const filtered = (pacientes || []).filter((p) => p.nome.toLowerCase().includes(q.toLowerCase()));
 
   return (
     <div className="space-y-4">
@@ -258,8 +258,8 @@ function PacientesPage() {
                       </div>
                     )}
                     {(() => {
-                      const profs = pacienteProfissionais.filter((m: any) => m.paciente_id === p.id);
-                      if (profs.length === 0) return null;
+                      const profs = (pacienteProfissionais || []).filter((m: any) => m.paciente_id === p.id);
+                      if ((profs || []).length === 0) return null;
                       return (
                         <div className="mt-1.5 flex flex-wrap gap-1 items-center">
                           {profs.map((item: any) => (
@@ -349,7 +349,7 @@ export function PacienteFormDialog({ paciente, onSaved }: { paciente?: any; onSa
     queryFn: async () => {
       const { data, error } = await supabase.from("profissionais").select("especialidade");
       if (error) throw error;
-      return data;
+      return data ?? [];
     },
   });
 
@@ -375,7 +375,7 @@ export function PacienteFormDialog({ paciente, onSaved }: { paciente?: any; onSa
         .select("profissional_id")
         .eq("paciente_id", paciente.id);
       if (error) throw error;
-      return data.map((d) => d.profissional_id);
+      return (data ?? []).map((d) => d.profissional_id);
     },
     enabled: !!paciente?.id,
   });
@@ -383,7 +383,7 @@ export function PacienteFormDialog({ paciente, onSaved }: { paciente?: any; onSa
   const [selectedProfs, setSelectedProfs] = useState<string[]>([]);
 
   useEffect(() => {
-    if (currentProfs.length > 0) {
+    if (currentProfs && currentProfs.length > 0) {
       setSelectedProfs(currentProfs);
     } else {
       setSelectedProfs([]);
@@ -392,7 +392,7 @@ export function PacienteFormDialog({ paciente, onSaved }: { paciente?: any; onSa
 
   const availableSpecialties = Array.from(
     new Set(
-      profissionais
+      (profissionais || [])
         .flatMap((p) => (p.especialidade ? p.especialidade.split(",").map((s) => s.trim()) : []))
         .filter(Boolean),
     ),
@@ -408,13 +408,13 @@ export function PacienteFormDialog({ paciente, onSaved }: { paciente?: any; onSa
         .eq("paciente_id", paciente.id)
         .order("created_at");
       if (error) throw error;
-      return data;
+      return data ?? [];
     },
     enabled: !!paciente?.id,
   });
 
   useEffect(() => {
-    if (responsaveis.length > 0) {
+    if (responsaveis && responsaveis.length > 0) {
       setForm((f) => ({
         ...f,
         responsavel: responsaveis[0].nome,
@@ -617,7 +617,7 @@ export function PacienteFormDialog({ paciente, onSaved }: { paciente?: any; onSa
         <div className="space-y-1.5 animate-in fade-in duration-200">
           <Label>Profissionais Acompanhantes</Label>
           <div className="flex flex-wrap gap-2">
-            {profissionaisList.map((prof: any) => {
+            {(profissionaisList || []).map((prof: any) => {
               const selected = selectedProfs.includes(prof.id);
               return (
                 <button
@@ -643,7 +643,7 @@ export function PacienteFormDialog({ paciente, onSaved }: { paciente?: any; onSa
                 </button>
               );
             })}
-            {profissionaisList.length === 0 && (
+            {(profissionaisList || []).length === 0 && (
               <span className="text-xs text-muted-foreground italic">Nenhum profissional ativo cadastrado.</span>
             )}
           </div>
