@@ -1732,6 +1732,11 @@ Fico à disposição para qualquer dúvida!`;
               setEditPatientOpen(false);
               await qc.invalidateQueries({ queryKey: ["pac-min"] });
               await qc.invalidateQueries({ queryKey: ["pacientes"] });
+              if (selectedPaciente?.id) {
+                await qc.invalidateQueries({
+                  queryKey: ["responsaveis-paciente-dialog", selectedPaciente.id],
+                });
+              }
             }}
           />
         )}

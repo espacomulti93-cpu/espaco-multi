@@ -430,6 +430,10 @@ export function PacienteFormDialog({ paciente, onSaved }: { paciente?: any; onSa
 
   const mutation = useMutation({
     mutationFn: async () => {
+      if (form.telefone.trim() && !form.responsavel.trim()) {
+        throw new Error("O nome do responsável é obrigatório quando o telefone é informado.");
+      }
+
       let dbBirthDate: string | null = null;
       if (form.data_nascimento) {
         const parts = form.data_nascimento.split("/");
@@ -473,8 +477,16 @@ export function PacienteFormDialog({ paciente, onSaved }: { paciente?: any; onSa
           if (ppError) throw ppError;
         }
 
-        if (form.responsavel.trim() || form.telefone.trim()) {
-          if (responsaveis.length > 0) {
+        if (responsaveis.length > 0) {
+          if (!form.responsavel.trim() && !form.telefone.trim()) {
+            // Delete existing responsible person if both fields are cleared
+            const { error: rError } = await supabase
+              .from("responsaveis")
+              .delete()
+              .eq("id", responsaveis[0].id);
+            if (rError) throw rError;
+          } else {
+            // Update existing responsible person if name is provided
             const { error: rError } = await supabase
               .from("responsaveis")
               .update({
@@ -483,14 +495,15 @@ export function PacienteFormDialog({ paciente, onSaved }: { paciente?: any; onSa
               })
               .eq("id", responsaveis[0].id);
             if (rError) throw rError;
-          } else {
-            const { error: rError } = await supabase.from("responsaveis").insert({
-              paciente_id: paciente.id,
-              nome: form.responsavel.trim(),
-              telefone: form.telefone.trim() || null,
-            });
-            if (rError) throw rError;
           }
+        } else if (form.responsavel.trim()) {
+          // Insert new responsible person if name is provided and none existed
+          const { error: rError } = await supabase.from("responsaveis").insert({
+            paciente_id: paciente.id,
+            nome: form.responsavel.trim(),
+            telefone: form.telefone.trim() || null,
+          });
+          if (rError) throw rError;
         }
       } else {
         // Create mode
@@ -511,7 +524,7 @@ export function PacienteFormDialog({ paciente, onSaved }: { paciente?: any; onSa
           if (ppError) throw ppError;
         }
 
-        if ((form.responsavel.trim() || form.telefone.trim()) && newPaciente) {
+        if (form.responsavel.trim() && newPaciente) {
           const { error: rError } = await supabase.from("responsaveis").insert({
             paciente_id: newPaciente.id,
             nome: form.responsavel.trim(),

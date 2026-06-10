@@ -131,6 +131,7 @@ function PacienteDetail() {
                     setEditOpen(false);
                     qc.invalidateQueries({ queryKey: ["paciente", id] });
                     qc.invalidateQueries({ queryKey: ["pacientes"] });
+                    qc.invalidateQueries({ queryKey: ["responsaveis", id] });
                   }}
                 />
               )}
