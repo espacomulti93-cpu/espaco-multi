@@ -48,7 +48,7 @@ function PacienteDetail() {
         .eq("paciente_id", id)
         .order("created_at");
       if (error) throw error;
-      return data;
+      return data ?? [];
     },
   });
 
@@ -62,7 +62,7 @@ function PacienteDetail() {
         .order("data_inicio", { ascending: false })
         .limit(20);
       if (error) throw error;
-      return data;
+      return data ?? [];
     },
   });
 
@@ -143,7 +143,7 @@ function PacienteDetail() {
           <div className="sm:col-span-1">
             <div className="text-xs text-muted-foreground">Especialidades desejadas</div>
             <div className="mt-1 flex flex-wrap gap-1">
-              {paciente.cids_secundarios && (paciente.cids_secundarios as string[]).length > 0 ? (
+              {Array.isArray(paciente.cids_secundarios) && paciente.cids_secundarios.length > 0 ? (
                 (paciente.cids_secundarios as string[]).map((spec: string) => (
                   <Badge key={spec} variant="secondary">
                     {spec}
@@ -157,8 +157,8 @@ function PacienteDetail() {
           <div className="sm:col-span-1">
             <div className="text-xs text-muted-foreground">Profissionais Acompanhantes</div>
             <div className="mt-1 flex flex-wrap gap-1">
-              {accompanyingProfs.length > 0 ? (
-                accompanyingProfs.map((item: any) => (
+              {(accompanyingProfs || []).length > 0 ? (
+                (accompanyingProfs || []).map((item: any) => (
                   <Badge
                     key={item.profissional_id}
                     variant="outline"
@@ -211,11 +211,11 @@ function PacienteDetail() {
           </Dialog>
         </CardHeader>
         <CardContent>
-          {responsaveis.length === 0 ? (
+          {((responsaveis || [])).length === 0 ? (
             <p className="text-sm text-muted-foreground">Nenhum responsável cadastrado.</p>
           ) : (
             <div className="divide-y">
-              {responsaveis.map((r) => (
+              {((responsaveis || [])).map((r) => (
                 <div key={r.id} className="flex items-center gap-3 py-3">
                   <div className="flex-1">
                     <div className="text-sm font-medium">
@@ -245,11 +245,11 @@ function PacienteDetail() {
           <CardTitle className="text-base">Histórico de agendamentos</CardTitle>
         </CardHeader>
         <CardContent>
-          {ags.length === 0 ? (
+          {((ags || [])).length === 0 ? (
             <p className="text-sm text-muted-foreground">Sem agendamentos.</p>
           ) : (
             <div className="divide-y">
-              {ags.map((a: any) => (
+              {((ags || [])).map((a: any) => (
                 <div key={a.id} className="flex items-center gap-3 py-2.5 text-sm">
                   <div
                     className="h-8 w-1 rounded-full"

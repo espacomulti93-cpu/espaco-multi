@@ -70,6 +70,8 @@ import {
   Clock,
   MessageCircle,
   ExternalLink,
+  ArrowLeft,
+  ChevronLeft,
 } from "lucide-react";
 
 export const Route = createFileRoute("/_app/diretoria")({
@@ -432,6 +434,256 @@ function DiretoriaPageContent() {
 
   const isMutating = createExpenseMutation.isPending || deleteExpenseMutation.isPending;
 
+  // Fetch active professionals
+  const { data: profissionais = [] } = useQuery({
+    queryKey: ["dir-profissionais"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("profissionais")
+        .select("id, nome, especialidade, cor, valor_sessao, valores_config")
+        .eq("ativo", true)
+        .order("nome");
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const professionalMap = useMemo(() => {
+    return new Map((profissionais || []).map((p) => [p.id, p.nome]));
+  }, [profissionais]);
+
+  // Fetch all agendamentos for professional payment calculation
+  const { data: agendamentosRepasses = [], isLoading: loadingAgendamentos } = useQuery({
+    queryKey: ["dir-agendamentos-repasses", inicio, fim],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("agendamentos")
+        .select(`
+          id,
+          status,
+          data_inicio,
+          paciente_id,
+          profissional_id,
+          servico_id,
+          observacoes,
+          pacientes (
+            id,
+            nome,
+            cids_secundarios
+          ),
+          profissionais (
+            id,
+            nome,
+            especialidade,
+            valor_sessao,
+            valores_config
+          ),
+          servicos (
+            id,
+            nome
+          ),
+          fatura_itens (
+            total,
+            valor_unitario
+          )
+        `)
+        .gte("data_inicio", `${inicio}T00:00:00`)
+        .lte("data_inicio", `${fim}T23:59:59`);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Helper to resolve specialty of an appointment
+  const getAppointmentSpecialty = (a: any) => {
+    if (a.servicos?.nome) return a.servicos.nome;
+    const pacSpecs = (
+      Array.isArray(a.pacientes?.cids_secundarios) ? a.pacientes.cids_secundarios : []
+    ).filter((s: any): s is string => typeof s === "string");
+    const profSpecs = a.profissionais?.especialidade
+      ? a.profissionais.especialidade
+          .split(",")
+          .map((s: string) => s.trim())
+          .filter(Boolean)
+      : [];
+    const intersection = pacSpecs.filter((s: string) =>
+      profSpecs.some((ps: string) => ps.toLowerCase() === s.toLowerCase()),
+    );
+    if (intersection.length > 0) return intersection[0];
+    if (profSpecs.length > 0) return profSpecs[0];
+    return "Geral";
+  };
+
+  // Helper to get session value
+  const getAppointmentValue = (a: any) => {
+    if (a.fatura_itens && a.fatura_itens.length > 0) {
+      return Number(a.fatura_itens[0].total || 0);
+    }
+    
+    // Fallback logic equivalent to fn_get_pricing
+    const prof = a.profissionais;
+    if (!prof) return 0;
+    
+    const spec = getAppointmentSpecialty(a);
+    const isAnamnese = a.observacoes?.includes("[Tipo: Anamnese]");
+    
+    const config = prof.valores_config || { especialidades: [], descontos: [] };
+    const valorDefault = Number(prof.valor_sessao || 0);
+    
+    // 1. Check custom patient discount
+    if (Array.isArray(config.descontos) && config.descontos.length > 0) {
+      const d = config.descontos.find(
+        (item: any) =>
+          item.paciente_id === a.paciente_id &&
+          String(item.especialidade || "").toLowerCase() === String(spec || "").toLowerCase()
+      );
+      if (d) {
+        return isAnamnese ? Number(d.valor_avaliacao || 0) : Number(d.valor_sessao || 0);
+      }
+    }
+    
+    // 2. Check standard specialty rates
+    if (Array.isArray(config.especialidades) && config.especialidades.length > 0) {
+      const e = config.especialidades.find(
+        (item: any) => String(item.nome || "").toLowerCase() === String(spec || "").toLowerCase()
+      );
+      if (e) {
+        if (isAnamnese) {
+          return Number(e.valor_avaliacao || 0);
+        } else {
+          if (String(spec).toLowerCase() === "ap") return 0;
+          return Number(e.valor_sessao ?? valorDefault ?? 0);
+        }
+      }
+    }
+    
+    // 3. Default professional rate
+    if (isAnamnese) {
+      return 0;
+    } else {
+      return valorDefault;
+    }
+  };
+
+  const getRepasseRates = (specialty: string) => {
+    const isAtAba = String(specialty || "").trim().toUpperCase() === "AT ABA";
+    if (isAtAba) {
+      return { profPct: 0.5, clinicPct: 0.5, label: "50% / 50%" };
+    }
+    return { profPct: 0.7, clinicPct: 0.3, label: "70% / 30%" };
+  };
+
+  // State variables for payment calculation tab
+  const [selectedProfId, setSelectedProfId] = useState<string>("all");
+  const [sessionStatusFilter, setSessionStatusFilter] = useState<string>("confirmado_pago");
+  const [viewingProfDetail, setViewingProfDetail] = useState<string | null>(null);
+
+  const handleSelectProf = (val: string) => {
+    setSelectedProfId(val);
+    if (val === "all") {
+      setViewingProfDetail(null);
+    } else {
+      setViewingProfDetail(val);
+    }
+  };
+
+  const filteredRepasses = useMemo(() => {
+    return agendamentosRepasses.filter((a: any) => {
+      if (a.status === "cancelado") return false;
+
+      const matchesProf = selectedProfId === "all" || a.profissional_id === selectedProfId;
+      
+      let matchesStatus = true;
+      if (sessionStatusFilter === "confirmado_pago") {
+        matchesStatus = a.status === "confirmado" || a.status === "pago";
+      } else if (sessionStatusFilter === "confirmado") {
+        matchesStatus = a.status === "confirmado";
+      } else if (sessionStatusFilter === "pago") {
+        matchesStatus = a.status === "pago";
+      } else if (sessionStatusFilter === "realizado") {
+        matchesStatus = a.status === "realizado";
+      }
+
+      return matchesProf && matchesStatus;
+    });
+  }, [agendamentosRepasses, selectedProfId, sessionStatusFilter]);
+
+  const repasseStats = useMemo(() => {
+    let totalSessões = 0;
+    let faturamentoBruto = 0;
+    let repasseProfissional = 0;
+    let comissaoClinica = 0;
+
+    filteredRepasses.forEach((a: any) => {
+      const val = getAppointmentValue(a);
+      const spec = getAppointmentSpecialty(a);
+      const { profPct, clinicPct } = getRepasseRates(spec);
+
+      totalSessões += 1;
+      faturamentoBruto += val;
+      repasseProfissional += val * profPct;
+      comissaoClinica += val * clinicPct;
+    });
+
+    return {
+      totalSessões,
+      faturamentoBruto,
+      repasseProfissional,
+      comissaoClinica,
+    };
+  }, [filteredRepasses]);
+
+  const consolidatedRepasses = useMemo(() => {
+    const groups = new Map<string, {
+      profissionalId: string;
+      nome: string;
+      cor: string;
+      especialidades: Set<string>;
+      totalSessões: number;
+      faturamentoBruto: number;
+      repasseProfissional: number;
+      comissaoClinica: number;
+      sessoes: any[];
+    }>();
+
+    filteredRepasses.forEach((a: any) => {
+      const profId = a.profissional_id;
+      if (!profId) return;
+
+      const profName = a.profissionais?.nome || "Desconhecido";
+      const profCor = a.profissionais?.cor || "#000000";
+      const spec = getAppointmentSpecialty(a);
+      const val = getAppointmentValue(a);
+      const { profPct, clinicPct } = getRepasseRates(spec);
+
+      let group = groups.get(profId);
+      if (!group) {
+        group = {
+          profissionalId: profId,
+          nome: profName,
+          cor: profCor,
+          especialidades: new Set<string>(),
+          totalSessões: 0,
+          faturamentoBruto: 0,
+          repasseProfissional: 0,
+          comissaoClinica: 0,
+          sessoes: [],
+        };
+        groups.set(profId, group);
+      }
+
+      group.especialidades.add(spec);
+      group.totalSessões += 1;
+      group.faturamentoBruto += val;
+      group.repasseProfissional += val * profPct;
+      group.comissaoClinica += val * clinicPct;
+      group.sessoes.push(a);
+    });
+
+    return Array.from(groups.values()).sort((a, b) => a.nome.localeCompare(b.nome));
+  }, [filteredRepasses]);
+
+
   // Billing Filters
   const [searchPatient, setSearchPatient] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -751,6 +1003,9 @@ Agradecemos a atenção!
           </TabsTrigger>
           <TabsTrigger value="cobrancas" className="rounded-lg px-4 py-2 text-sm font-medium">
             Cobranças por Paciente
+          </TabsTrigger>
+          <TabsTrigger value="pagamentos" className="rounded-lg px-4 py-2 text-sm font-medium">
+            Repasses de Profissionais
           </TabsTrigger>
         </TabsList>
 
@@ -1349,6 +1604,341 @@ Agradecemos a atenção!
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="pagamentos" className="space-y-6 mt-0">
+          {/* Summary Cards */}
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <Card className="border-border shadow-sm relative overflow-hidden group hover:shadow-md transition duration-200">
+              <div className="absolute top-0 left-0 w-full h-1 bg-primary" />
+              <CardContent className="flex items-center gap-4 p-5">
+                <div className="grid h-12 w-12 place-items-center rounded-xl bg-primary/5 text-primary">
+                  <Calendar className="h-6 w-6" />
+                </div>
+                <div className="space-y-1">
+                  <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Total de Sessões
+                  </div>
+                  <div className="text-2xl font-bold text-foreground">
+                    {repasseStats.totalSessões}
+                  </div>
+                  <div className="text-[11px] text-muted-foreground">
+                    No período selecionado
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-border shadow-sm relative overflow-hidden group hover:shadow-md transition duration-200">
+              <div className="absolute top-0 left-0 w-full h-1 bg-sky-500" />
+              <CardContent className="flex items-center gap-4 p-5">
+                <div className="grid h-12 w-12 place-items-center rounded-xl bg-sky-50 text-sky-600 dark:bg-sky-950/20 dark:text-sky-400">
+                  <DollarSign className="h-6 w-6" />
+                </div>
+                <div className="space-y-1">
+                  <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Faturamento Bruto
+                  </div>
+                  <div className="text-2xl font-bold text-sky-600 dark:text-sky-400">
+                    {brl(repasseStats.faturamentoBruto)}
+                  </div>
+                  <div className="text-[11px] text-muted-foreground">
+                    Total bruto das sessões
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-emerald-500/10 shadow-sm relative overflow-hidden group hover:shadow-md transition duration-200">
+              <div className="absolute top-0 left-0 w-full h-1 bg-emerald-500" />
+              <CardContent className="flex items-center gap-4 p-5">
+                <div className="grid h-12 w-12 place-items-center rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/20 dark:text-emerald-400">
+                  <TrendingUp className="h-6 w-6" />
+                </div>
+                <div className="space-y-1">
+                  <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Repasse Profissional
+                  </div>
+                  <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+                    {brl(repasseStats.repasseProfissional)}
+                  </div>
+                  <div className="text-[11px] text-muted-foreground">
+                    Valor total a repassar (70% ou 50%)
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-purple-500/10 shadow-sm relative overflow-hidden group hover:shadow-md transition duration-200">
+              <div className="absolute top-0 left-0 w-full h-1 bg-purple-500" />
+              <CardContent className="flex items-center gap-4 p-5">
+                <div className="grid h-12 w-12 place-items-center rounded-xl bg-purple-50 text-purple-600 dark:bg-purple-950/20 dark:text-purple-400">
+                  <TrendingDown className="h-6 w-6" />
+                </div>
+                <div className="space-y-1">
+                  <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Comissão Clínica
+                  </div>
+                  <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
+                    {brl(repasseStats.comissaoClinica)}
+                  </div>
+                  <div className="text-[11px] text-muted-foreground">
+                    Participação da clínica (30% ou 50%)
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Filters Card */}
+          <Card className="border-border shadow-sm">
+            <CardContent className="flex flex-wrap items-end gap-4 p-4">
+              <div className="space-y-1.5 flex-1 min-w-[200px] max-w-xs">
+                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Profissional</Label>
+                <Select value={selectedProfId} onValueChange={handleSelectProf}>
+                  <SelectTrigger className="h-10">
+                    <SelectValue placeholder="Todos os Profissionais" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos os Profissionais</SelectItem>
+                    {(profissionais || []).map((p: any) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.nome}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5 flex-1 min-w-[200px] max-w-xs">
+                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Status da Sessão</Label>
+                <Select value={sessionStatusFilter} onValueChange={setSessionStatusFilter}>
+                  <SelectTrigger className="h-10">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="confirmado_pago">Confirmados & Pagos</SelectItem>
+                    <SelectItem value="confirmado">Confirmados</SelectItem>
+                    <SelectItem value="pago">Pagos</SelectItem>
+                    <SelectItem value="realizado">Realizados</SelectItem>
+                    <SelectItem value="todos">Todos os Status (exceto cancelados)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex-1 flex justify-end self-center md:self-end">
+                <div className="text-[11px] text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/20 border border-amber-500/10 rounded-lg px-3 py-2 flex items-center gap-1.5 max-w-md">
+                  <AlertCircle className="h-4 w-4 shrink-0" />
+                  <span>
+                    Somente sessões nos status <strong>Confirmado</strong> ou <strong>Pago</strong> geram faturamento no sistema financeiro por padrão.
+                  </span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Main Calculation Content */}
+          {loadingAgendamentos ? (
+            <Card className="border-border shadow-sm p-8 text-center text-sm text-muted-foreground">
+              Carregando dados de agendamentos e faturamento...
+            </Card>
+          ) : viewingProfDetail ? (
+            /* DETAILED VIEW FOR A SPECIFIC PROFESSIONAL */
+            <Card className="border-border shadow-sm">
+              <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleSelectProf("all")}
+                      className="h-8 gap-1 font-semibold text-xs"
+                    >
+                      <ChevronLeft className="h-4 w-4" /> Voltar
+                    </Button>
+                    <CardTitle className="text-lg">
+                      Detalhes do Profissional: {profissionais.find((p: any) => p.id === viewingProfDetail)?.nome || "—"}
+                    </CardTitle>
+                  </div>
+                  <CardDescription className="mt-1 pl-12 sm:pl-16">
+                    Lista detalhada de sessões e cálculo de repasse individualizado no período.
+                  </CardDescription>
+                </div>
+              </CardHeader>
+              <CardContent className="p-0 sm:p-6 sm:pt-0">
+                {filteredRepasses.length === 0 ? (
+                  <div className="p-8 text-center text-sm text-muted-foreground">
+                    Nenhuma sessão encontrada para este profissional nos critérios selecionados.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto rounded-lg border border-border">
+                    <Table>
+                      <TableHeader className="bg-muted/40 font-semibold text-foreground">
+                        <TableRow>
+                          <TableHead>Data / Hora</TableHead>
+                          <TableHead>Paciente</TableHead>
+                          <TableHead>Especialidade</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Valor Sessão</TableHead>
+                          <TableHead>Regra (Prof / Clínica)</TableHead>
+                          <TableHead>Repasse Profissional</TableHead>
+                          <TableHead>Comissão Clínica</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredRepasses
+                          .sort((a, b) => new Date(a.data_inicio).getTime() - new Date(b.data_inicio).getTime())
+                          .map((a: any) => {
+                            const val = getAppointmentValue(a);
+                            const spec = getAppointmentSpecialty(a);
+                            const { profPct, clinicPct, label: splitLabel } = getRepasseRates(spec);
+                            
+                            const repasseVal = val * profPct;
+                            const clinicVal = val * clinicPct;
+
+                            return (
+                              <TableRow key={a.id} className="hover:bg-muted/30">
+                                <TableCell className="font-medium">
+                                  {format(new Date(a.data_inicio), "dd/MM/yyyy HH:mm")}
+                                </TableCell>
+                                <TableCell className="font-semibold text-foreground">
+                                  {a.pacientes?.nome || "Paciente Desconhecido"}
+                                </TableCell>
+                                <TableCell>
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-muted text-muted-foreground">
+                                    {spec}
+                                  </span>
+                                </TableCell>
+                                <TableCell>
+                                  <Badge
+                                    variant="secondary"
+                                    className={
+                                      a.status === "pago"
+                                        ? "bg-emerald-500 hover:bg-emerald-600 text-white border-transparent"
+                                        : a.status === "confirmado"
+                                        ? "bg-sky-500 hover:bg-sky-600 text-white border-transparent"
+                                        : ""
+                                    }
+                                  >
+                                    {a.status === "pago"
+                                      ? "Pago"
+                                      : a.status === "confirmado"
+                                      ? "Confirmado"
+                                      : a.status === "realizado"
+                                      ? "Realizado"
+                                      : a.status === "falta"
+                                      ? "Falta"
+                                      : a.status}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell className="font-semibold text-foreground">
+                                  {brl(val)}
+                                </TableCell>
+                                <TableCell className="text-xs text-muted-foreground">
+                                  {splitLabel}
+                                </TableCell>
+                                <TableCell className="font-semibold text-emerald-600 dark:text-emerald-400">
+                                  {brl(repasseVal)}
+                                </TableCell>
+                                <TableCell className="font-medium text-purple-600 dark:text-purple-400">
+                                  {brl(clinicVal)}
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          ) : (
+            /* CONSOLIDATED VIEW OF ALL PROFESSIONALS */
+            <Card className="border-border shadow-sm">
+              <CardHeader>
+                <CardTitle className="text-lg">Resumo por Profissional</CardTitle>
+                <CardDescription>
+                  Valores totais a repassar e comissões consolidadas por profissional no período selecionado.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-0 sm:p-6 sm:pt-0">
+                {consolidatedRepasses.length === 0 ? (
+                  <div className="p-8 text-center text-sm text-muted-foreground border border-dashed rounded-lg">
+                    Nenhum profissional com sessões correspondentes no período.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto rounded-lg border border-border">
+                    <Table>
+                      <TableHeader className="bg-muted/40 font-semibold text-foreground">
+                        <TableRow>
+                          <TableHead>Profissional</TableHead>
+                          <TableHead>Especialidades Atendidas</TableHead>
+                          <TableHead className="text-center">Qtd de Sessões</TableHead>
+                          <TableHead>Faturamento Bruto</TableHead>
+                          <TableHead>Repasse Profissional</TableHead>
+                          <TableHead>Comissão Clínica</TableHead>
+                          <TableHead className="w-[120px] text-right">Ações</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {consolidatedRepasses.map((group) => {
+                          const specsArr = Array.from(group.especialidades);
+                          
+                          return (
+                            <TableRow key={group.profissionalId} className="hover:bg-muted/30">
+                              <TableCell className="font-semibold text-foreground">
+                                <div className="flex items-center gap-2">
+                                  <div
+                                    className="h-2.5 w-2.5 rounded-full shrink-0"
+                                    style={{ backgroundColor: group.cor }}
+                                  />
+                                  <span>{group.nome}</span>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex flex-wrap gap-1">
+                                  {specsArr.map((spec) => (
+                                    <span
+                                      key={spec}
+                                      className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-muted text-muted-foreground"
+                                    >
+                                      {spec}
+                                    </span>
+                                  ))}
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-center font-medium">
+                                {group.totalSessões}
+                              </TableCell>
+                              <TableCell className="font-semibold text-foreground">
+                                {brl(group.faturamentoBruto)}
+                              </TableCell>
+                              <TableCell className="font-semibold text-emerald-600 dark:text-emerald-400">
+                                {brl(group.repasseProfissional)}
+                              </TableCell>
+                              <TableCell className="font-semibold text-purple-600 dark:text-purple-400">
+                                {brl(group.comissaoClinica)}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-8 gap-1 font-semibold text-xs"
+                                  onClick={() => handleSelectProf(group.profissionalId)}
+                                >
+                                  <Eye className="h-3.5 w-3.5" /> Detalhar
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
       </Tabs>
 
