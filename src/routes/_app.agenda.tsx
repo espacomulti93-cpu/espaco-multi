@@ -607,6 +607,7 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
 
   const [pacienteOpen, setPacienteOpen] = useState(false);
   const [editPatientOpen, setEditPatientOpen] = useState(false);
+  const [newPatientOpen, setNewPatientOpen] = useState(false);
   const [recorrenciaConfirmOpen, setRecorrenciaConfirmOpen] = useState(false);
 
   const [selectedSpecialty, setSelectedSpecialty] = useState(() => {
@@ -784,17 +785,22 @@ Fico à disposição para qualquer dúvida!`;
   }, [profissionais, form.profissional_id, selectedSpecialty]);
 
   // Auto-select specialty if only one is available
+  const professionalSpecialtiesKey = professionalSpecialties.join(",");
   useEffect(() => {
     if (professionalSpecialties.length === 1) {
-      setSelectedSpecialty(professionalSpecialties[0]);
+      if (selectedSpecialty !== professionalSpecialties[0]) {
+        setSelectedSpecialty(professionalSpecialties[0]);
+      }
     } else if (professionalSpecialties.length > 0) {
-      if (!professionalSpecialties.includes(selectedSpecialty)) {
+      if (selectedSpecialty && !professionalSpecialties.includes(selectedSpecialty)) {
         setSelectedSpecialty("");
       }
     } else {
-      setSelectedSpecialty("");
+      if (selectedSpecialty !== "") {
+        setSelectedSpecialty("");
+      }
     }
-  }, [professionalSpecialties]);
+  }, [professionalSpecialtiesKey, selectedSpecialty]);
 
   // 3. Find configured rates/plans
   const currentPricing = useMemo(() => {
@@ -1527,6 +1533,17 @@ Fico à disposição para qualquer dúvida!`;
                 </PopoverContent>
               </Popover>
 
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="shrink-0 text-primary hover:bg-primary/5 border-dashed"
+                onClick={() => setNewPatientOpen(true)}
+                title="Cadastrar novo paciente"
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+
               {selectedPaciente && (
                 <Button
                   type="button"
@@ -1736,6 +1753,20 @@ Fico à disposição para qualquer dúvida!`;
                 await qc.invalidateQueries({
                   queryKey: ["responsaveis-paciente-dialog", selectedPaciente.id],
                 });
+              }
+            }}
+          />
+        )}
+      </Dialog>
+      <Dialog open={newPatientOpen} onOpenChange={setNewPatientOpen}>
+        {newPatientOpen && (
+          <PacienteFormDialog
+            onSaved={async (newPac: any) => {
+              setNewPatientOpen(false);
+              await qc.invalidateQueries({ queryKey: ["pac-min"] });
+              await qc.invalidateQueries({ queryKey: ["pacientes"] });
+              if (newPac?.id) {
+                handlePacienteChange(newPac.id);
               }
             }}
           />

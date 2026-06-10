@@ -328,7 +328,9 @@ const formatPhone = (value: string) => {
   return `(${nums.substring(0, 2)}) ${nums.substring(2, 7)}-${nums.substring(7, 11)}`;
 };
 
-export function PacienteFormDialog({ paciente, onSaved }: { paciente?: any; onSaved: () => void }) {
+const EMPTY_ARRAY: any[] = [];
+
+export function PacienteFormDialog({ paciente, onSaved }: { paciente?: any; onSaved: (newPac?: any) => void }) {
   const [form, setForm] = useState({
     nome: paciente?.nome ?? "",
     data_nascimento: paciente?.data_nascimento
@@ -366,7 +368,7 @@ export function PacienteFormDialog({ paciente, onSaved }: { paciente?: any; onSa
     },
   });
 
-  const { data: currentProfs = [] } = useQuery({
+  const { data: currentProfs = EMPTY_ARRAY } = useQuery({
     queryKey: ["paciente-profissionais", paciente?.id],
     queryFn: async () => {
       if (!paciente?.id) return [];
@@ -382,13 +384,14 @@ export function PacienteFormDialog({ paciente, onSaved }: { paciente?: any; onSa
 
   const [selectedProfs, setSelectedProfs] = useState<string[]>([]);
 
+  const currentProfsKey = currentProfs?.join(",");
   useEffect(() => {
-    if (currentProfs.length > 0) {
+    if (currentProfs && currentProfs.length > 0) {
       setSelectedProfs(currentProfs);
     } else {
       setSelectedProfs([]);
     }
-  }, [currentProfs]);
+  }, [currentProfsKey]);
 
   const availableSpecialties = Array.from(
     new Set(
@@ -398,7 +401,7 @@ export function PacienteFormDialog({ paciente, onSaved }: { paciente?: any; onSa
     ),
   ) as string[];
 
-  const { data: responsaveis = [] } = useQuery({
+  const { data: responsaveis = EMPTY_ARRAY } = useQuery({
     queryKey: ["responsaveis", paciente?.id],
     queryFn: async () => {
       if (!paciente?.id) return [];
@@ -413,15 +416,16 @@ export function PacienteFormDialog({ paciente, onSaved }: { paciente?: any; onSa
     enabled: !!paciente?.id,
   });
 
+  const responsaveisKey = responsaveis?.map((r: any) => `${r.nome}-${r.telefone}`).join(",");
   useEffect(() => {
-    if (responsaveis.length > 0) {
+    if (responsaveis && responsaveis.length > 0) {
       setForm((f) => ({
         ...f,
         responsavel: responsaveis[0].nome,
         telefone: formatPhone(responsaveis[0].telefone ?? ""),
       }));
     }
-  }, [responsaveis]);
+  }, [responsaveisKey]);
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const formatted = formatPhone(e.target.value);
@@ -458,6 +462,8 @@ export function PacienteFormDialog({ paciente, onSaved }: { paciente?: any; onSa
         status: form.status,
         observacoes: form.observacoes || null,
       };
+
+      let resultPaciente = paciente;
 
       if (paciente) {
         // Edit mode
@@ -513,6 +519,7 @@ export function PacienteFormDialog({ paciente, onSaved }: { paciente?: any; onSa
           .select()
           .single();
         if (error) throw error;
+        resultPaciente = newPaciente;
 
         // Insert new mappings
         if (selectedProfs.length > 0 && newPaciente) {
@@ -533,14 +540,16 @@ export function PacienteFormDialog({ paciente, onSaved }: { paciente?: any; onSa
           if (rError) throw rError;
         }
       }
+
+      return resultPaciente;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       toast.success(paciente ? "Paciente atualizado" : "Paciente cadastrado");
       qc.invalidateQueries({ queryKey: ["paciente-profissional-all"] });
       qc.invalidateQueries({ queryKey: ["paciente-profissionais-detail", paciente?.id] });
       qc.invalidateQueries({ queryKey: ["paciente-profissionais", paciente?.id] });
       qc.invalidateQueries({ queryKey: ["paciente-profissional"] });
-      onSaved();
+      onSaved(data);
     },
     onError: (e: any) => toast.error(e.message),
   });
