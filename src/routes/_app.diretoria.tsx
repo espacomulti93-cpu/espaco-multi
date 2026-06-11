@@ -800,9 +800,9 @@ function DiretoriaPageContent() {
 
       totalSessões += 1;
       
-      if (a.status === "pago" || a.status === "confirmado") {
+      if (a.status === "pago") {
         repassePago += val * profPct;
-      } else if (a.status === "realizado") {
+      } else if (a.status === "confirmado" || a.status === "realizado") {
         repassePendente += val * profPct;
       }
     });
