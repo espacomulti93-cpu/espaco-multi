@@ -56,7 +56,6 @@ export function PacienteFormDialog({
   defaultProfessionalId?: string;
 }) {
   const qc = useQueryClient();
-
   const [form, setForm] = useState({
     nome: paciente?.nome ?? "",
     data_nascimento: paciente?.data_nascimento
@@ -72,8 +71,8 @@ export function PacienteFormDialog({
     observacoes: paciente?.observacoes ?? "",
     responsavel: "",
     telefone: "",
+    valor_mensal: paciente?.valor_mensal ? String(paciente.valor_mensal) : "",
   });
-
   const { data: profissionais = [] } = useQuery({
     queryKey: ["profissionais"],
     queryFn: async () => {
@@ -186,7 +185,6 @@ export function PacienteFormDialog({
         }
         dbBirthDate = `${parts[2]}-${parts[1]}-${parts[0]}`;
       }
-
       const payload: any = {
         nome: form.nome,
         data_nascimento: dbBirthDate,
@@ -196,8 +194,8 @@ export function PacienteFormDialog({
         convenio_nome: form.tipo_atendimento === "convenio" ? form.convenio_nome : null,
         status: form.status,
         observacoes: form.observacoes || null,
+        valor_mensal: form.valor_mensal ? Number(form.valor_mensal) : null,
       };
-
       if (paciente) {
         // Edit mode
         const { error } = await supabase.from("pacientes").update(payload).eq("id", paciente.id);
@@ -440,16 +438,29 @@ export function PacienteFormDialog({
             </Select>
           </div>
         </div>
-        {form.tipo_atendimento === "convenio" && (
-          <div className="space-y-1.5">
-            <Label>Nome do convênio</Label>
+
+        {form.tipo_atendimento === "particular" && (
+          <div className="space-y-1.5 animate-in fade-in duration-200">
+            <Label>Valor Mensal (deixe em branco se for cobrança por sessão)</Label>
             <Input
-              value={form.convenio_nome}
-              onChange={(e) => setForm({ ...form, convenio_nome: e.target.value })}
+              type="number"
+              placeholder="Ex: 400.00"
+              value={form.valor_mensal}
+              onChange={(e) => setForm({ ...form, valor_mensal: e.target.value })}
             />
           </div>
         )}
 
+        {form.tipo_atendimento === "convenio" && (
+          <div className="space-y-1.5 animate-in fade-in duration-200">
+            <Label>Nome do convênio</Label>
+            <Input
+              value={form.convenio_nome}
+              onChange={(e) => setForm({ ...form, convenio_nome: e.target.value })}
+              placeholder="Nome do plano/convênio"
+            />
+          </div>
+        )}
         <div className="space-y-1.5">
           <Label>Observações clínicas</Label>
           <Textarea

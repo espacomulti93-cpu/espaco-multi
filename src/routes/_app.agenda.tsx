@@ -84,6 +84,14 @@ function Agenda() {
 
   const [selectedProfs, setSelectedProfs] = useState<string[]>([]);
 
+  const [patientDialogState, setPatientDialogState] = useState<{
+    open: boolean;
+    paciente?: any;
+    defaultSpecialty?: string;
+    defaultProfessionalId?: string;
+    onSaved?: (newPac?: any) => void;
+  }>({ open: false });
+
   const { data: profissionais = [] } = useQuery({
     queryKey: ["prof-min"],
     queryFn: async () =>
@@ -279,6 +287,21 @@ function Agenda() {
               setDialog({ open: false });
               setCancelTarget(a);
             }}
+            triggerNewPatient={(defaultSpecialty, defaultProfessionalId, onSaved) => {
+              setPatientDialogState({
+                open: true,
+                defaultSpecialty,
+                defaultProfessionalId,
+                onSaved,
+              });
+            }}
+            triggerEditPatient={(paciente, onSaved) => {
+              setPatientDialogState({
+                open: true,
+                paciente,
+                onSaved,
+              });
+            }}
           />
         )}
       </Dialog>
@@ -292,6 +315,25 @@ function Agenda() {
               qc.invalidateQueries({ queryKey: ["ags"] });
               qc.invalidateQueries({ queryKey: ["patient-ags-dialog"] });
               qc.invalidateQueries({ queryKey: ["faturas"] });
+            }}
+          />
+        )}
+      </Dialog>
+
+      <Dialog
+        open={patientDialogState.open}
+        onOpenChange={(o) => setPatientDialogState((prev) => ({ ...prev, open: o }))}
+      >
+        {patientDialogState.open && (
+          <PacienteFormDialog
+            paciente={patientDialogState.paciente}
+            defaultSpecialty={patientDialogState.defaultSpecialty}
+            defaultProfessionalId={patientDialogState.defaultProfessionalId}
+            onSaved={async (newPac: any) => {
+              setPatientDialogState((prev) => ({ ...prev, open: false }));
+              if (patientDialogState.onSaved) {
+                await patientDialogState.onSaved(newPac);
+              }
             }}
           />
         )}
@@ -570,7 +612,23 @@ function FragmentRow({ h, days, ags, onCellClick, onEdit }: any) {
   );
 }
 
-function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
+
+
+function AgendamentoDialog({
+  editing,
+  defaults,
+  onSaved,
+  onCancel,
+  triggerNewPatient,
+  triggerEditPatient,
+}: {
+  editing?: any;
+  defaults?: any;
+  onSaved: () => void;
+  onCancel: (a: any) => void;
+  triggerNewPatient: (defaultSpecialty: string, defaultProfessionalId: string, onSaved: (newPac: any) => void) => void;
+  triggerEditPatient: (paciente: any, onSaved: () => void) => void;
+}) {
   const qc = useQueryClient();
   const initialStart =
     editing && editing.data_inicio
@@ -606,8 +664,6 @@ function AgendamentoDialog({ editing, defaults, onSaved, onCancel }: any) {
   });
 
   const [pacienteOpen, setPacienteOpen] = useState(false);
-  const [editPatientOpen, setEditPatientOpen] = useState(false);
-  const [newPatientOpen, setNewPatientOpen] = useState(false);
   const [recorrenciaConfirmOpen, setRecorrenciaConfirmOpen] = useState(false);
 
   const [selectedSpecialty, setSelectedSpecialty] = useState(() => {
@@ -1277,7 +1333,7 @@ Fico à disposição para qualquer dúvida!`;
   };
 
   return (
-    <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+    <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
       <DialogHeader>
         <DialogTitle>
           {recorrenciaConfirmOpen
@@ -1462,150 +1518,192 @@ Fico à disposição para qualquer dúvida!`;
             </div>
           </div>
         )}
-
-        <div className="space-y-1.5">
-          <Label>Profissional *</Label>
-          <Select value={form.profissional_id} onValueChange={handleProfissionalChange}>
-            <SelectTrigger>
-              <SelectValue placeholder="Selecione o profissional…" />
-            </SelectTrigger>
-            <SelectContent>
-              {profissionais.map((p: any) => (
-                <SelectItem key={p.id} value={p.id}>
-                  {p.nome}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {(form.profissional_id || editing) && (
-          <div className="space-y-1.5 animate-in fade-in duration-200">
-            <Label>Especialidade *</Label>
-            <Select value={selectedSpecialty} onValueChange={handleSpecialtyChange}>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-1.5">
+            <Label>Profissional *</Label>
+            <Select value={form.profissional_id} onValueChange={handleProfissionalChange}>
               <SelectTrigger>
-                <SelectValue placeholder="Selecione a especialidade…" />
+                <SelectValue placeholder="Selecione o profissional…" />
               </SelectTrigger>
               <SelectContent>
-                {professionalSpecialties.map((s: string) => (
-                  <SelectItem key={s} value={s}>
-                    {s}
+                {profissionais.map((p: any) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {p.nome}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
-        )}
+
+          {(form.profissional_id || editing) && (
+            <div className="space-y-1.5 animate-in fade-in duration-200">
+              <Label>Especialidade *</Label>
+              <Select value={selectedSpecialty} onValueChange={handleSpecialtyChange}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione a especialidade…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {professionalSpecialties.map((s: string) => (
+                    <SelectItem key={s} value={s}>
+                      {s}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+        </div>
 
         {((form.profissional_id && selectedSpecialty) || editing) && (
-          <div className="space-y-1.5 animate-in fade-in duration-200">
-            <Label>Paciente *</Label>
-            <div className="flex gap-2">
-              <Popover open={pacienteOpen} onOpenChange={setPacienteOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    role="combobox"
-                    aria-expanded={pacienteOpen}
-                    className="flex-1 justify-between font-normal text-left px-3"
+          <div className="grid grid-cols-2 gap-4 animate-in fade-in duration-200">
+            {/* Paciente Column */}
+            <div className="space-y-1.5">
+              <Label>Paciente *</Label>
+              <div className="flex gap-2">
+                <Popover open={pacienteOpen} onOpenChange={setPacienteOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={pacienteOpen}
+                      className="flex-1 justify-between font-normal text-left px-3 animate-in fade-in duration-200"
+                    >
+                      {selectedPaciente ? selectedPaciente.nome : "Selecione o paciente..."}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent
+                    className="w-[var(--radix-popover-trigger-width)] p-0"
+                    align="start"
+                    onCloseAutoFocus={(e) => e.preventDefault()}
                   >
-                    {selectedPaciente ? selectedPaciente.nome : "Selecione o paciente..."}
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent
-                  className="w-[var(--radix-popover-trigger-width)] p-0"
-                  align="start"
-                  portalled={false}
-                  onCloseAutoFocus={(e) => e.preventDefault()}
-                >
-                  <Command>
-                    <CommandInput placeholder="Pesquisar paciente..." className="h-9" />
-                    <CommandList>
-                      <CommandEmpty className="p-4 text-center text-sm">
-                        <p className="text-muted-foreground mb-2">Nenhum paciente cadastrado nesta especialidade.</p>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="w-full gap-1.5"
-                          onClick={() => {
-                            setPacienteOpen(false);
-                            setNewPatientOpen(true);
-                          }}
-                        >
-                          <Plus className="h-4 w-4" /> Cadastrar Novo Paciente
-                        </Button>
-                      </CommandEmpty>
-                      <CommandGroup>
-                        {displayedPacientes.map((p: any) => (
-                          <CommandItem
-                            key={p.id}
-                            value={`${p.nome?.toLowerCase() || ""}-${p.id}`}
-                            onSelect={() => {
-                              handlePacienteChange(p.id);
+                    <Command>
+                      <CommandInput placeholder="Pesquisar paciente..." className="h-9" />
+                      <CommandList>
+                        <CommandEmpty className="p-4 text-center text-sm">
+                          <p className="text-muted-foreground mb-2">Nenhum paciente cadastrado nesta especialidade.</p>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="w-full gap-1.5"
+                            onClick={() => {
                               setPacienteOpen(false);
+                              triggerNewPatient(selectedSpecialty, form.profissional_id, (newPac) => {
+                                if (newPac?.id) {
+                                  handlePacienteChange(newPac.id);
+                                }
+                              });
                             }}
                           >
-                            <Check
-                              className={cn(
-                                "mr-2 h-4 w-4",
-                                form.paciente_id === p.id ? "opacity-100" : "opacity-0",
-                              )}
-                            />
-                            {p.nome}
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
+                            <Plus className="h-4 w-4" /> Cadastrar Novo Paciente
+                          </Button>
+                        </CommandEmpty>
+                        <CommandGroup>
+                          {displayedPacientes.map((p: any) => (
+                            <CommandItem
+                              key={p.id}
+                              value={`${p.nome?.toLowerCase() || ""}-${p.id}`}
+                              onSelect={() => {
+                                handlePacienteChange(p.id);
+                                setPacienteOpen(false);
+                              }}
+                              className="flex items-center justify-between cursor-pointer"
+                            >
+                              <div className="flex items-center flex-1 min-w-0">
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4 shrink-0",
+                                    form.paciente_id === p.id ? "opacity-100" : "opacity-0",
+                                  )}
+                                />
+                                <span className="truncate font-medium">{p.nome}</span>
+                              </div>
+                              <Badge variant="outline" className="text-[10px] ml-2 shrink-0 font-medium bg-muted/50">
+                                {p.valor_mensal && p.valor_mensal > 0
+                                  ? `Mensal: R$ ${Number(p.valor_mensal).toFixed(2)}`
+                                  : "Por Sessão"}
+                              </Badge>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
 
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                className="shrink-0 text-primary hover:bg-primary/5 border-dashed"
-                onClick={() => setNewPatientOpen(true)}
-                title="Cadastrar novo paciente"
-              >
-                <Plus className="h-4 w-4" />
-              </Button>
-
-              {selectedPaciente && (
                 <Button
                   type="button"
                   variant="outline"
                   size="icon"
-                  className="shrink-0"
-                  onClick={() => setEditPatientOpen(true)}
-                  title="Editar dados do paciente"
+                  className="shrink-0 text-primary hover:bg-primary/5 border-dashed"
+                  onClick={() => triggerNewPatient(selectedSpecialty, form.profissional_id, (newPac) => {
+                    if (newPac?.id) {
+                      handlePacienteChange(newPac.id);
+                    }
+                  })}
+                  title="Cadastrar novo paciente"
                 >
-                  <Pencil className="h-4 w-4" />
+                  <Plus className="h-4 w-4" />
                 </Button>
+
+                {selectedPaciente && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="shrink-0"
+                    onClick={() => triggerEditPatient(selectedPaciente, () => {
+                      qc.invalidateQueries({
+                        queryKey: ["responsaveis-paciente-dialog", selectedPaciente.id],
+                      });
+                    })}
+                    title="Editar dados do paciente"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+
+              {selectedPaciente && (
+                <div className="text-[11px] text-muted-foreground flex items-center gap-1.5 mt-1.5 bg-muted/30 px-2.5 py-1.5 rounded border border-dashed border-border/80">
+                  <span className="font-medium">Cobrança:</span>
+                  <span className={cn(
+                    "font-semibold rounded-full px-2 py-0.5 text-[9px] uppercase",
+                    selectedPaciente.valor_mensal && selectedPaciente.valor_mensal > 0
+                      ? "bg-blue-50 text-blue-700 border border-blue-200"
+                      : "bg-green-50 text-green-700 border border-green-200"
+                  )}>
+                    {selectedPaciente.valor_mensal && selectedPaciente.valor_mensal > 0
+                      ? `Plano Mensal: R$ ${Number(selectedPaciente.valor_mensal).toFixed(2)}`
+                      : "Pagamento por Sessão"}
+                  </span>
+                </div>
               )}
+            </div>
+
+            {/* Tipo de Agendamento Column */}
+            <div className="space-y-1.5 flex flex-col justify-start">
+              {((form.paciente_id && specialtyUpper !== "AP") || (editing && specialtyUpper !== "AP")) ? (
+                <div className="space-y-1.5 animate-in fade-in duration-200">
+                  <Label>Tipo de Agendamento *</Label>
+                  <Select value={tipoAgendamento} onValueChange={(v: any) => setTipoAgendamento(v)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="sessao">Sessão Padrão</SelectItem>
+                      <SelectItem value="anamnese">Anamnese</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : null}
             </div>
           </div>
         )}
 
         {((form.profissional_id && form.paciente_id && selectedSpecialty) || editing) && (
           <div className="space-y-3 animate-in fade-in duration-200">
-            {specialtyUpper !== "AP" && (
-              <div className="space-y-1.5 animate-in fade-in duration-200">
-                <Label>Tipo de Agendamento *</Label>
-                <Select value={tipoAgendamento} onValueChange={(v: any) => setTipoAgendamento(v)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="sessao">Sessão Padrão</SelectItem>
-                    <SelectItem value="anamnese">Anamnese</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-
             {currentPricing && (
               <div className="rounded-lg border bg-accent/20 p-3 text-xs space-y-1.5 shadow-inner">
                 <div className="font-semibold text-muted-foreground flex justify-between">
@@ -1768,41 +1866,7 @@ Fico à disposição para qualquer dúvida!`;
           </div>
         )}
       </>
-    )}
       </form>
-      <Dialog open={editPatientOpen} onOpenChange={setEditPatientOpen}>
-        {editPatientOpen && (
-          <PacienteFormDialog
-            paciente={selectedPaciente}
-            onSaved={async () => {
-              setEditPatientOpen(false);
-              await qc.invalidateQueries({ queryKey: ["pac-min"] });
-              await qc.invalidateQueries({ queryKey: ["pacientes"] });
-              if (selectedPaciente?.id) {
-                await qc.invalidateQueries({
-                  queryKey: ["responsaveis-paciente-dialog", selectedPaciente.id],
-                });
-              }
-            }}
-          />
-        )}
-      </Dialog>
-      <Dialog open={newPatientOpen} onOpenChange={setNewPatientOpen}>
-        {newPatientOpen && (
-          <PacienteFormDialog
-            defaultSpecialty={selectedSpecialty}
-            defaultProfessionalId={form.profissional_id}
-            onSaved={async (newPac: any) => {
-              setNewPatientOpen(false);
-              await qc.invalidateQueries({ queryKey: ["pac-min"] });
-              await qc.invalidateQueries({ queryKey: ["pacientes"] });
-              if (newPac?.id) {
-                handlePacienteChange(newPac.id);
-              }
-            }}
-          />
-        )}
-      </Dialog>
     </DialogContent>
   );
 }
