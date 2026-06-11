@@ -740,6 +740,7 @@ function AgendamentoDialog({
     enabled: !!form.paciente_id,
   });
 
+  // Localiza o paciente selecionado para recuperar os detalhes de faturamento/cobrança
   const selectedPaciente = pacientes.find((p: any) => p.id === form.paciente_id);
 
   const whatsappUrl = useMemo(() => {
