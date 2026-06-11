@@ -305,4 +305,5 @@ function PacientesPage() {
       )}
     </div>
   );
+}
 
