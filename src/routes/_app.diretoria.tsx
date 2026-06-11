@@ -1876,7 +1876,7 @@ Agradecemos a atenção!
                     {brl(repasseCardsStats.repassePago)}
                   </div>
                   <div className="text-[11px] text-muted-foreground">
-                    Sessões com status Pago ou Confirmado
+                    Sessões com status Pago
                   </div>
                 </div>
               </CardContent>
@@ -1896,7 +1896,7 @@ Agradecemos a atenção!
                     {brl(repasseCardsStats.repassePendente)}
                   </div>
                   <div className="text-[11px] text-muted-foreground">
-                    Sessões com status Realizado
+                    Sessões com status Confirmado ou Realizado
                   </div>
                 </div>
               </CardContent>
