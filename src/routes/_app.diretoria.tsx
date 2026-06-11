@@ -802,7 +802,7 @@ function DiretoriaPageContent() {
       
       if (a.status === "pago") {
         repassePago += val * profPct;
-      } else if (a.status === "confirmado" || a.status === "realizado") {
+      } else if (a.status === "realizado" || a.status === "falta") {
         repassePendente += val * profPct;
       }
     });
@@ -1896,7 +1896,7 @@ Agradecemos a atenção!
                     {brl(repasseCardsStats.repassePendente)}
                   </div>
                   <div className="text-[11px] text-muted-foreground">
-                    Sessões com status Confirmado ou Realizado
+                    Sessões com status Realizado ou Falta
                   </div>
                 </div>
               </CardContent>
