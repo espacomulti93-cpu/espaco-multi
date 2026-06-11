@@ -176,9 +176,11 @@ function PacienteDetail() {
           <Info
             label="Atendimento"
             value={
-              paciente.tipo_atendimento === "convenio"
-                ? `Convênio: ${paciente.convenio_nome ?? "—"}`
-                : "Particular"
+              paciente.tipo_atendimento === "convenio" ? (
+                `Convênio: ${paciente.convenio_nome ?? "—"}`
+              ) : (
+                `Particular (${paciente.valor_mensal && paciente.valor_mensal > 0 ? "Mensal" : "Por Sessão"})`
+              )
             }
           />
 

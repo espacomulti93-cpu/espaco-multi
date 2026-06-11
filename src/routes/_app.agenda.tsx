@@ -1659,7 +1659,7 @@ Fico à disposição para qualquer dúvida!`;
                               </div>
                               <Badge variant="outline" className="text-[10px] ml-2 shrink-0 font-medium bg-muted/50">
                                 {p.valor_mensal && p.valor_mensal > 0
-                                  ? `Mensal: R$ ${Number(p.valor_mensal).toFixed(2)}`
+                                  ? "Mensal"
                                   : "Por Sessão"}
                               </Badge>
                             </CommandItem>
@@ -1698,7 +1698,7 @@ Fico à disposição para qualquer dúvida!`;
                       : "bg-green-50 text-green-700 border border-green-200"
                   )}>
                     {selectedPaciente.valor_mensal && selectedPaciente.valor_mensal > 0
-                      ? `Plano Mensal: R$ ${Number(selectedPaciente.valor_mensal).toFixed(2)}`
+                      ? "Plano Mensal"
                       : "Pagamento por Sessão"}
                   </span>
                 </div>

@@ -264,9 +264,11 @@ function PacientesPage() {
                     })()}
                     <div className="mt-3 flex items-center justify-between gap-2 text-xs text-muted-foreground">
                       <div>
-                        {p.tipo_atendimento === "convenio"
-                          ? `Convênio: ${p.convenio_nome ?? "—"}`
-                          : "Particular"}
+                        {p.tipo_atendimento === "convenio" ? (
+                          `Convênio: ${p.convenio_nome ?? "—"}`
+                        ) : (
+                          `Particular (${p.valor_mensal && p.valor_mensal > 0 ? "Mensal" : "Por Sessão"})`
+                        )}
                       </div>
                       <div className="flex gap-1">
                         <Button

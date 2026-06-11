@@ -441,13 +441,21 @@ export function PacienteFormDialog({
 
         {form.tipo_atendimento === "particular" && (
           <div className="space-y-1.5 animate-in fade-in duration-200">
-            <Label>Valor Mensal (deixe em branco se for cobrança por sessão)</Label>
-            <Input
-              type="number"
-              placeholder="Ex: 400.00"
-              value={form.valor_mensal}
-              onChange={(e) => setForm({ ...form, valor_mensal: e.target.value })}
-            />
+            <Label>Forma de Cobrança</Label>
+            <Select
+              value={Number(form.valor_mensal) > 0 ? "mensal" : "sessao"}
+              onValueChange={(v) =>
+                setForm({ ...form, valor_mensal: v === "mensal" ? "1" : "" })
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione a forma de cobrança..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="sessao">Por Sessão</SelectItem>
+                <SelectItem value="mensal">Mensal</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         )}
 
