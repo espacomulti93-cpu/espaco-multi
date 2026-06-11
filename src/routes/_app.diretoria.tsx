@@ -364,6 +364,37 @@ function DiretoriaPageContent() {
     },
   });
 
+  // Update Expense mutation
+  const updateExpenseMutation = useMutation({
+    mutationFn: async (updatedExpense: {
+      id: string;
+      descricao: string;
+      valor: number;
+      data: string;
+      categoria: string;
+    }) => {
+      const { error } = await supabase
+        .from("despesas")
+        .update({
+          descricao: updatedExpense.descricao,
+          valor: updatedExpense.valor,
+          data: updatedExpense.data,
+          categoria: updatedExpense.categoria,
+        })
+        .eq("id", updatedExpense.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["dir-despesas"] });
+      toast.success("Despesa atualizada com sucesso!");
+      setEditExpenseDialog({ open: false, despesa: null });
+    },
+    onError: (err: any) => {
+      console.error(err);
+      toast.error("Erro ao atualizar despesa: " + err.message);
+    },
+  });
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!descricao.trim()) {
@@ -608,30 +639,36 @@ function DiretoriaPageContent() {
     });
   }, [agendamentosRepasses, selectedProfId, sessionStatusFilter]);
 
-  const repasseStats = useMemo(() => {
+  const repasseCardsStats = useMemo(() => {
     let totalSessões = 0;
-    let faturamentoBruto = 0;
-    let repasseProfissional = 0;
-    let comissaoClinica = 0;
+    let repassePago = 0;
+    let repassePendente = 0;
 
-    filteredRepasses.forEach((a: any) => {
+    agendamentosRepasses.forEach((a: any) => {
+      if (a.status === "cancelado") return;
+      
+      const matchesProf = selectedProfId === "all" || a.profissional_id === selectedProfId;
+      if (!matchesProf) return;
+
       const val = getAppointmentValue(a);
       const spec = getAppointmentSpecialty(a);
-      const { profPct, clinicPct } = getRepasseRates(spec);
+      const { profPct } = getRepasseRates(spec);
 
       totalSessões += 1;
-      faturamentoBruto += val;
-      repasseProfissional += val * profPct;
-      comissaoClinica += val * clinicPct;
+      
+      if (a.status === "pago" || a.status === "confirmado") {
+        repassePago += val * profPct;
+      } else if (a.status === "realizado") {
+        repassePendente += val * profPct;
+      }
     });
 
     return {
       totalSessões,
-      faturamentoBruto,
-      repasseProfissional,
-      comissaoClinica,
+      repassePago,
+      repassePendente,
     };
-  }, [filteredRepasses]);
+  }, [agendamentosRepasses, selectedProfId]);
 
   const consolidatedRepasses = useMemo(() => {
     const groups = new Map<string, {
@@ -829,6 +866,24 @@ Agradecemos a atenção!
     status: "aberta",
     observacoes: "",
   });
+
+  const [editExpenseDialog, setEditExpenseDialog] = useState<{ open: boolean; despesa: any }>({ open: false, despesa: null });
+  const [expenseForm, setExpenseForm] = useState({
+    descricao: "",
+    valor: "",
+    data: format(new Date(), "yyyy-MM-dd"),
+    categoria: "Outros",
+  });
+
+  const handleOpenEditExpense = (despesa: any) => {
+    setExpenseForm({
+      descricao: despesa.descricao,
+      valor: String(despesa.valor),
+      data: despesa.data,
+      categoria: despesa.categoria || "Outros",
+    });
+    setEditExpenseDialog({ open: true, despesa });
+  };
 
   const handleOpenConfirmPayment = (fatura: any) => {
     setPayForm({
@@ -1143,7 +1198,7 @@ Agradecemos a atenção!
                           <TableHead>Descrição</TableHead>
                           <TableHead>Categoria</TableHead>
                           <TableHead className="text-right">Valor</TableHead>
-                          <TableHead className="w-[50px]"></TableHead>
+                          <TableHead className="w-[100px] text-right">Ações</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -1163,38 +1218,50 @@ Agradecemos a atenção!
                             <TableCell className="text-right font-semibold text-rose-600 dark:text-rose-400">
                               {brl(Number(d.valor))}
                             </TableCell>
-                            <TableCell>
-                              <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                  <AlertDialogHeader>
-                                    <AlertDialogTitle>
-                                      Tem certeza que deseja excluir esta despesa?
-                                    </AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                      Esta ação é irreversível. A despesa "{d.descricao}" no valor
-                                      de {brl(Number(d.valor))} será excluída permanentemente.
-                                    </AlertDialogDescription>
-                                  </AlertDialogHeader>
-                                  <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                    <AlertDialogAction
-                                      onClick={() => deleteExpenseMutation.mutate(d.id)}
-                                      className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+                            <TableCell className="text-right">
+                              <div className="flex justify-end gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                                  onClick={() => handleOpenEditExpense(d)}
+                                  title="Editar Despesa"
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                      title="Excluir Despesa"
                                     >
-                                      Excluir
-                                    </AlertDialogAction>
-                                  </AlertDialogFooter>
-                                </AlertDialogContent>
-                              </AlertDialog>
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>
+                                        Tem certeza que deseja excluir esta despesa?
+                                      </AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        Esta ação é irreversível. A despesa "{d.descricao}" no valor
+                                        de {brl(Number(d.valor))} será excluída permanentemente.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                      <AlertDialogAction
+                                        onClick={() => deleteExpenseMutation.mutate(d.id)}
+                                        className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+                                      >
+                                        Excluir
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              </div>
                             </TableCell>
                           </TableRow>
                         ))}
@@ -1608,7 +1675,7 @@ Agradecemos a atenção!
 
         <TabsContent value="pagamentos" className="space-y-6 mt-0">
           {/* Summary Cards */}
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <Card className="border-border shadow-sm relative overflow-hidden group hover:shadow-md transition duration-200">
               <div className="absolute top-0 left-0 w-full h-1 bg-primary" />
               <CardContent className="flex items-center gap-4 p-5">
@@ -1620,30 +1687,10 @@ Agradecemos a atenção!
                     Total de Sessões
                   </div>
                   <div className="text-2xl font-bold text-foreground">
-                    {repasseStats.totalSessões}
+                    {repasseCardsStats.totalSessões}
                   </div>
                   <div className="text-[11px] text-muted-foreground">
                     No período selecionado
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-border shadow-sm relative overflow-hidden group hover:shadow-md transition duration-200">
-              <div className="absolute top-0 left-0 w-full h-1 bg-sky-500" />
-              <CardContent className="flex items-center gap-4 p-5">
-                <div className="grid h-12 w-12 place-items-center rounded-xl bg-sky-50 text-sky-600 dark:bg-sky-950/20 dark:text-sky-400">
-                  <DollarSign className="h-6 w-6" />
-                </div>
-                <div className="space-y-1">
-                  <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Faturamento Bruto
-                  </div>
-                  <div className="text-2xl font-bold text-sky-600 dark:text-sky-400">
-                    {brl(repasseStats.faturamentoBruto)}
-                  </div>
-                  <div className="text-[11px] text-muted-foreground">
-                    Total bruto das sessões
                   </div>
                 </div>
               </CardContent>
@@ -1653,37 +1700,37 @@ Agradecemos a atenção!
               <div className="absolute top-0 left-0 w-full h-1 bg-emerald-500" />
               <CardContent className="flex items-center gap-4 p-5">
                 <div className="grid h-12 w-12 place-items-center rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/20 dark:text-emerald-400">
-                  <TrendingUp className="h-6 w-6" />
+                  <Check className="h-6 w-6" />
                 </div>
                 <div className="space-y-1">
                   <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Repasse Profissional
+                    Repasse Pago
                   </div>
                   <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
-                    {brl(repasseStats.repasseProfissional)}
+                    {brl(repasseCardsStats.repassePago)}
                   </div>
                   <div className="text-[11px] text-muted-foreground">
-                    Valor total a repassar (70% ou 50%)
+                    Sessões com status Pago ou Confirmado
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="border-purple-500/10 shadow-sm relative overflow-hidden group hover:shadow-md transition duration-200">
-              <div className="absolute top-0 left-0 w-full h-1 bg-purple-500" />
+            <Card className="border-amber-500/10 shadow-sm relative overflow-hidden group hover:shadow-md transition duration-200">
+              <div className="absolute top-0 left-0 w-full h-1 bg-amber-500" />
               <CardContent className="flex items-center gap-4 p-5">
-                <div className="grid h-12 w-12 place-items-center rounded-xl bg-purple-50 text-purple-600 dark:bg-purple-950/20 dark:text-purple-400">
-                  <TrendingDown className="h-6 w-6" />
+                <div className="grid h-12 w-12 place-items-center rounded-xl bg-amber-50 text-amber-600 dark:bg-amber-950/20 dark:text-amber-400">
+                  <Clock className="h-6 w-6" />
                 </div>
                 <div className="space-y-1">
                   <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Comissão Clínica
+                    Pendente de Pagamento
                   </div>
-                  <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
-                    {brl(repasseStats.comissaoClinica)}
+                  <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">
+                    {brl(repasseCardsStats.repassePendente)}
                   </div>
                   <div className="text-[11px] text-muted-foreground">
-                    Participação da clínica (30% ou 50%)
+                    Sessões com status Realizado
                   </div>
                 </div>
               </CardContent>
@@ -2229,6 +2276,102 @@ Agradecemos a atenção!
               </Button>
               <Button type="submit" disabled={createFaturaMutation.isPending}>
                 {createFaturaMutation.isPending ? "Criando..." : "Criar Cobrança"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Editar Despesa Dialog */}
+      <Dialog open={editExpenseDialog.open} onOpenChange={(open) => setEditExpenseDialog({ open, despesa: open ? editExpenseDialog.despesa : null })}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Editar Despesa</DialogTitle>
+          </DialogHeader>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!expenseForm.descricao.trim()) {
+                toast.error("Digite uma descrição para a despesa.");
+                return;
+              }
+              const parsedValor = parseFloat(expenseForm.valor.replace(",", "."));
+              if (isNaN(parsedValor) || parsedValor <= 0) {
+                toast.error("Digite um valor válido maior que zero.");
+                return;
+              }
+
+              if (editExpenseDialog.despesa) {
+                updateExpenseMutation.mutate({
+                  id: editExpenseDialog.despesa.id,
+                  descricao: expenseForm.descricao,
+                  valor: parsedValor,
+                  data: expenseForm.data,
+                  categoria: expenseForm.categoria,
+                });
+              }
+            }}
+            className="space-y-4 pt-2"
+          >
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-expense-desc">Descrição</Label>
+              <Input
+                id="edit-expense-desc"
+                placeholder="Ex: Aluguel da clínica"
+                value={expenseForm.descricao}
+                onChange={(e) => setExpenseForm({ ...expenseForm, descricao: e.target.value })}
+                required
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-expense-value">Valor (R$)</Label>
+                <Input
+                  id="edit-expense-value"
+                  placeholder="0.00"
+                  value={expenseForm.valor}
+                  onChange={(e) => setExpenseForm({ ...expenseForm, valor: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-expense-date">Data</Label>
+                <Input
+                  id="edit-expense-date"
+                  type="date"
+                  value={expenseForm.data}
+                  onChange={(e) => setExpenseForm({ ...expenseForm, data: e.target.value })}
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-expense-category">Categoria</Label>
+              <Select value={expenseForm.categoria} onValueChange={(val) => setExpenseForm({ ...expenseForm, categoria: val })}>
+                <SelectTrigger id="edit-expense-category" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Aluguel">Aluguel / Condomínio</SelectItem>
+                  <SelectItem value="Salários">Salários / Honorários</SelectItem>
+                  <SelectItem value="Impostos">Impostos / Taxas</SelectItem>
+                  <SelectItem value="Materiais">Materiais Clínicos/Escritório</SelectItem>
+                  <SelectItem value="Limpeza">Limpeza / Conservação</SelectItem>
+                  <SelectItem value="Utilidades">Água / Luz / Internet</SelectItem>
+                  <SelectItem value="Marketing">Marketing / Divulgação</SelectItem>
+                  <SelectItem value="Outros">Outros Gastos</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setEditExpenseDialog({ open: false, despesa: null })}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={updateExpenseMutation.isPending}>
+                {updateExpenseMutation.isPending ? "Salvando..." : "Salvar Alterações"}
               </Button>
             </DialogFooter>
           </form>

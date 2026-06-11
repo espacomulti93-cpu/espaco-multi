@@ -49,7 +49,7 @@ import {
   CommandItem,
 } from "@/components/ui/command";
 import { Checkbox } from "@/components/ui/checkbox";
-import { PacienteFormDialog } from "./_app.pacientes";
+import { PacienteFormDialog } from "@/components/PacienteFormDialog";
 
 
 export const Route = createFileRoute("/_app/agenda")({

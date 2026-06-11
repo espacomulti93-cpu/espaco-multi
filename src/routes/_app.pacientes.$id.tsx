@@ -18,7 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Plus, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { differenceInYears, format } from "date-fns";
-import { PacienteFormDialog } from "./_app.pacientes";
+import { PacienteFormDialog } from "@/components/PacienteFormDialog";
 
 export const Route = createFileRoute("/_app/pacientes/$id")({
   component: PacienteDetail,
