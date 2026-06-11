@@ -44,7 +44,17 @@ export const formatPhone = (value: string) => {
   return `(${nums.substring(0, 2)}) ${nums.substring(2, 7)}-${nums.substring(7, 11)}`;
 };
 
-export function PacienteFormDialog({ paciente, onSaved }: { paciente?: any; onSaved: () => void }) {
+export function PacienteFormDialog({
+  paciente,
+  onSaved,
+  defaultSpecialty,
+  defaultProfessionalId,
+}: {
+  paciente?: any;
+  onSaved: (newPac?: any) => void;
+  defaultSpecialty?: string;
+  defaultProfessionalId?: string;
+}) {
   const qc = useQueryClient();
 
   const [form, setForm] = useState({
@@ -55,7 +65,7 @@ export function PacienteFormDialog({ paciente, onSaved }: { paciente?: any; onSa
     cid_principal: paciente?.cid_principal ?? "",
     cids_secundarios: Array.isArray(paciente?.cids_secundarios)
       ? (paciente.cids_secundarios as string[])
-      : [],
+      : (defaultSpecialty ? [defaultSpecialty] : []),
     tipo_atendimento: paciente?.tipo_atendimento ?? "particular",
     convenio_nome: paciente?.convenio_nome ?? "",
     status: paciente?.status ?? "ativo",
@@ -103,12 +113,18 @@ export function PacienteFormDialog({ paciente, onSaved }: { paciente?: any; onSa
   const [selectedProfs, setSelectedProfs] = useState<string[]>([]);
 
   useEffect(() => {
-    if (isCurrentProfsSuccess && currentProfs) {
-      setSelectedProfs(currentProfs);
+    if (paciente?.id) {
+      if (isCurrentProfsSuccess && currentProfs) {
+        setSelectedProfs(currentProfs);
+      }
     } else {
-      setSelectedProfs([]);
+      if (defaultProfessionalId) {
+        setSelectedProfs([defaultProfessionalId]);
+      } else {
+        setSelectedProfs([]);
+      }
     }
-  }, [currentProfs, isCurrentProfsSuccess]);
+  }, [currentProfs, isCurrentProfsSuccess, paciente?.id, defaultProfessionalId]);
 
   const availableSpecialties = Array.from(
     new Set(
@@ -228,6 +244,7 @@ export function PacienteFormDialog({ paciente, onSaved }: { paciente?: any; onSa
           });
           if (rError) throw rError;
         }
+        return { ...paciente, ...payload };
       } else {
         // Create mode
         const { data: newPaciente, error } = await supabase
@@ -255,15 +272,16 @@ export function PacienteFormDialog({ paciente, onSaved }: { paciente?: any; onSa
           });
           if (rError) throw rError;
         }
+        return newPaciente;
       }
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       toast.success(paciente ? "Paciente atualizado" : "Paciente cadastrado");
       qc.invalidateQueries({ queryKey: ["paciente-profissional-all"] });
       qc.invalidateQueries({ queryKey: ["paciente-profissionais-detail", paciente?.id] });
       qc.invalidateQueries({ queryKey: ["paciente-profissionais", paciente?.id] });
       qc.invalidateQueries({ queryKey: ["paciente-profissional"] });
-      onSaved();
+      onSaved(data);
     },
     onError: (e: any) => toast.error(e.message),
   });

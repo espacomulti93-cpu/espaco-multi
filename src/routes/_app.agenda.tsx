@@ -741,8 +741,23 @@ Fico à disposição para qualquer dúvida!`;
   ]);
 
   const displayedPacientes = useMemo(() => {
-    return pacientes;
-  }, [pacientes]);
+    if (!form.profissional_id) return pacientes;
+    const selectedProf = profissionais.find((p: any) => p.id === form.profissional_id);
+    if (!selectedProf) return pacientes;
+
+    const targetSpecs = selectedSpecialty
+      ? [selectedSpecialty.toLowerCase()]
+      : (selectedProf.especialidade
+          ? selectedProf.especialidade.split(",").map((s: string) => s.trim().toLowerCase())
+          : []);
+
+    if (targetSpecs.length === 0) return pacientes;
+
+    return pacientes.filter((p: any) => {
+      const pacSpecs = Array.isArray(p.cids_secundarios) ? p.cids_secundarios : [];
+      return pacSpecs.some((s: string) => targetSpecs.includes(s.toLowerCase()));
+    });
+  }, [pacientes, form.profissional_id, selectedSpecialty, profissionais]);
 
   const formDate = form.data_inicio ? form.data_inicio.split("T")[0] : "";
   const formTime = form.data_inicio ? form.data_inicio.split("T")[1] : "";
@@ -1507,7 +1522,21 @@ Fico à disposição para qualquer dúvida!`;
                   <Command>
                     <CommandInput placeholder="Pesquisar paciente..." className="h-9" />
                     <CommandList>
-                      <CommandEmpty>Nenhum paciente encontrado.</CommandEmpty>
+                      <CommandEmpty className="p-4 text-center text-sm">
+                        <p className="text-muted-foreground mb-2">Nenhum paciente cadastrado nesta especialidade.</p>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="w-full gap-1.5"
+                          onClick={() => {
+                            setPacienteOpen(false);
+                            setNewPatientOpen(true);
+                          }}
+                        >
+                          <Plus className="h-4 w-4" /> Cadastrar Novo Paciente
+                        </Button>
+                      </CommandEmpty>
                       <CommandGroup>
                         {displayedPacientes.map((p: any) => (
                           <CommandItem
@@ -1761,6 +1790,8 @@ Fico à disposição para qualquer dúvida!`;
       <Dialog open={newPatientOpen} onOpenChange={setNewPatientOpen}>
         {newPatientOpen && (
           <PacienteFormDialog
+            defaultSpecialty={selectedSpecialty}
+            defaultProfessionalId={form.profissional_id}
             onSaved={async (newPac: any) => {
               setNewPatientOpen(false);
               await qc.invalidateQueries({ queryKey: ["pac-min"] });
