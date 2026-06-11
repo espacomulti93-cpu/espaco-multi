@@ -381,6 +381,7 @@ const syncAgendamentoFinanceiro = async (
   tipoAgendamento: "sessao" | "anamnese",
   especialidade: string,
   valor: number,
+  meioPagamento?: string,
 ) => {
   try {
     const numValor = Number(valor || 0);
@@ -455,9 +456,17 @@ const syncAgendamentoFinanceiro = async (
       return;
     }
 
+    const mappedMetodo = meioPagamento?.toLowerCase() === "espécie" ? "dinheiro" : "pix";
+
     if (matchedFaturas && matchedFaturas.length > 0) {
       faturaId = matchedFaturas[0].id;
       faturaValor = Number(matchedFaturas[0].valor);
+      if (targetStatus === "paga") {
+        await supabase
+          .from("faturas")
+          .update({ metodo: mappedMetodo })
+          .eq("id", faturaId);
+      }
     } else {
       const insertData: any = {
         paciente_id: pacienteId,
@@ -467,7 +476,7 @@ const syncAgendamentoFinanceiro = async (
       };
       if (targetStatus === "paga") {
         insertData.pago_em = dataInicio || new Date().toISOString();
-        insertData.metodo = "pix";
+        insertData.metodo = mappedMetodo;
       }
       const { data: newFatura, error: createFaturaErr } = await supabase
         .from("faturas")
@@ -648,8 +657,13 @@ function AgendamentoDialog({
     : "sessao";
   const [tipoAgendamento, setTipoAgendamento] = useState<"sessao" | "anamnese">(initialTipo);
 
+  const paymentMethodMatch = editing?.observacoes?.match(/\[Meio: (Pix|Espécie)\]/);
+  const initialPaymentMethod = paymentMethodMatch ? paymentMethodMatch[1] : "Pix";
+
   const initialObservacoes = editing?.observacoes
-    ? editing.observacoes.replace(/^\[Tipo: (Anamnese|Sessão Padrão)\]\n?/, "")
+    ? editing.observacoes
+        .replace(/^\[Tipo: (Anamnese|Sessão Padrão)\]\n?/, "")
+        .replace(/\[Meio: (Pix|Espécie)\]\n?/, "")
     : "";
 
   const [form, setForm] = useState({
@@ -661,6 +675,7 @@ function AgendamentoDialog({
     status: editing?.status ?? "pendente",
     recorrencia: editing?.recorrencia ?? "unica",
     observacoes: initialObservacoes,
+    meio_pagamento: initialPaymentMethod,
   });
 
   const [pacienteOpen, setPacienteOpen] = useState(false);
@@ -1038,6 +1053,8 @@ Fico à disposição para qualquer dúvida!`;
             ? "[Tipo: Anamnese]\n"
             : "[Tipo: Sessão Padrão]\n"
           : "";
+      const paymentPrefix = `[Meio: ${form.meio_pagamento}]\n`;
+      const finalObservacoes = typePrefix + paymentPrefix + form.observacoes;
 
       // Calculate valor for sync
       let valor = 0;
@@ -1058,7 +1075,8 @@ Fico à disposição para qualquer dúvida!`;
           form.recorrencia !== (editing.recorrencia ?? "unica") ||
           form.observacoes !== initialObservacoes ||
           form.status !== (editing.status ?? "pendente") ||
-          tipoAgendamento !== initialTipo;
+          tipoAgendamento !== initialTipo ||
+          form.meio_pagamento !== initialPaymentMethod;
         void hasOtherFieldsChanged;
 
         const explicitPayload = {
@@ -1069,7 +1087,7 @@ Fico à disposição para qualquer dúvida!`;
           data_fim: end,
           status: form.status,
           recorrencia: form.recorrencia,
-          observacoes: typePrefix + form.observacoes,
+          observacoes: finalObservacoes,
           sala_id: null,
         };
 
@@ -1102,7 +1120,7 @@ Fico à disposição para qualquer dúvida!`;
                 status: form.status,
                 sala_id: null,
                 recorrencia: form.recorrencia,
-                observacoes: typePrefix + form.observacoes,
+                observacoes: finalObservacoes,
               })
               .eq("id", occ.id);
             if (error) throw error;
@@ -1124,6 +1142,7 @@ Fico à disposição para qualquer dúvida!`;
                 tipoAgendamento,
                 selectedSpecialty,
                 valor,
+                form.meio_pagamento,
               );
             }
           }
@@ -1143,6 +1162,7 @@ Fico à disposição para qualquer dúvida!`;
             tipoAgendamento,
             selectedSpecialty,
             valor,
+            form.meio_pagamento,
           );
         }
       } else {
@@ -1190,10 +1210,11 @@ Fico à disposição para qualquer dúvida!`;
               servico_id: matchingServico ? matchingServico.id : null,
               data_inicio: occStart.toISOString(),
               data_fim: occEnd.toISOString(),
-              observacoes: typePrefix + form.observacoes,
+              observacoes: finalObservacoes,
               recorrencia_grupo: groupId,
               created_by: user?.id || null,
             };
+            delete (payload as any).meio_pagamento;
             occurrences.push(payload);
           }
           const { data: insertedAgs, error } = await supabase
@@ -1213,6 +1234,7 @@ Fico à disposição para qualquer dúvida!`;
                 tipoAgendamento,
                 selectedSpecialty,
                 valor,
+                form.meio_pagamento,
               );
             }
           }
@@ -1223,9 +1245,10 @@ Fico à disposição para qualquer dúvida!`;
             servico_id: matchingServico ? matchingServico.id : null,
             data_inicio: start,
             data_fim: end,
-            observacoes: typePrefix + form.observacoes,
+            observacoes: finalObservacoes,
             created_by: user?.id || null,
           };
+          delete (payload as any).meio_pagamento; 
           const { data: insertedAg, error } = await supabase
             .from("agendamentos")
             .insert(payload)
@@ -1243,6 +1266,7 @@ Fico à disposição para qualquer dúvida!`;
               tipoAgendamento,
               selectedSpecialty,
               valor,
+              form.meio_pagamento,
             );
           }
         }
@@ -1260,7 +1284,7 @@ Fico à disposição para qualquer dúvida!`;
       if (deleteAllFuture && editing?.recorrencia_grupo) {
         const { data: futureAgs } = await supabase
           .from("agendamentos")
-          .select("id, data_inicio")
+          .select("id, data_inicio, observacoes, servicos(nome)")
           .eq("recorrencia_grupo", editing.recorrencia_grupo)
           .gte("data_inicio", editing.data_inicio);
 
@@ -1273,15 +1297,18 @@ Fico à disposição para qualquer dúvida!`;
 
         if (futureAgs && futureAgs.length > 0) {
           for (const occ of futureAgs) {
+            const occTipo = occ.observacoes?.startsWith("[Tipo: Anamnese]") ? "anamnese" : "sessao";
+            const occSpec = (occ as any).servicos?.nome || "";
             await syncAgendamentoFinanceiro(
               occ.id,
               editing.paciente_id,
               editing.profissional_id,
               occ.data_inicio,
               "cancelado",
-              tipoAgendamento,
-              selectedSpecialty,
+              occTipo,
+              occSpec,
               0,
+              editing.meio_pagamento,
             );
           }
         }
@@ -1289,15 +1316,18 @@ Fico à disposição para qualquer dúvida!`;
         const { error } = await supabase.from("agendamentos").delete().eq("id", editing.id);
         if (error) throw error;
 
+        const occTipo = editing.observacoes?.startsWith("[Tipo: Anamnese]") ? "anamnese" : "sessao";
+        const occSpec = editing.servicos?.nome || getEspecialidade(editing) || "";
         await syncAgendamentoFinanceiro(
           editing.id,
           editing.paciente_id,
           editing.profissional_id,
           editing.data_inicio,
           "cancelado",
-          tipoAgendamento,
-          selectedSpecialty,
+          occTipo,
+          occSpec,
           0,
+          editing.meio_pagamento,
         );
       }
     },
@@ -1324,7 +1354,8 @@ Fico à disposição para qualquer dúvida!`;
       form.recorrencia !== (editing?.recorrencia ?? "unica") ||
       form.observacoes !== initialObservacoes ||
       form.status !== (editing?.status ?? "pendente") ||
-      tipoAgendamento !== initialTipo;
+      tipoAgendamento !== initialTipo ||
+      form.meio_pagamento !== initialPaymentMethod;
 
     if (editing?.recorrencia_grupo && hasOtherFieldsChanged) {
       setRecorrenciaConfirmOpen(true);
@@ -1442,6 +1473,12 @@ Fico à disposição para qualquer dúvida!`;
                     <span className="text-muted-foreground font-medium">Recorrência:</span>{" "}
                     <span className="text-foreground font-semibold capitalize">
                       {form.recorrencia || "única"}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground font-medium">Meio de Pagamento:</span>{" "}
+                    <span className="text-foreground font-semibold">
+                      {form.meio_pagamento || "Pix"}
                     </span>
                   </div>
                 </div>
@@ -1633,21 +1670,6 @@ Fico à disposição para qualquer dúvida!`;
                   </PopoverContent>
                 </Popover>
 
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  className="shrink-0 text-primary hover:bg-primary/5 border-dashed"
-                  onClick={() => triggerNewPatient(selectedSpecialty, form.profissional_id, (newPac) => {
-                    if (newPac?.id) {
-                      handlePacienteChange(newPac.id);
-                    }
-                  })}
-                  title="Cadastrar novo paciente"
-                >
-                  <Plus className="h-4 w-4" />
-                </Button>
-
                 {selectedPaciente && (
                   <Button
                     type="button"
@@ -1761,7 +1783,7 @@ Fico à disposição para qualquer dúvida!`;
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className={cn("grid gap-3", form.status === "pendente" ? "grid-cols-2" : "grid-cols-1")}>
               <div className="space-y-1.5">
                 <Label>Status</Label>
                 <Select
@@ -1793,32 +1815,41 @@ Fico à disposição para qualquer dúvida!`;
                   </Button>
                 )}
               </div>
-              <div className="space-y-1.5">
-                <Label>Recorrência</Label>
-                <Select
-                  value={form.recorrencia}
-                  onValueChange={(v) => setForm({ ...form, recorrencia: v as any })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="unica">Única</SelectItem>
-                    <SelectItem value="semanal">Semanal</SelectItem>
-                    <SelectItem value="quinzenal">Quinzenal</SelectItem>
-                    <SelectItem value="mensal">Mensal</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+              {form.status === "pendente" && (
+                <div className="space-y-1.5 animate-in fade-in duration-200">
+                  <Label>Recorrência</Label>
+                  <Select
+                    value={form.recorrencia}
+                    onValueChange={(v) => setForm({ ...form, recorrencia: v as any })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="unica">Única</SelectItem>
+                      <SelectItem value="semanal">Semanal</SelectItem>
+                      <SelectItem value="quinzenal">Quinzenal</SelectItem>
+                      <SelectItem value="mensal">Mensal</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
             </div>
 
-            <div className="space-y-1.5">
-              <Label>Observações</Label>
-              <Textarea
-                rows={2}
-                value={form.observacoes}
-                onChange={(e) => setForm({ ...form, observacoes: e.target.value })}
-              />
+            <div className="space-y-1.5 animate-in fade-in duration-200">
+              <Label>Meio de pagamento realizado na sessão</Label>
+              <Select
+                value={form.meio_pagamento}
+                onValueChange={(v) => setForm({ ...form, meio_pagamento: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o meio de pagamento..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Pix">Pix</SelectItem>
+                  <SelectItem value="Espécie">Espécie</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <DialogFooter className="gap-2 pt-2 border-t mt-4 justify-between flex-wrap">
