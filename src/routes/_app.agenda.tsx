@@ -1573,13 +1573,13 @@ Fico à disposição para qualquer dúvida!`;
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent
-                    className="w-[var(--radix-popover-trigger-width)] p-0"
+                    className="w-[var(--radix-popover-trigger-width)] min-w-[400px] p-0"
                     align="start"
                     onCloseAutoFocus={(e) => e.preventDefault()}
                   >
                     <Command>
                       <CommandInput placeholder="Pesquisar paciente..." className="h-9" />
-                      <CommandList>
+                      <CommandList className="max-h-[450px]">
                         <CommandEmpty className="p-4 text-center text-sm">
                           <p className="text-muted-foreground mb-2">Nenhum paciente cadastrado nesta especialidade.</p>
                           <Button
