@@ -1217,10 +1217,10 @@ Agradecemos a atenção!
         </Card>
       </div>
 
-      <Tabs defaultValue="overview" className="w-full space-y-6">
+      <Tabs defaultValue="despesas" className="w-full space-y-6">
         <TabsList className="bg-muted p-1 rounded-xl inline-flex">
-          <TabsTrigger value="overview" className="rounded-lg px-4 py-2 text-sm font-medium">
-            Despesas & Resumo
+          <TabsTrigger value="despesas" className="rounded-lg px-4 py-2 text-sm font-medium">
+            Despesas
           </TabsTrigger>
           <TabsTrigger value="cobrancas" className="rounded-lg px-4 py-2 text-sm font-medium">
             Cobranças por Paciente
@@ -1230,7 +1230,7 @@ Agradecemos a atenção!
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="overview" className="space-y-6 mt-0">
+        <TabsContent value="despesas" className="space-y-6 mt-0">
           <div className="grid gap-6 lg:grid-cols-3">
             <div className="space-y-6 lg:col-span-1">
               {/* Register Expense Form Card */}
