@@ -1358,7 +1358,7 @@ Fico à disposição para qualquer dúvida!`;
       tipoAgendamento !== initialTipo ||
       form.meio_pagamento !== initialPaymentMethod;
 
-    if (editing?.recorrencia_grupo && hasOtherFieldsChanged) {
+    if (editing?.recorrencia_grupo && hasOtherFieldsChanged && form.status !== "pago") {
       setRecorrenciaConfirmOpen(true);
     } else {
       save.mutate(false);
