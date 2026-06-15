@@ -1021,7 +1021,7 @@ Agradecemos a atenção!
       </Card>
 
       {/* Financial Overview Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card className="border-emerald-500/10 shadow-sm relative overflow-hidden group hover:shadow-md transition duration-200">
           <div className="absolute top-0 left-0 w-full h-1 bg-emerald-500" />
           <CardContent className="flex items-center gap-4 p-5">
@@ -1036,9 +1036,27 @@ Agradecemos a atenção!
                 {brl(stats.faturamentoRecebido)}
               </div>
               <div className="text-[11px] text-muted-foreground">
-                Total Faturado:{" "}
-                <span className="font-medium">{brl(stats.faturamentoTotal)}</span>{" "}
-                (Pendente: {brl(stats.faturamentoPendente)})
+                Total Faturado no período: <span className="font-medium">{brl(stats.faturamentoTotal)}</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-amber-500/10 shadow-sm relative overflow-hidden group hover:shadow-md transition duration-200">
+          <div className="absolute top-0 left-0 w-full h-1 bg-amber-500" />
+          <CardContent className="flex items-center gap-4 p-5">
+            <div className="grid h-12 w-12 place-items-center rounded-xl bg-amber-50 text-amber-600 dark:bg-amber-950/20 dark:text-amber-400">
+              <Clock className="h-6 w-6" />
+            </div>
+            <div className="space-y-1">
+              <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Faturas Pendentes
+              </div>
+              <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">
+                {brl(stats.faturamentoPendente)}
+              </div>
+              <div className="text-[11px] text-muted-foreground">
+                A Receber: <span className="font-medium">{brl(stats.faturamentoAReceber)}</span> | Vencido: <span className="font-medium">{brl(stats.faturamentoVencido)}</span>
               </div>
             </div>
           </CardContent>
