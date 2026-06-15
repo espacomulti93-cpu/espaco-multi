@@ -757,6 +757,7 @@ function AgendamentoDialog({
 
   // Localiza o paciente selecionado para recuperar os detalhes de faturamento/cobrança
   const selectedPaciente = pacientes.find((p: any) => p.id === form.paciente_id);
+  const isMensal = !!(selectedPaciente?.valor_mensal && selectedPaciente.valor_mensal > 0);
 
   const whatsappUrl = useMemo(() => {
     if (!Array.isArray(responsaveisPaciente) || !responsaveisPaciente.length) return null;
@@ -1053,7 +1054,7 @@ Fico à disposição para qualquer dúvida!`;
             ? "[Tipo: Anamnese]\n"
             : "[Tipo: Sessão Padrão]\n"
           : "";
-      const paymentPrefix = `[Meio: ${form.meio_pagamento}]\n`;
+      const paymentPrefix = isMensal ? "" : `[Meio: ${form.meio_pagamento}]\n`;
       const finalObservacoes = typePrefix + paymentPrefix + form.observacoes;
 
       // Calculate valor for sync
@@ -1478,7 +1479,7 @@ Fico à disposição para qualquer dúvida!`;
                   <div>
                     <span className="text-muted-foreground font-medium">Meio de Pagamento:</span>{" "}
                     <span className="text-foreground font-semibold">
-                      {form.meio_pagamento || "Pix"}
+                      {isMensal ? "Mensal" : (form.meio_pagamento || "Pix")}
                     </span>
                   </div>
                 </div>
@@ -1836,21 +1837,23 @@ Fico à disposição para qualquer dúvida!`;
               )}
             </div>
 
-            <div className="space-y-1.5 animate-in fade-in duration-200">
-              <Label>Meio de pagamento realizado na sessão</Label>
-              <Select
-                value={form.meio_pagamento}
-                onValueChange={(v) => setForm({ ...form, meio_pagamento: v })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione o meio de pagamento..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Pix">Pix</SelectItem>
-                  <SelectItem value="Espécie">Espécie</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            {!isMensal && (
+              <div className="space-y-1.5 animate-in fade-in duration-200">
+                <Label>Meio de pagamento realizado na sessão</Label>
+                <Select
+                  value={form.meio_pagamento}
+                  onValueChange={(v) => setForm({ ...form, meio_pagamento: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o meio de pagamento..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Pix">Pix</SelectItem>
+                    <SelectItem value="Espécie">Espécie</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             <DialogFooter className="gap-2 pt-2 border-t mt-4 justify-between flex-wrap">
               <div className="flex gap-2">

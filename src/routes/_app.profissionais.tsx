@@ -376,6 +376,7 @@ const parseMoneyValue = (val: any) => {
 };
 
 function ProfForm({ prof, onSaved }: { prof: any; onSaved: () => void }) {
+  const qc = useQueryClient();
   const { data: pacientes = [] } = useQuery({
     queryKey: ["pacientes-min-prof"],
     queryFn: async () => {

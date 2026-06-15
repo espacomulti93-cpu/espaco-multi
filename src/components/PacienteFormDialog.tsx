@@ -130,7 +130,7 @@ export function PacienteFormDialog({
       (profissionais || [])
         .flatMap((p) => {
           if (typeof p?.especialidade !== "string") return [];
-          return p.especialidade.split(",").map((s) => s.trim());
+          return p.especialidade.split(",").map((s: string) => s.trim());
         })
         .filter(Boolean),
     ),
