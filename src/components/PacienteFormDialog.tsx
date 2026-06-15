@@ -44,6 +44,8 @@ export const formatPhone = (value: string) => {
   return `(${nums.substring(0, 2)}) ${nums.substring(2, 7)}-${nums.substring(7, 11)}`;
 };
 
+const EMPTY_ARRAY: any[] = [];
+
 export function PacienteFormDialog({
   paciente,
   onSaved,
@@ -56,6 +58,7 @@ export function PacienteFormDialog({
   defaultProfessionalId?: string;
 }) {
   const qc = useQueryClient();
+  const [hasLoadedResponsavel, setHasLoadedResponsavel] = useState(false);
   const [form, setForm] = useState({
     nome: paciente?.nome ?? "",
     data_nascimento: paciente?.data_nascimento
@@ -73,7 +76,7 @@ export function PacienteFormDialog({
     telefone: "",
     valor_mensal: paciente?.valor_mensal ? String(paciente.valor_mensal) : "",
   });
-  const { data: profissionais = [] } = useQuery({
+  const { data: profissionais = EMPTY_ARRAY } = useQuery({
     queryKey: ["profissionais"],
     queryFn: async () => {
       const { data, error } = await supabase.from("profissionais").select("especialidade");
@@ -82,7 +85,7 @@ export function PacienteFormDialog({
     },
   });
 
-  const { data: profissionaisList = [] } = useQuery({
+  const { data: profissionaisList = EMPTY_ARRAY } = useQuery({
     queryKey: ["profissionais-list-form"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -95,7 +98,7 @@ export function PacienteFormDialog({
     },
   });
 
-  const { data: currentProfs = [], isSuccess: isCurrentProfsSuccess } = useQuery({
+  const { data: currentProfs = EMPTY_ARRAY, isSuccess: isCurrentProfsSuccess } = useQuery({
     queryKey: ["paciente-profissionais", paciente?.id],
     queryFn: async () => {
       if (!paciente?.id) return [];
@@ -109,21 +112,18 @@ export function PacienteFormDialog({
     enabled: !!paciente?.id,
   });
 
-  const [selectedProfs, setSelectedProfs] = useState<string[]>([]);
+  const [selectedProfs, setSelectedProfs] = useState<string[]>(() => {
+    if (paciente?.id) {
+      return [];
+    }
+    return defaultProfessionalId ? [defaultProfessionalId] : [];
+  });
 
   useEffect(() => {
-    if (paciente?.id) {
-      if (isCurrentProfsSuccess && currentProfs) {
-        setSelectedProfs(currentProfs);
-      }
-    } else {
-      if (defaultProfessionalId) {
-        setSelectedProfs([defaultProfessionalId]);
-      } else {
-        setSelectedProfs([]);
-      }
+    if (paciente?.id && isCurrentProfsSuccess && currentProfs) {
+      setSelectedProfs(currentProfs);
     }
-  }, [currentProfs, isCurrentProfsSuccess, paciente?.id, defaultProfessionalId]);
+  }, [currentProfs, isCurrentProfsSuccess, paciente?.id]);
 
   const availableSpecialties = Array.from(
     new Set(
@@ -136,7 +136,7 @@ export function PacienteFormDialog({
     ),
   ) as string[];
 
-  const { data: responsaveis = [], isSuccess: isResponsaveisSuccess } = useQuery({
+  const { data: responsaveis = EMPTY_ARRAY, isSuccess: isResponsaveisSuccess } = useQuery({
     queryKey: ["responsaveis", paciente?.id],
     queryFn: async () => {
       if (!paciente?.id) return [];
@@ -152,14 +152,15 @@ export function PacienteFormDialog({
   });
 
   useEffect(() => {
-    if (isResponsaveisSuccess && responsaveis && responsaveis.length > 0) {
+    if (isResponsaveisSuccess && responsaveis && responsaveis.length > 0 && !hasLoadedResponsavel) {
       setForm((f) => ({
         ...f,
         responsavel: responsaveis[0].nome,
         telefone: formatPhone(responsaveis[0].telefone ?? ""),
       }));
+      setHasLoadedResponsavel(true);
     }
-  }, [responsaveis, isResponsaveisSuccess]);
+  }, [responsaveis, isResponsaveisSuccess, hasLoadedResponsavel]);
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const formatted = formatPhone(e.target.value);
