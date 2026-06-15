@@ -210,10 +210,6 @@ function DespesasPage() {
 
   const isMutating = createExpenseMutation.isPending || deleteExpenseMutation.isPending;
 
-  const totalDespesasPeriodo = useMemo(() => {
-    return despesas.reduce((acc, d) => acc + Number(d.valor), 0);
-  }, [despesas]);
-
   return (
     <div className="space-y-6">
       {/* Date Filter */}
@@ -244,28 +240,7 @@ function DespesasPage() {
         </CardContent>
       </Card>
 
-      {/* Summary Card */}
-      <div className="grid gap-4 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-        <Card className="border-rose-500/10 shadow-sm relative overflow-hidden group hover:shadow-md transition duration-200">
-          <div className="absolute top-0 left-0 w-full h-1 bg-rose-500" />
-          <CardContent className="flex items-center gap-4 p-5">
-            <div className="grid h-12 w-12 place-items-center rounded-xl bg-rose-50 text-rose-600 dark:bg-rose-950/20 dark:text-rose-400">
-              <TrendingDown className="h-6 w-6" />
-            </div>
-            <div className="space-y-1">
-              <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Despesas no Período
-              </div>
-              <div className="text-2xl font-bold text-rose-600 dark:text-rose-400">
-                {brl(totalDespesasPeriodo)}
-              </div>
-              <div className="text-[11px] text-muted-foreground">
-                Soma total dos gastos cadastrados para o filtro selecionado
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-1">
