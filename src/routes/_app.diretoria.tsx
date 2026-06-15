@@ -159,11 +159,7 @@ function DiretoriaPageContent() {
   const [inicio, setInicio] = useState(format(startOfMonth(today), "yyyy-MM-dd"));
   const [fim, setFim] = useState(format(endOfMonth(today), "yyyy-MM-dd"));
 
-  // Form states for new expense
-  const [descricao, setDescricao] = useState("");
-  const [valor, setValor] = useState("");
-  const [data, setData] = useState(format(new Date(), "yyyy-MM-dd"));
-  const [categoria, setCategoria] = useState("Outros");
+
 
   // Fetch Patients
   const { data: pacientes = [] } = useQuery({
@@ -322,98 +318,7 @@ function DiretoriaPageContent() {
     },
   });
 
-  // Insert Expense mutation
-  const createExpenseMutation = useMutation({
-    mutationFn: async (newExpense: {
-      descricao: string;
-      valor: number;
-      data: string;
-      categoria: string;
-    }) => {
-      const { data, error } = await supabase.from("despesas").insert(newExpense);
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["dir-despesas"] });
-      toast.success("Despesa cadastrada com sucesso!");
-      setDescricao("");
-      setValor("");
-      setData(format(new Date(), "yyyy-MM-dd"));
-      setCategoria("Outros");
-    },
-    onError: (err: any) => {
-      console.error(err);
-      toast.error("Erro ao cadastrar despesa: " + err.message);
-    },
-  });
 
-  // Delete Expense mutation
-  const deleteExpenseMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("despesas").delete().eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["dir-despesas"] });
-      toast.success("Despesa excluída com sucesso!");
-    },
-    onError: (err: any) => {
-      console.error(err);
-      toast.error("Erro ao excluir despesa: " + err.message);
-    },
-  });
-
-  // Update Expense mutation
-  const updateExpenseMutation = useMutation({
-    mutationFn: async (updatedExpense: {
-      id: string;
-      descricao: string;
-      valor: number;
-      data: string;
-      categoria: string;
-    }) => {
-      const { error } = await supabase
-        .from("despesas")
-        .update({
-          descricao: updatedExpense.descricao,
-          valor: updatedExpense.valor,
-          data: updatedExpense.data,
-          categoria: updatedExpense.categoria,
-        })
-        .eq("id", updatedExpense.id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["dir-despesas"] });
-      toast.success("Despesa atualizada com sucesso!");
-      setEditExpenseDialog({ open: false, despesa: null });
-    },
-    onError: (err: any) => {
-      console.error(err);
-      toast.error("Erro ao atualizar despesa: " + err.message);
-    },
-  });
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!descricao.trim()) {
-      toast.error("Digite uma descrição para a despesa.");
-      return;
-    }
-    const parsedValor = parseFloat(valor.replace(",", "."));
-    if (isNaN(parsedValor) || parsedValor <= 0) {
-      toast.error("Digite um valor válido maior que zero.");
-      return;
-    }
-
-    createExpenseMutation.mutate({
-      descricao,
-      valor: parsedValor,
-      data,
-      categoria,
-    });
-  };
 
   // Calculations
   const stats = useMemo(() => {
@@ -463,7 +368,7 @@ function DiretoriaPageContent() {
     return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
   }
 
-  const isMutating = createExpenseMutation.isPending || deleteExpenseMutation.isPending;
+
 
   // Fetch active professionals
   const { data: profissionais = [] } = useQuery({
@@ -1033,23 +938,7 @@ Agradecemos a atenção!
     observacoes: "",
   });
 
-  const [editExpenseDialog, setEditExpenseDialog] = useState<{ open: boolean; despesa: any }>({ open: false, despesa: null });
-  const [expenseForm, setExpenseForm] = useState({
-    descricao: "",
-    valor: "",
-    data: format(new Date(), "yyyy-MM-dd"),
-    categoria: "Outros",
-  });
 
-  const handleOpenEditExpense = (despesa: any) => {
-    setExpenseForm({
-      descricao: despesa.descricao,
-      valor: String(despesa.valor),
-      data: despesa.data,
-      categoria: despesa.categoria || "Outros",
-    });
-    setEditExpenseDialog({ open: true, despesa });
-  };
 
   const handleOpenConfirmPayment = (fatura: any) => {
     setPayForm({
@@ -1217,11 +1106,8 @@ Agradecemos a atenção!
         </Card>
       </div>
 
-      <Tabs defaultValue="despesas" className="w-full space-y-6">
+      <Tabs defaultValue="cobrancas" className="w-full space-y-6">
         <TabsList className="bg-muted p-1 rounded-xl inline-flex">
-          <TabsTrigger value="despesas" className="rounded-lg px-4 py-2 text-sm font-medium">
-            Despesas
-          </TabsTrigger>
           <TabsTrigger value="cobrancas" className="rounded-lg px-4 py-2 text-sm font-medium">
             Cobranças por Paciente
           </TabsTrigger>
@@ -1229,216 +1115,6 @@ Agradecemos a atenção!
             Pagamento dos Profissionais
           </TabsTrigger>
         </TabsList>
-
-        <TabsContent value="despesas" className="space-y-6 mt-0">
-          <div className="grid gap-6 lg:grid-cols-3">
-            <div className="space-y-6 lg:col-span-1">
-              {/* Register Expense Form Card */}
-              <Card className="border-border shadow-sm">
-                <CardHeader>
-                  <CardTitle className="text-lg">Cadastrar Despesa</CardTitle>
-                  <CardDescription>
-                    Registre os custos e gastos operacionais da clínica.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <form onSubmit={handleSubmit} className="space-y-4">
-                    <div className="space-y-1.5">
-                      <Label htmlFor="expense-desc">Descrição</Label>
-                      <Input
-                        id="expense-desc"
-                        placeholder="Ex: Aluguel da clínica"
-                        value={descricao}
-                        onChange={(e) => setDescricao(e.target.value)}
-                        required
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1.5">
-                        <Label htmlFor="expense-value">Valor (R$)</Label>
-                        <Input
-                          id="expense-value"
-                          placeholder="0.00"
-                          value={valor}
-                          onChange={(e) => setValor(e.target.value)}
-                          required
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label htmlFor="expense-date">Data</Label>
-                        <Input
-                          id="expense-date"
-                          type="date"
-                          value={data}
-                          onChange={(e) => setData(e.target.value)}
-                          required
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <Label htmlFor="expense-category">Categoria</Label>
-                      <Select value={categoria} onValueChange={setCategoria}>
-                        <SelectTrigger id="expense-category" className="w-full">
-                          <SelectValue placeholder="Selecione uma categoria" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Aluguel">Aluguel / Condomínio</SelectItem>
-                          <SelectItem value="Salários">Salários / Honorários</SelectItem>
-                          <SelectItem value="Impostos">Impostos / Taxas</SelectItem>
-                          <SelectItem value="Materiais">Materiais Clínicos/Escritório</SelectItem>
-                          <SelectItem value="Limpeza">Limpeza / Conservação</SelectItem>
-                          <SelectItem value="Utilidades">Água / Luz / Internet</SelectItem>
-                          <SelectItem value="Marketing">Marketing / Divulgação</SelectItem>
-                          <SelectItem value="Outros">Outros Gastos</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <Button
-                      type="submit"
-                      disabled={isMutating}
-                      className="w-full flex items-center justify-center gap-2"
-                    >
-                      <Plus className="h-4 w-4" /> Cadastrar Despesa
-                    </Button>
-                  </form>
-                </CardContent>
-              </Card>
-
-              {/* Financeiro do Período Card */}
-              <Card className="border-border shadow-sm">
-                <CardHeader>
-                  <CardTitle className="text-lg">Financeiro do período</CardTitle>
-                  <CardDescription>
-                    Detalhamento de faturas por status no período selecionado.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-2 text-sm">
-                  <div className="flex items-center justify-between border-b py-2 last:border-0">
-                    <span className="text-muted-foreground font-medium">Recebido</span>
-                    <span className="font-semibold text-emerald-600 dark:text-emerald-400">
-                      {brl(stats.faturamentoRecebido)}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between border-b py-2 last:border-0">
-                    <span className="text-muted-foreground font-medium">A receber</span>
-                    <span className="font-semibold">
-                      {brl(stats.faturamentoAReceber)}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between border-b py-2 last:border-0">
-                    <span className="text-muted-foreground font-medium">Vencido</span>
-                    <span className="font-semibold text-rose-600 dark:text-rose-400">
-                      {brl(stats.faturamentoVencido)}
-                    </span>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Expenses List Table Card */}
-            <Card className="border-border shadow-sm lg:col-span-2">
-              <CardHeader>
-                <CardTitle className="text-lg">Despesas Registradas</CardTitle>
-                <CardDescription>
-                  Lista de gastos efetuados no período selecionado.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="p-0 sm:p-6 sm:pt-0">
-                {loadingDespesas ? (
-                  <div className="p-8 text-center text-sm text-muted-foreground">
-                    Carregando despesas...
-                  </div>
-                ) : despesas.length === 0 ? (
-                  <div className="p-8 text-center text-sm text-muted-foreground">
-                    Nenhuma despesa cadastrada neste período.
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Data</TableHead>
-                          <TableHead>Descrição</TableHead>
-                          <TableHead>Categoria</TableHead>
-                          <TableHead className="text-right">Valor</TableHead>
-                          <TableHead className="w-[100px] text-right">Ações</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {despesas.map((d: any) => (
-                          <TableRow key={d.id}>
-                            <TableCell className="font-medium">
-                              {format(new Date(d.data + "T12:00:00"), "dd/MM/yyyy")}
-                            </TableCell>
-                            <TableCell className="max-w-[200px] truncate" title={d.descricao}>
-                              {d.descricao}
-                            </TableCell>
-                            <TableCell>
-                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-muted text-muted-foreground">
-                                {d.categoria || "Outros"}
-                              </span>
-                            </TableCell>
-                            <TableCell className="text-right font-semibold text-rose-600 dark:text-rose-400">
-                              {brl(Number(d.valor))}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <div className="flex justify-end gap-1">
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                                  onClick={() => handleOpenEditExpense(d)}
-                                  title="Editar Despesa"
-                                >
-                                  <Pencil className="h-4 w-4" />
-                                </Button>
-                                <AlertDialog>
-                                  <AlertDialogTrigger asChild>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                                      title="Excluir Despesa"
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                  </AlertDialogTrigger>
-                                  <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                      <AlertDialogTitle>
-                                        Tem certeza que deseja excluir esta despesa?
-                                      </AlertDialogTitle>
-                                      <AlertDialogDescription>
-                                        Esta ação é irreversível. A despesa "{d.descricao}" no valor
-                                        de {brl(Number(d.valor))} será excluída permanentemente.
-                                      </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                      <AlertDialogAction
-                                        onClick={() => deleteExpenseMutation.mutate(d.id)}
-                                        className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
-                                      >
-                                        Excluir
-                                      </AlertDialogAction>
-                                    </AlertDialogFooter>
-                                  </AlertDialogContent>
-                                </AlertDialog>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
 
         <TabsContent value="cobrancas" className="mt-0">
           <Card className="border-border shadow-sm">
@@ -2661,101 +2337,7 @@ Agradecemos a atenção!
         </DialogContent>
       </Dialog>
 
-      {/* Editar Despesa Dialog */}
-      <Dialog open={editExpenseDialog.open} onOpenChange={(open) => setEditExpenseDialog({ open, despesa: open ? editExpenseDialog.despesa : null })}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Editar Despesa</DialogTitle>
-          </DialogHeader>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (!expenseForm.descricao.trim()) {
-                toast.error("Digite uma descrição para a despesa.");
-                return;
-              }
-              const parsedValor = parseFloat(expenseForm.valor.replace(",", "."));
-              if (isNaN(parsedValor) || parsedValor <= 0) {
-                toast.error("Digite um valor válido maior que zero.");
-                return;
-              }
 
-              if (editExpenseDialog.despesa) {
-                updateExpenseMutation.mutate({
-                  id: editExpenseDialog.despesa.id,
-                  descricao: expenseForm.descricao,
-                  valor: parsedValor,
-                  data: expenseForm.data,
-                  categoria: expenseForm.categoria,
-                });
-              }
-            }}
-            className="space-y-4 pt-2"
-          >
-            <div className="space-y-1.5">
-              <Label htmlFor="edit-expense-desc">Descrição</Label>
-              <Input
-                id="edit-expense-desc"
-                placeholder="Ex: Aluguel da clínica"
-                value={expenseForm.descricao}
-                onChange={(e) => setExpenseForm({ ...expenseForm, descricao: e.target.value })}
-                required
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="edit-expense-value">Valor (R$)</Label>
-                <Input
-                  id="edit-expense-value"
-                  placeholder="0.00"
-                  value={expenseForm.valor}
-                  onChange={(e) => setExpenseForm({ ...expenseForm, valor: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="edit-expense-date">Data</Label>
-                <Input
-                  id="edit-expense-date"
-                  type="date"
-                  value={expenseForm.data}
-                  onChange={(e) => setExpenseForm({ ...expenseForm, data: e.target.value })}
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="edit-expense-category">Categoria</Label>
-              <Select value={expenseForm.categoria} onValueChange={(val) => setExpenseForm({ ...expenseForm, categoria: val })}>
-                <SelectTrigger id="edit-expense-category" className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Aluguel">Aluguel / Condomínio</SelectItem>
-                  <SelectItem value="Salários">Salários / Honorários</SelectItem>
-                  <SelectItem value="Impostos">Impostos / Taxas</SelectItem>
-                  <SelectItem value="Materiais">Materiais Clínicos/Escritório</SelectItem>
-                  <SelectItem value="Limpeza">Limpeza / Conservação</SelectItem>
-                  <SelectItem value="Utilidades">Água / Luz / Internet</SelectItem>
-                  <SelectItem value="Marketing">Marketing / Divulgação</SelectItem>
-                  <SelectItem value="Outros">Outros Gastos</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setEditExpenseDialog({ open: false, despesa: null })}>
-                Cancelar
-              </Button>
-              <Button type="submit" disabled={updateExpenseMutation.isPending}>
-                {updateExpenseMutation.isPending ? "Salvando..." : "Salvar Alterações"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
 
       {/* Faturas do Paciente Dialog */}
       <Dialog open={patientFaturasDialog.open} onOpenChange={(open) => setPatientFaturasDialog({ open, pacienteId: open ? patientFaturasDialog.pacienteId : "", pacienteNome: open ? patientFaturasDialog.pacienteNome : "" })}>

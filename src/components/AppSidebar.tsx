@@ -7,6 +7,7 @@ import {
   Brain,
   DollarSign,
   BarChart3,
+  TrendingDown,
 } from "lucide-react";
 import {
   Sidebar,
@@ -26,6 +27,7 @@ const items = [
   { title: "Agenda", url: "/agenda", icon: Calendar },
   { title: "Pacientes", url: "/pacientes", icon: Users },
   { title: "Profissionais", url: "/profissionais", icon: Stethoscope },
+  { title: "Despesas", url: "/despesas", icon: TrendingDown },
   { title: "Relatórios", url: "/relatorios", icon: BarChart3 },
 ];
 
