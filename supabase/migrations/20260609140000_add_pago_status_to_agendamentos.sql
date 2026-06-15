@@ -49,9 +49,9 @@ BEGIN
     FROM public.fatura_itens
     WHERE agendamento_id = NEW.id;
 
-    IF NEW.status = 'confirmado' OR NEW.status = 'pago' THEN
+    IF NEW.status = 'realizado' OR NEW.status = 'pago' OR NEW.status = 'falta' THEN
       -- Resolve target status
-      v_target_status := CASE WHEN NEW.status = 'pago' THEN 'paga'::public.fatura_status ELSE 'aberta'::public.fatura_status END;
+      v_target_status := CASE WHEN NEW.status = 'pago' OR NEW.status = 'falta' THEN 'paga'::public.fatura_status ELSE 'aberta'::public.fatura_status END;
 
       -- Resolve specialty
       v_especialidade := public.fn_get_especialidade(NEW.servico_id, NEW.paciente_id, NEW.profissional_id);
@@ -142,7 +142,7 @@ BEGIN
         WHERE id = v_fatura_id;
       END IF;
     ELSE
-      -- Status is not confirmed and not pago, but item exists (we need to remove it)
+      -- Status is not realizado, pago or falta, but item exists (we need to remove it)
       IF v_item_id IS NOT NULL THEN
         DELETE FROM public.fatura_itens WHERE id = v_item_id;
         

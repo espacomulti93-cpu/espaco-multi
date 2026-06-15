@@ -400,8 +400,8 @@ const syncAgendamentoFinanceiro = async (
     const existingItem = existingItens?.[0];
     const oldFatura = existingItem?.faturas as any;
 
-    // If status is NOT confirmed and NOT pago:
-    if (status !== "confirmado" && status !== "pago") {
+    // If status is NOT realizado, NOT pago, and NOT falta:
+    if (status !== "realizado" && status !== "pago" && status !== "falta") {
       // If there is an existing item, delete it and subtract its value from the fatura
       if (existingItem) {
         if (oldFatura?.status === "aberta" || oldFatura?.status === "paga") {
@@ -429,8 +429,8 @@ const syncAgendamentoFinanceiro = async (
       return;
     }
 
-    // If status IS confirmed or pago:
-    const targetStatus = status === "pago" ? "paga" : "aberta";
+    // If status IS realizado, pago, or falta:
+    const targetStatus = (status === "pago" || status === "falta") ? "paga" : "aberta";
     const d = new Date(dataInicio);
     const competencia = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
     const dateStr = format(d, "dd/MM/yyyy HH:mm");
