@@ -8,6 +8,7 @@ import {
   DollarSign,
   BarChart3,
   TrendingDown,
+  ClipboardCheck,
 } from "lucide-react";
 import {
   Sidebar,
@@ -27,6 +28,7 @@ const items = [
   { title: "Agenda", url: "/agenda", icon: Calendar },
   { title: "Pacientes", url: "/pacientes", icon: Users },
   { title: "Profissionais", url: "/profissionais", icon: Stethoscope },
+  { title: "Frequência", url: "/frequencia", icon: ClipboardCheck },
   { title: "Despesas", url: "/despesas", icon: TrendingDown },
   { title: "Relatórios", url: "/relatorios", icon: BarChart3 },
 ];

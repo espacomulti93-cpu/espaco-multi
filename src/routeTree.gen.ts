@@ -14,6 +14,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppRelatoriosRouteImport } from './routes/_app.relatorios'
 import { Route as AppProfissionaisRouteImport } from './routes/_app.profissionais'
 import { Route as AppPacientesRouteImport } from './routes/_app.pacientes'
+import { Route as AppFrequenciaRouteImport } from './routes/_app.frequencia'
 import { Route as AppDiretoriaRouteImport } from './routes/_app.diretoria'
 import { Route as AppDespesasRouteImport } from './routes/_app.despesas'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
@@ -42,6 +43,11 @@ const AppProfissionaisRoute = AppProfissionaisRouteImport.update({
 const AppPacientesRoute = AppPacientesRouteImport.update({
   id: '/pacientes',
   path: '/pacientes',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppFrequenciaRoute = AppFrequenciaRouteImport.update({
+  id: '/frequencia',
+  path: '/frequencia',
   getParentRoute: () => AppRoute,
 } as any)
 const AppDiretoriaRoute = AppDiretoriaRouteImport.update({
@@ -76,6 +82,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AppDashboardRoute
   '/despesas': typeof AppDespesasRoute
   '/diretoria': typeof AppDiretoriaRoute
+  '/frequencia': typeof AppFrequenciaRoute
   '/pacientes': typeof AppPacientesRouteWithChildren
   '/profissionais': typeof AppProfissionaisRoute
   '/relatorios': typeof AppRelatoriosRoute
@@ -87,6 +94,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AppDashboardRoute
   '/despesas': typeof AppDespesasRoute
   '/diretoria': typeof AppDiretoriaRoute
+  '/frequencia': typeof AppFrequenciaRoute
   '/pacientes': typeof AppPacientesRouteWithChildren
   '/profissionais': typeof AppProfissionaisRoute
   '/relatorios': typeof AppRelatoriosRoute
@@ -100,6 +108,7 @@ export interface FileRoutesById {
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/despesas': typeof AppDespesasRoute
   '/_app/diretoria': typeof AppDiretoriaRoute
+  '/_app/frequencia': typeof AppFrequenciaRoute
   '/_app/pacientes': typeof AppPacientesRouteWithChildren
   '/_app/profissionais': typeof AppProfissionaisRoute
   '/_app/relatorios': typeof AppRelatoriosRoute
@@ -113,6 +122,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/despesas'
     | '/diretoria'
+    | '/frequencia'
     | '/pacientes'
     | '/profissionais'
     | '/relatorios'
@@ -124,6 +134,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/despesas'
     | '/diretoria'
+    | '/frequencia'
     | '/pacientes'
     | '/profissionais'
     | '/relatorios'
@@ -136,6 +147,7 @@ export interface FileRouteTypes {
     | '/_app/dashboard'
     | '/_app/despesas'
     | '/_app/diretoria'
+    | '/_app/frequencia'
     | '/_app/pacientes'
     | '/_app/profissionais'
     | '/_app/relatorios'
@@ -182,6 +194,13 @@ declare module '@tanstack/react-router' {
       path: '/pacientes'
       fullPath: '/pacientes'
       preLoaderRoute: typeof AppPacientesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/frequencia': {
+      id: '/_app/frequencia'
+      path: '/frequencia'
+      fullPath: '/frequencia'
+      preLoaderRoute: typeof AppFrequenciaRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/diretoria': {
@@ -239,6 +258,7 @@ interface AppRouteChildren {
   AppDashboardRoute: typeof AppDashboardRoute
   AppDespesasRoute: typeof AppDespesasRoute
   AppDiretoriaRoute: typeof AppDiretoriaRoute
+  AppFrequenciaRoute: typeof AppFrequenciaRoute
   AppPacientesRoute: typeof AppPacientesRouteWithChildren
   AppProfissionaisRoute: typeof AppProfissionaisRoute
   AppRelatoriosRoute: typeof AppRelatoriosRoute
@@ -249,6 +269,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppDashboardRoute: AppDashboardRoute,
   AppDespesasRoute: AppDespesasRoute,
   AppDiretoriaRoute: AppDiretoriaRoute,
+  AppFrequenciaRoute: AppFrequenciaRoute,
   AppPacientesRoute: AppPacientesRouteWithChildren,
   AppProfissionaisRoute: AppProfissionaisRoute,
   AppRelatoriosRoute: AppRelatoriosRoute,

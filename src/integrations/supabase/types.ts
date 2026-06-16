@@ -25,6 +25,9 @@ export type Database = {
           servico_id: string | null;
           status: Database["public"]["Enums"]["agendamento_status"];
           updated_at: string;
+          assinatura_responsavel: string | null;
+          nome_assinante: string | null;
+          data_assinatura: string | null;
         };
         Insert: {
           created_at?: string;
@@ -42,6 +45,9 @@ export type Database = {
           servico_id?: string | null;
           status?: Database["public"]["Enums"]["agendamento_status"];
           updated_at?: string;
+          assinatura_responsavel?: string | null;
+          nome_assinante?: string | null;
+          data_assinatura?: string | null;
         };
         Update: {
           created_at?: string;
@@ -59,6 +65,9 @@ export type Database = {
           servico_id?: string | null;
           status?: Database["public"]["Enums"]["agendamento_status"];
           updated_at?: string;
+          assinatura_responsavel?: string | null;
+          nome_assinante?: string | null;
+          data_assinatura?: string | null;
         };
         Relationships: [
           {
