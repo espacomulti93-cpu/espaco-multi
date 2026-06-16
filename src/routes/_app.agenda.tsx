@@ -597,10 +597,10 @@ function FragmentRow({ h, days, ags, onCellClick, onEdit }: any) {
                 e.stopPropagation();
                 onCellClick(d);
               }}
-              className="absolute top-1.5 right-1.5 z-10 flex h-5 w-5 items-center justify-center rounded bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all duration-200 shadow-sm border border-primary/20 cursor-pointer"
+              className="absolute top-1 right-1 z-10 flex h-8 w-8 md:h-5 md:w-5 items-center justify-center rounded-full bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all duration-200 shadow-sm border border-primary/20 cursor-pointer before:content-[''] before:absolute before:-inset-2 md:before:hidden"
               title="Adicionar sessão"
             >
-              <Plus className="h-3.5 w-3.5" />
+              <Plus className="h-4 w-4 md:h-3.5 md:w-3.5" />
             </button>
             {cellAgs.map((a: any) => (
               <button

@@ -38,7 +38,7 @@ function AppLayout() {
     <SidebarProvider>
       <div className="flex min-h-screen w-full bg-background">
         <AppSidebar />
-        <div className="flex flex-1 flex-col">
+        <div className="flex flex-1 flex-col min-w-0">
           <header className="sticky top-0 z-10 flex h-14 items-center gap-3 border-b bg-background/80 px-4 backdrop-blur">
             <SidebarTrigger />
             <h1 className="text-base font-semibold">{title}</h1>
@@ -63,7 +63,7 @@ function AppLayout() {
               </Button>
             </div>
           </header>
-          <main className="flex-1 p-4 md:p-6">
+          <main className="flex-1 p-4 md:p-6 min-w-0">
             <Outlet />
           </main>
         </div>
