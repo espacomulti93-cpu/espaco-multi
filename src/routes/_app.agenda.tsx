@@ -83,6 +83,7 @@ function Agenda() {
   const [cancelTarget, setCancelTarget] = useState<any>(null);
 
   const [selectedProfs, setSelectedProfs] = useState<string[]>([]);
+  const [profsPopoverOpen, setProfsPopoverOpen] = useState(false);
 
   const [patientDialogState, setPatientDialogState] = useState<{
     open: boolean;
@@ -128,6 +129,12 @@ function Agenda() {
 
   return (
     <div className="space-y-4">
+      {profsPopoverOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-transparent cursor-default"
+          onClick={() => setProfsPopoverOpen(false)}
+        />
+      )}
       <div className="flex flex-wrap items-center gap-2">
         <Button variant="outline" size="icon" onClick={() => setWeekStart(addWeeks(weekStart, -1))}>
           <ChevronLeft className="h-4 w-4" />
@@ -146,7 +153,7 @@ function Agenda() {
           {format(weekStart, "d 'de' MMM", { locale: ptBR })} –{" "}
           {format(weekEnd, "d 'de' MMM yyyy", { locale: ptBR })}
         </div>
-        <Popover>
+        <Popover open={profsPopoverOpen} onOpenChange={setProfsPopoverOpen}>
           <PopoverTrigger asChild>
             <Button
               variant="outline"
@@ -582,17 +589,28 @@ function FragmentRow({ h, days, ags, onCellClick, onEdit }: any) {
         return (
           <div
             key={d.toString() + h}
-            onClick={() => onCellClick(d)}
-            className="group relative min-h-[60px] cursor-pointer border-b border-r p-1 hover:bg-secondary/50"
+            className="group relative min-h-[60px] border-b border-r p-1 hover:bg-muted/10 transition-colors"
           >
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onCellClick(d);
+              }}
+              className="absolute top-1.5 right-1.5 z-10 flex h-5 w-5 items-center justify-center rounded bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all duration-200 shadow-sm border border-primary/20 cursor-pointer"
+              title="Adicionar sessão"
+            >
+              <Plus className="h-3.5 w-3.5" />
+            </button>
             {cellAgs.map((a: any) => (
               <button
                 key={a.id}
+                type="button"
                 onClick={(e) => {
                   e.stopPropagation();
                   onEdit(a);
                 }}
-                className="mb-1 block w-full rounded-md border-l-4 bg-card px-2 py-1 text-left text-xs shadow-sm transition hover:shadow"
+                className="mb-1 block w-full rounded-md border-l-4 bg-card pl-2 pr-6 py-1 text-left text-xs shadow-sm transition hover:shadow"
                 style={{ borderLeftColor: a.profissionais?.cor ?? "var(--primary)" }}
               >
                 <div className="truncate font-medium text-foreground">{a.pacientes?.nome}</div>
