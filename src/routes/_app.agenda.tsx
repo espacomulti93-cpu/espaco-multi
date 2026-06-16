@@ -251,16 +251,16 @@ function Agenda() {
       </div>
 
       <Card>
-        <CardContent className="overflow-x-auto p-0">
+        <CardContent className="overflow-auto max-h-[calc(100dvh-180px)] md:max-h-[calc(100vh-220px)] p-0">
           <div className="grid min-w-[900px] grid-cols-[60px_repeat(6,1fr)]">
-            <div className="sticky top-14 z-20 border-b border-r bg-card p-2 text-xs font-medium text-muted-foreground"></div>
+            <div className="sticky top-0 z-20 border-b border-r bg-card p-2 text-xs font-medium text-muted-foreground"></div>
             {days.map((d) => {
               const isToday = isSameDay(d, new Date());
               return (
                 <div
                   key={d.toString()}
                   className={cn(
-                    "sticky top-14 z-20 border-b border-r p-2 text-center text-xs font-medium bg-card",
+                    "sticky top-0 z-20 border-b border-r p-2 text-center text-xs font-medium bg-card",
                     isToday && "text-primary font-semibold"
                   )}
                 >
