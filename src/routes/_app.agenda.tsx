@@ -253,16 +253,25 @@ function Agenda() {
       <Card>
         <CardContent className="overflow-x-auto p-0">
           <div className="grid min-w-[900px] grid-cols-[60px_repeat(6,1fr)]">
-            <div className="border-b border-r bg-muted/40 p-2 text-xs font-medium text-muted-foreground"></div>
-            {days.map((d) => (
-              <div
-                key={d.toString()}
-                className={`border-b border-r p-2 text-center text-xs font-medium ${isSameDay(d, new Date()) ? "bg-primary/10 text-primary" : "bg-muted/40 text-muted-foreground"}`}
-              >
-                <div>{format(d, "EEE", { locale: ptBR })}</div>
-                <div className="text-base text-foreground">{format(d, "d")}</div>
-              </div>
-            ))}
+            <div className="sticky top-14 z-20 border-b border-r bg-card p-2 text-xs font-medium text-muted-foreground"></div>
+            {days.map((d) => {
+              const isToday = isSameDay(d, new Date());
+              return (
+                <div
+                  key={d.toString()}
+                  className={cn(
+                    "sticky top-14 z-20 border-b border-r p-2 text-center text-xs font-medium bg-card",
+                    isToday && "text-primary font-semibold"
+                  )}
+                >
+                  {isToday && (
+                    <div className="absolute inset-0 bg-primary/10 pointer-events-none" />
+                  )}
+                  <div className="relative z-10">{format(d, "EEE", { locale: ptBR })}</div>
+                  <div className="relative z-10 text-base text-foreground">{format(d, "d")}</div>
+                </div>
+              );
+            })}
             {HOURS.map((h) => (
               <FragmentRow
                 key={h}
