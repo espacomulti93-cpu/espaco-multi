@@ -218,7 +218,7 @@ function FrequenciaPage() {
         .eq("profissional_id", selectedProfId)
         .gte("data_inicio", `${inicio}T00:00:00`)
         .lte("data_inicio", `${fim}T23:59:59`)
-        .order("data_inicio", { ascending: false });
+        .order("data_inicio", { ascending: true });
       if (error) throw error;
       return data ?? [];
     },
