@@ -33,6 +33,7 @@ function AppLayout() {
     Object.entries(titles).find(([k]) => path === k || path.startsWith(k + "/"))?.[1] ?? "";
 
   const isDiretoriaUnlocked = typeof window !== "undefined" && window.sessionStorage.getItem("diretoria_unlocked") === "true";
+  const isDespesasUnlocked = typeof window !== "undefined" && window.sessionStorage.getItem("despesas_unlocked") === "true";
 
   return (
     <SidebarProvider>
@@ -50,6 +51,19 @@ function AppLayout() {
                   className="gap-1.5 border-rose-500/30 text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/20"
                   onClick={() => {
                     window.sessionStorage.removeItem("diretoria_unlocked");
+                    window.location.reload();
+                  }}
+                >
+                  <Lock className="h-4 w-4" /> Bloquear Acesso
+                </Button>
+              )}
+              {path === "/despesas" && isDespesasUnlocked && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 border-rose-500/30 text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/20"
+                  onClick={() => {
+                    window.sessionStorage.removeItem("despesas_unlocked");
                     window.location.reload();
                   }}
                 >

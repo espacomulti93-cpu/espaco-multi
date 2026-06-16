@@ -53,11 +53,88 @@ import {
   Pencil,
   Trash2,
   TrendingDown,
+  Lock,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 
 export const Route = createFileRoute("/_app/despesas")({
   component: DespesasPage,
 });
+
+function DespesasPasswordGate({ onUnlock }: { onUnlock: () => void }) {
+  const [password, setPassword] = useState("");
+  const [verifying, setVerifying] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setVerifying(true);
+    try {
+      if (password === "12345") {
+        onUnlock();
+        toast.success("Acesso liberado!");
+      } else {
+        toast.error("Senha incorreta!");
+      }
+    } catch (err: any) {
+      console.error(err);
+      toast.error("Erro ao validar senha.");
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  return (
+    <div className="flex min-h-[60vh] items-center justify-center p-4">
+      <Card className="w-full max-w-md border-primary/20 shadow-lg">
+        <CardHeader className="text-center space-y-1">
+          <div className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-primary/10 text-primary mb-3">
+            <Lock className="h-6 w-6" />
+          </div>
+          <CardTitle className="text-2xl font-bold">Acesso Restrito</CardTitle>
+          <CardDescription>
+            Digite a senha para visualizar e gerenciar as despesas da clínica.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="password">Senha de Acesso</Label>
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  className="text-center tracking-widest pr-10"
+                  autoFocus
+                  disabled={verifying}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
+            </div>
+            <Button type="submit" className="w-full" disabled={verifying}>
+              {verifying ? "Verificando..." : "Confirmar Senha"}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
 
 function brl(n: number) {
   return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -71,6 +148,12 @@ const parseMoneyValue = (val: any) => {
 };
 
 function DespesasPage() {
+  const [unlocked, setUnlocked] = useState(() => {
+    if (typeof window !== "undefined") {
+      return window.sessionStorage.getItem("despesas_unlocked") === "true";
+    }
+    return false;
+  });
   const queryClient = useQueryClient();
   const today = new Date();
   const [inicio, setInicio] = useState(format(startOfMonth(today), "yyyy-MM-dd"));
@@ -209,6 +292,19 @@ function DespesasPage() {
   };
 
   const isMutating = createExpenseMutation.isPending || deleteExpenseMutation.isPending;
+
+  if (!unlocked) {
+    return (
+      <DespesasPasswordGate
+        onUnlock={() => {
+          setUnlocked(true);
+          if (typeof window !== "undefined") {
+            window.sessionStorage.setItem("despesas_unlocked", "true");
+          }
+        }}
+      />
+    );
+  }
 
   return (
     <div className="space-y-6">
