@@ -18,10 +18,12 @@ const errorMiddleware = createMiddleware().server(async ({ next }) => {
 });
 
 export const startInstance = createStart(() => ({
+  functionMiddleware: [attachSupabaseAuth],
   requestMiddleware: [errorMiddleware],
 }));
 
 import type { getRouter } from "./router";
+import { attachSupabaseAuth } from "@/integrations/supabase/auth-attacher";
 
 declare module "@tanstack/react-start" {
   interface Register {
