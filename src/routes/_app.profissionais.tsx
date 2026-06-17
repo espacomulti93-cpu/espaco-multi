@@ -306,7 +306,9 @@ function ProfissionaisPage() {
                       </div>
                     )}
                     {(() => {
-                      const acompanhados = pacienteProfissional.filter((m: any) => m.profissional_id === p.id);
+                      const acompanhados = pacienteProfissional.filter(
+                        (m: any) => m.profissional_id === p.id,
+                      );
                       if (acompanhados.length === 0) return null;
                       return (
                         <div className="mt-2 pt-2 border-t text-[11px] text-muted-foreground space-y-1">
@@ -315,7 +317,11 @@ function ProfissionaisPage() {
                           </span>
                           <div className="flex flex-wrap gap-1 mt-1">
                             {acompanhados.map((item: any) => (
-                              <Badge key={item.paciente_id} variant="outline" className="text-[10px] px-1.5 py-0">
+                              <Badge
+                                key={item.paciente_id}
+                                variant="outline"
+                                className="text-[10px] px-1.5 py-0"
+                              >
                                 {item.pacientes?.nome}
                               </Badge>
                             ))}

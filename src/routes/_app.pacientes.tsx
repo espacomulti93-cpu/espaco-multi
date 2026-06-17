@@ -29,8 +29,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { differenceInYears, format } from "date-fns";
 
-
-
 export const Route = createFileRoute("/_app/pacientes")({
   component: PacientesPage,
 });
@@ -245,7 +243,9 @@ function PacientesPage() {
                       </div>
                     )}
                     {(() => {
-                      const profs = (pacienteProfissionais || []).filter((m: any) => m.paciente_id === p.id);
+                      const profs = (pacienteProfissionais || []).filter(
+                        (m: any) => m.paciente_id === p.id,
+                      );
                       if ((profs || []).length === 0) return null;
                       return (
                         <div className="mt-1.5 flex flex-wrap gap-1 items-center">
@@ -254,7 +254,9 @@ function PacientesPage() {
                               key={item.profissional_id}
                               variant="secondary"
                               className="text-[9px] px-1.5 py-0 border-l-[3px]"
-                              style={{ borderLeftColor: item.profissionais?.cor || "var(--primary)" }}
+                              style={{
+                                borderLeftColor: item.profissionais?.cor || "var(--primary)",
+                              }}
                             >
                               {item.profissionais?.nome}
                             </Badge>
@@ -264,11 +266,9 @@ function PacientesPage() {
                     })()}
                     <div className="mt-3 flex items-center justify-between gap-2 text-xs text-muted-foreground">
                       <div>
-                        {p.tipo_atendimento === "convenio" ? (
-                          `Convênio: ${p.convenio_nome ?? "—"}`
-                        ) : (
-                          `Particular (${p.valor_mensal && p.valor_mensal > 0 ? "Mensal" : "Por Sessão"})`
-                        )}
+                        {p.tipo_atendimento === "convenio"
+                          ? `Convênio: ${p.convenio_nome ?? "—"}`
+                          : `Particular (${p.valor_mensal && p.valor_mensal > 0 ? "Mensal" : "Por Sessão"})`}
                       </div>
                       <div className="flex gap-1">
                         <Button
@@ -308,4 +308,3 @@ function PacientesPage() {
     </div>
   );
 }
-

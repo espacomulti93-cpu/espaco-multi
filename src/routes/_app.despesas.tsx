@@ -4,13 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useState, useMemo } from "react";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import { toast } from "sonner";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -47,16 +41,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import {
-  Calendar,
-  Plus,
-  Pencil,
-  Trash2,
-  TrendingDown,
-  Lock,
-  Eye,
-  EyeOff,
-} from "lucide-react";
+import { Calendar, Plus, Pencil, Trash2, TrendingDown, Lock, Eye, EyeOff } from "lucide-react";
 
 export const Route = createFileRoute("/_app/despesas")({
   component: DespesasPage,
@@ -118,11 +103,7 @@ function DespesasPasswordGate({ onUnlock }: { onUnlock: () => void }) {
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
                 >
-                  {showPassword ? (
-                    <EyeOff className="h-4 w-4" />
-                  ) : (
-                    <Eye className="h-4 w-4" />
-                  )}
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
             </div>
@@ -273,7 +254,10 @@ function DespesasPage() {
     });
   };
 
-  const [editExpenseDialog, setEditExpenseDialog] = useState<{ open: boolean; despesa: any }>({ open: false, despesa: null });
+  const [editExpenseDialog, setEditExpenseDialog] = useState<{ open: boolean; despesa: any }>({
+    open: false,
+    despesa: null,
+  });
   const [expenseForm, setExpenseForm] = useState({
     descricao: "",
     valor: "",
@@ -335,8 +319,6 @@ function DespesasPage() {
           </div>
         </CardContent>
       </Card>
-
-
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-1">
@@ -419,9 +401,7 @@ function DespesasPage() {
         <Card className="border-border shadow-sm lg:col-span-2">
           <CardHeader>
             <CardTitle className="text-lg">Despesas Registradas</CardTitle>
-            <CardDescription>
-              Lista de gastos efetuados no período selecionado.
-            </CardDescription>
+            <CardDescription>Lista de gastos efetuados no período selecionado.</CardDescription>
           </CardHeader>
           <CardContent className="p-0 sm:p-6 sm:pt-0">
             {loadingDespesas ? (
@@ -489,8 +469,8 @@ function DespesasPage() {
                                     Tem certeza que deseja excluir esta despesa?
                                   </AlertDialogTitle>
                                   <AlertDialogDescription>
-                                    Esta ação é irreversível. A despesa "{d.descricao}" no valor
-                                    de {brl(Number(d.valor))} será excluída permanentemente.
+                                    Esta ação é irreversível. A despesa "{d.descricao}" no valor de{" "}
+                                    {brl(Number(d.valor))} será excluída permanentemente.
                                   </AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
@@ -517,7 +497,12 @@ function DespesasPage() {
       </div>
 
       {/* Editar Despesa Dialog */}
-      <Dialog open={editExpenseDialog.open} onOpenChange={(open) => setEditExpenseDialog({ open, despesa: open ? editExpenseDialog.despesa : null })}>
+      <Dialog
+        open={editExpenseDialog.open}
+        onOpenChange={(open) =>
+          setEditExpenseDialog({ open, despesa: open ? editExpenseDialog.despesa : null })
+        }
+      >
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Editar Despesa</DialogTitle>
@@ -583,7 +568,10 @@ function DespesasPage() {
 
             <div className="space-y-1.5">
               <Label htmlFor="edit-expense-category">Categoria</Label>
-              <Select value={expenseForm.categoria} onValueChange={(val) => setExpenseForm({ ...expenseForm, categoria: val })}>
+              <Select
+                value={expenseForm.categoria}
+                onValueChange={(val) => setExpenseForm({ ...expenseForm, categoria: val })}
+              >
                 <SelectTrigger id="edit-expense-category" className="w-full">
                   <SelectValue />
                 </SelectTrigger>
@@ -599,9 +587,13 @@ function DespesasPage() {
                 </SelectContent>
               </Select>
             </div>
-            
+
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setEditExpenseDialog({ open: false, despesa: null })}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setEditExpenseDialog({ open: false, despesa: null })}
+              >
                 Cancelar
               </Button>
               <Button type="submit" disabled={updateExpenseMutation.isPending}>

@@ -12,12 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 
 export const formatBirthDate = (value: string) => {
@@ -67,7 +62,9 @@ export function PacienteFormDialog({
     cid_principal: paciente?.cid_principal ?? "",
     cids_secundarios: Array.isArray(paciente?.cids_secundarios)
       ? (paciente.cids_secundarios as string[])
-      : (defaultSpecialty ? [defaultSpecialty] : []),
+      : defaultSpecialty
+        ? [defaultSpecialty]
+        : [],
     tipo_atendimento: paciente?.tipo_atendimento ?? "particular",
     convenio_nome: paciente?.convenio_nome ?? "",
     status: paciente?.status ?? "ativo",
@@ -204,7 +201,7 @@ export function PacienteFormDialog({
 
         // Clear existing mappings
         await supabase.from("paciente_profissional").delete().eq("paciente_id", paciente.id);
-        
+
         // Insert new mappings
         if (selectedProfs.length > 0) {
           const mappings = selectedProfs.map((profId) => ({
@@ -384,7 +381,9 @@ export function PacienteFormDialog({
               );
             })}
             {(profissionaisList || []).length === 0 && (
-              <span className="text-xs text-muted-foreground italic">Nenhum profissional ativo cadastrado.</span>
+              <span className="text-xs text-muted-foreground italic">
+                Nenhum profissional ativo cadastrado.
+              </span>
             )}
           </div>
         </div>
@@ -445,9 +444,7 @@ export function PacienteFormDialog({
             <Label>Forma de Cobrança</Label>
             <Select
               value={Number(form.valor_mensal) > 0 ? "mensal" : "sessao"}
-              onValueChange={(v) =>
-                setForm({ ...form, valor_mensal: v === "mensal" ? "1" : "" })
-              }
+              onValueChange={(v) => setForm({ ...form, valor_mensal: v === "mensal" ? "1" : "" })}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Selecione a forma de cobrança..." />

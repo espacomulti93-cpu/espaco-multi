@@ -176,11 +176,9 @@ function PacienteDetail() {
           <Info
             label="Atendimento"
             value={
-              paciente.tipo_atendimento === "convenio" ? (
-                `Convênio: ${paciente.convenio_nome ?? "—"}`
-              ) : (
-                `Particular (${paciente.valor_mensal && paciente.valor_mensal > 0 ? "Mensal" : "Por Sessão"})`
-              )
+              paciente.tipo_atendimento === "convenio"
+                ? `Convênio: ${paciente.convenio_nome ?? "—"}`
+                : `Particular (${paciente.valor_mensal && paciente.valor_mensal > 0 ? "Mensal" : "Por Sessão"})`
             }
           />
 
@@ -213,11 +211,11 @@ function PacienteDetail() {
           </Dialog>
         </CardHeader>
         <CardContent>
-          {((responsaveis || [])).length === 0 ? (
+          {(responsaveis || []).length === 0 ? (
             <p className="text-sm text-muted-foreground">Nenhum responsável cadastrado.</p>
           ) : (
             <div className="divide-y">
-              {((responsaveis || [])).map((r) => (
+              {(responsaveis || []).map((r) => (
                 <div key={r.id} className="flex items-center gap-3 py-3">
                   <div className="flex-1">
                     <div className="text-sm font-medium">
@@ -247,11 +245,11 @@ function PacienteDetail() {
           <CardTitle className="text-base">Histórico de agendamentos</CardTitle>
         </CardHeader>
         <CardContent>
-          {((ags || [])).length === 0 ? (
+          {(ags || []).length === 0 ? (
             <p className="text-sm text-muted-foreground">Sem agendamentos.</p>
           ) : (
             <div className="divide-y">
-              {((ags || [])).map((a: any) => (
+              {(ags || []).map((a: any) => (
                 <div key={a.id} className="flex items-center gap-3 py-2.5 text-sm">
                   <div
                     className="h-8 w-1 rounded-full"

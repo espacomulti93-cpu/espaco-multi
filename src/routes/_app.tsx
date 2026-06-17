@@ -33,8 +33,10 @@ function AppLayout() {
   const title =
     Object.entries(titles).find(([k]) => path === k || path.startsWith(k + "/"))?.[1] ?? "";
 
-  const isDiretoriaUnlocked = typeof window !== "undefined" && window.sessionStorage.getItem("diretoria_unlocked") === "true";
-  const isDespesasUnlocked = typeof window !== "undefined" && window.sessionStorage.getItem("despesas_unlocked") === "true";
+  const isDiretoriaUnlocked =
+    typeof window !== "undefined" && window.sessionStorage.getItem("diretoria_unlocked") === "true";
+  const isDespesasUnlocked =
+    typeof window !== "undefined" && window.sessionStorage.getItem("despesas_unlocked") === "true";
 
   return (
     <SidebarProvider>

@@ -39,7 +39,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!activeSession) {
           const email = "clinica@espacomulti.com";
           const password = "ClinicaMulti2026!";
-          
+
           const { error: signInError, data: signInData } = await supabase.auth.signInWithPassword({
             email,
             password,

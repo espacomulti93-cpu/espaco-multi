@@ -37,10 +37,7 @@ export function AppSidebar() {
   const path = useRouterState({ select: (r) => r.location.pathname });
   const { setOpenMobile } = useSidebar();
 
-  const menuItems = [
-    ...items,
-    { title: "Diretoria", url: "/diretoria", icon: DollarSign },
-  ];
+  const menuItems = [...items, { title: "Diretoria", url: "/diretoria", icon: DollarSign }];
 
   return (
     <Sidebar collapsible="icon">

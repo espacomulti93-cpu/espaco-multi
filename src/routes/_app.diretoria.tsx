@@ -5,13 +5,7 @@ import { useState, useMemo } from "react";
 import { format, startOfMonth, endOfMonth, differenceInDays, startOfDay } from "date-fns";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -111,7 +105,8 @@ function PasswordGate({ onUnlock }: { onUnlock: () => void }) {
           </div>
           <CardTitle className="text-2xl font-bold">Acesso Restrito</CardTitle>
           <CardDescription>
-            Digite sua senha de administrador para visualizar as informações financeiras da diretoria.
+            Digite sua senha de administrador para visualizar as informações financeiras da
+            diretoria.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -135,11 +130,7 @@ function PasswordGate({ onUnlock }: { onUnlock: () => void }) {
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
                 >
-                  {showPassword ? (
-                    <EyeOff className="h-4 w-4" />
-                  ) : (
-                    <Eye className="h-4 w-4" />
-                  )}
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
             </div>
@@ -159,16 +150,11 @@ function DiretoriaPageContent() {
   const [inicio, setInicio] = useState(format(startOfMonth(today), "yyyy-MM-dd"));
   const [fim, setFim] = useState(format(endOfMonth(today), "yyyy-MM-dd"));
 
-
-
   // Fetch Patients
   const { data: pacientes = [] } = useQuery({
     queryKey: ["dir-pacientes-min"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("pacientes")
-        .select("id, nome")
-        .order("nome");
+      const { data, error } = await supabase.from("pacientes").select("id, nome").order("nome");
       if (error) throw error;
       return data;
     },
@@ -206,7 +192,9 @@ function DiretoriaPageContent() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("faturas")
-        .select("id, valor, status, competencia, vencimento, pago_em, metodo, observacoes, paciente_id")
+        .select(
+          "id, valor, status, competencia, vencimento, pago_em, metodo, observacoes, paciente_id",
+        )
         .gte("competencia", inicio)
         .lte("competencia", fim);
       if (error) throw error;
@@ -216,7 +204,17 @@ function DiretoriaPageContent() {
 
   // Confirm payment mutation
   const confirmPaymentMutation = useMutation({
-    mutationFn: async ({ id, pago_em, metodo, observacoes }: { id: string; pago_em: string; metodo: string; observacoes?: string }) => {
+    mutationFn: async ({
+      id,
+      pago_em,
+      metodo,
+      observacoes,
+    }: {
+      id: string;
+      pago_em: string;
+      metodo: string;
+      observacoes?: string;
+    }) => {
       const { error } = await supabase
         .from("faturas")
         .update({
@@ -239,17 +237,22 @@ function DiretoriaPageContent() {
 
   // Create billing (manual) mutation
   const createFaturaMutation = useMutation({
-    mutationFn: async (newFatura: { paciente_id: string; competencia: string; vencimento?: string | null; valor: number; status: string; observacoes?: string | null }) => {
-      const { error } = await supabase
-        .from("faturas")
-        .insert({
-          paciente_id: newFatura.paciente_id,
-          competencia: newFatura.competencia,
-          vencimento: newFatura.vencimento || null,
-          valor: newFatura.valor,
-          status: newFatura.status as any,
-          observacoes: newFatura.observacoes || null,
-        });
+    mutationFn: async (newFatura: {
+      paciente_id: string;
+      competencia: string;
+      vencimento?: string | null;
+      valor: number;
+      status: string;
+      observacoes?: string | null;
+    }) => {
+      const { error } = await supabase.from("faturas").insert({
+        paciente_id: newFatura.paciente_id,
+        competencia: newFatura.competencia,
+        vencimento: newFatura.vencimento || null,
+        valor: newFatura.valor,
+        status: newFatura.status as any,
+        observacoes: newFatura.observacoes || null,
+      });
       if (error) throw error;
     },
     onSuccess: () => {
@@ -263,7 +266,16 @@ function DiretoriaPageContent() {
 
   // Edit billing mutation
   const editFaturaMutation = useMutation({
-    mutationFn: async (updatedFatura: { id: string; competencia: string; vencimento?: string | null; valor: number; status: string; pago_em?: string | null; metodo?: string | null; observacoes?: string | null }) => {
+    mutationFn: async (updatedFatura: {
+      id: string;
+      competencia: string;
+      vencimento?: string | null;
+      valor: number;
+      status: string;
+      pago_em?: string | null;
+      metodo?: string | null;
+      observacoes?: string | null;
+    }) => {
       const { error } = await supabase
         .from("faturas")
         .update({
@@ -271,7 +283,10 @@ function DiretoriaPageContent() {
           vencimento: updatedFatura.vencimento || null,
           valor: updatedFatura.valor,
           status: updatedFatura.status as any,
-          pago_em: updatedFatura.status === "paga" ? (updatedFatura.pago_em || new Date().toISOString()) : null,
+          pago_em:
+            updatedFatura.status === "paga"
+              ? updatedFatura.pago_em || new Date().toISOString()
+              : null,
           metodo: updatedFatura.status === "paga" ? (updatedFatura.metodo as any) : null,
           observacoes: updatedFatura.observacoes || null,
         })
@@ -317,8 +332,6 @@ function DiretoriaPageContent() {
       return data;
     },
   });
-
-
 
   // Calculations
   const stats = useMemo(() => {
@@ -368,8 +381,6 @@ function DiretoriaPageContent() {
     return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
   }
 
-
-
   // Fetch active professionals
   const { data: profissionais = [] } = useQuery({
     queryKey: ["dir-profissionais"],
@@ -394,7 +405,8 @@ function DiretoriaPageContent() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("agendamentos")
-        .select(`
+        .select(
+          `
           id,
           status,
           data_inicio,
@@ -418,7 +430,8 @@ function DiretoriaPageContent() {
             id,
             nome
           )
-        `)
+        `,
+        )
         .gte("data_inicio", `${inicio}T00:00:00`)
         .lte("data_inicio", `${fim}T23:59:59`);
       if (error) throw error;
@@ -430,9 +443,7 @@ function DiretoriaPageContent() {
   const { data: faturaItens = [], isLoading: loadingFaturaItens } = useQuery({
     queryKey: ["dir-fatura-itens-all"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("fatura_itens")
-        .select(`
+      const { data, error } = await supabase.from("fatura_itens").select(`
           total,
           valor_unitario,
           agendamento_id,
@@ -446,7 +457,7 @@ function DiretoriaPageContent() {
         `);
       if (error) throw error;
       return data || [];
-    }
+    },
   });
 
   const faturaItensMap = useMemo(() => {
@@ -485,33 +496,33 @@ function DiretoriaPageContent() {
     if (fatItem) {
       return Number(fatItem.total || 0);
     }
-    
+
     // Fallback logic equivalent to fn_get_pricing
     const prof = a.profissionais;
     if (!prof) return 0;
-    
+
     const spec = getAppointmentSpecialty(a);
     const isAnamnese = a.observacoes?.includes("[Tipo: Anamnese]");
-    
+
     const config = prof.valores_config || { especialidades: [], descontos: [] };
     const valorDefault = Number(prof.valor_sessao || 0);
-    
+
     // 1. Check custom patient discount
     if (Array.isArray(config.descontos) && config.descontos.length > 0) {
       const d = config.descontos.find(
         (item: any) =>
           item.paciente_id === a.paciente_id &&
-          String(item.especialidade || "").toLowerCase() === String(spec || "").toLowerCase()
+          String(item.especialidade || "").toLowerCase() === String(spec || "").toLowerCase(),
       );
       if (d) {
         return isAnamnese ? Number(d.valor_avaliacao || 0) : Number(d.valor_sessao || 0);
       }
     }
-    
+
     // 2. Check standard specialty rates
     if (Array.isArray(config.especialidades) && config.especialidades.length > 0) {
       const e = config.especialidades.find(
-        (item: any) => String(item.nome || "").toLowerCase() === String(spec || "").toLowerCase()
+        (item: any) => String(item.nome || "").toLowerCase() === String(spec || "").toLowerCase(),
       );
       if (e) {
         if (isAnamnese) {
@@ -522,7 +533,7 @@ function DiretoriaPageContent() {
         }
       }
     }
-    
+
     // 3. Default professional rate
     if (isAnamnese) {
       return 0;
@@ -532,7 +543,10 @@ function DiretoriaPageContent() {
   };
 
   const getRepasseRates = (specialty: string) => {
-    const isAtAba = String(specialty || "").trim().toUpperCase() === "AT ABA";
+    const isAtAba =
+      String(specialty || "")
+        .trim()
+        .toUpperCase() === "AT ABA";
     if (isAtAba) {
       return { profPct: 0.5, clinicPct: 0.5, label: "50% / 50%" };
     }
@@ -558,7 +572,7 @@ function DiretoriaPageContent() {
       if (a.status === "cancelado") return false;
 
       const matchesProf = selectedProfId === "all" || a.profissional_id === selectedProfId;
-      
+
       let matchesStatus = true;
       if (sessionStatusFilter === "confirmado_pago") {
         matchesStatus = a.status === "confirmado" || a.status === "pago";
@@ -595,19 +609,22 @@ function DiretoriaPageContent() {
   const professionalPatients = useMemo(() => {
     if (!viewingProfDetail || viewingProfDetail === "all") return [];
 
-    const map = new Map<string, {
-      pacienteId: string;
-      nome: string;
-      totalSessões: number;
-      faturamentoBruto: number;
-      repasseProfissional: number;
-      repasseApto: number;
-      repasseBloqueado: number;
-    }>();
+    const map = new Map<
+      string,
+      {
+        pacienteId: string;
+        nome: string;
+        totalSessões: number;
+        faturamentoBruto: number;
+        repasseProfissional: number;
+        repasseApto: number;
+        repasseBloqueado: number;
+      }
+    >();
 
     filteredRepasses.forEach((a: any) => {
       if (a.profissional_id !== viewingProfDetail) return;
-      
+
       const pId = a.paciente_id;
       if (!pId) return;
       const pNome = a.pacientes?.nome || "Paciente Desconhecido";
@@ -695,7 +712,7 @@ function DiretoriaPageContent() {
 
     agendamentosRepasses.forEach((a: any) => {
       if (a.status === "cancelado") return;
-      
+
       const matchesProf = selectedProfId === "all" || a.profissional_id === selectedProfId;
       if (!matchesProf) return;
 
@@ -704,7 +721,7 @@ function DiretoriaPageContent() {
       const { profPct } = getRepasseRates(spec);
 
       totalSessões += 1;
-      
+
       if (a.status === "pago") {
         repassePago += val * profPct;
       } else if (a.status === "realizado" || a.status === "falta") {
@@ -719,25 +736,30 @@ function DiretoriaPageContent() {
     };
   }, [agendamentosRepasses, selectedProfId]);
 
-  const caixaLiquidoReal = stats.faturamentoRecebido - repasseStats.repasseApto - stats.totalDespesas;
-  const caixaLiquidoPrevisto = stats.faturamentoTotal - repasseStats.repasseProfissional - stats.totalDespesas;
+  const caixaLiquidoReal =
+    stats.faturamentoRecebido - repasseStats.repasseApto - stats.totalDespesas;
+  const caixaLiquidoPrevisto =
+    stats.faturamentoTotal - repasseStats.repasseProfissional - stats.totalDespesas;
 
   const consolidatedRepasses = useMemo(() => {
-    const groups = new Map<string, {
-      profissionalId: string;
-      nome: string;
-      cor: string;
-      especialidades: Set<string>;
-      totalSessões: number;
-      faturamentoBruto: number;
-      repasseProfissional: number;
-      comissaoClinica: number;
-      repasseApto: number;
-      repasseBloqueado: number;
-      comissaoRecebida: number;
-      comissaoPendente: number;
-      sessoes: any[];
-    }>();
+    const groups = new Map<
+      string,
+      {
+        profissionalId: string;
+        nome: string;
+        cor: string;
+        especialidades: Set<string>;
+        totalSessões: number;
+        faturamentoBruto: number;
+        repasseProfissional: number;
+        comissaoClinica: number;
+        repasseApto: number;
+        repasseBloqueado: number;
+        comissaoRecebida: number;
+        comissaoPendente: number;
+        sessoes: any[];
+      }
+    >();
 
     filteredRepasses.forEach((a: any) => {
       const profId = a.profissional_id;
@@ -791,14 +813,17 @@ function DiretoriaPageContent() {
     return Array.from(groups.values()).sort((a, b) => a.nome.localeCompare(b.nome));
   }, [filteredRepasses]);
 
-
   // Billing Filters
   const [searchPatient, setSearchPatient] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [subTab, setSubTab] = useState<"consolidado" | "historico">("consolidado");
 
   // Patient Faturas Modal state
-  const [patientFaturasDialog, setPatientFaturasDialog] = useState<{ open: boolean; pacienteId: string; pacienteNome: string }>({ open: false, pacienteId: "", pacienteNome: "" });
+  const [patientFaturasDialog, setPatientFaturasDialog] = useState<{
+    open: boolean;
+    pacienteId: string;
+    pacienteNome: string;
+  }>({ open: false, pacienteId: "", pacienteNome: "" });
 
   const handleOpenPatientFaturas = (pacienteId: string, pacienteNome: string) => {
     setPatientFaturasDialog({ open: true, pacienteId, pacienteNome });
@@ -806,22 +831,25 @@ function DiretoriaPageContent() {
 
   // Memoized consolidated billing by patient
   const consolidatedPatients = useMemo(() => {
-    const map = new Map<string, {
-      pacienteId: string;
-      nome: string;
-      faturasPendentesCount: number;
-      totalPendente: number;
-      totalPago: number;
-      totalGeral: number;
-      temAtraso: boolean;
-      faturas: any[];
-    }>();
+    const map = new Map<
+      string,
+      {
+        pacienteId: string;
+        nome: string;
+        faturasPendentesCount: number;
+        totalPendente: number;
+        totalPago: number;
+        totalGeral: number;
+        temAtraso: boolean;
+        faturas: any[];
+      }
+    >();
 
     for (const f of faturas || []) {
       const pId = f.paciente_id;
       if (!pId) continue;
       const patientName = patientMap.get(pId) || "Paciente Desconhecido";
-      
+
       let entry = map.get(pId);
       if (!entry) {
         entry = {
@@ -839,13 +867,13 @@ function DiretoriaPageContent() {
 
       entry.faturas.push(f);
       const val = Number(f.valor) || 0;
-      
+
       if (f.status === "paga") {
         entry.totalPago += val;
       } else if (f.status === "aberta" || f.status === "vencida") {
         entry.totalPendente += val;
         entry.faturasPendentesCount += 1;
-        
+
         // Calculate delay days
         if (f.vencimento) {
           const today = startOfDay(new Date());
@@ -856,7 +884,7 @@ function DiretoriaPageContent() {
           }
         }
       }
-      
+
       if (f.status !== "cancelada") {
         entry.totalGeral += val;
       }
@@ -884,7 +912,7 @@ function DiretoriaPageContent() {
 
   const handleWhatsAppClick = (pacienteId: string, totalPendente: number, patientName: string) => {
     const resps = responsaveisMap.get(pacienteId) || [];
-    const primaryResp = resps.find(r => r.whatsapp) || resps.find(r => r.telefone) || resps[0];
+    const primaryResp = resps.find((r) => r.whatsapp) || resps.find((r) => r.telefone) || resps[0];
     if (!primaryResp) {
       toast.error("Nenhum responsável com telefone cadastrado para este paciente.");
       return;
@@ -918,8 +946,14 @@ Agradecemos a atenção!
   };
 
   // Billing Modals
-  const [payDialog, setPayDialog] = useState<{ open: boolean; fatura: any }>({ open: false, fatura: null });
-  const [editDialog, setEditDialog] = useState<{ open: boolean; fatura: any }>({ open: false, fatura: null });
+  const [payDialog, setPayDialog] = useState<{ open: boolean; fatura: any }>({
+    open: false,
+    fatura: null,
+  });
+  const [editDialog, setEditDialog] = useState<{ open: boolean; fatura: any }>({
+    open: false,
+    fatura: null,
+  });
   const [createDialog, setCreateDialog] = useState(false);
 
   // Form states
@@ -937,8 +971,6 @@ Agradecemos a atenção!
     status: "aberta",
     observacoes: "",
   });
-
-
 
   const handleOpenConfirmPayment = (fatura: any) => {
     setPayForm({
@@ -1036,7 +1068,8 @@ Agradecemos a atenção!
                 {brl(stats.faturamentoRecebido)}
               </div>
               <div className="text-[11px] text-muted-foreground">
-                Total Faturado no período: <span className="font-medium">{brl(stats.faturamentoTotal)}</span>
+                Total Faturado no período:{" "}
+                <span className="font-medium">{brl(stats.faturamentoTotal)}</span>
               </div>
             </div>
           </CardContent>
@@ -1056,7 +1089,8 @@ Agradecemos a atenção!
                 {brl(stats.faturamentoPendente)}
               </div>
               <div className="text-[11px] text-muted-foreground">
-                A Receber: <span className="font-medium">{brl(stats.faturamentoAReceber)}</span> | Vencido: <span className="font-medium">{brl(stats.faturamentoVencido)}</span>
+                A Receber: <span className="font-medium">{brl(stats.faturamentoAReceber)}</span> |
+                Vencido: <span className="font-medium">{brl(stats.faturamentoVencido)}</span>
               </div>
             </div>
           </CardContent>
@@ -1140,20 +1174,24 @@ Agradecemos a atenção!
               <div>
                 <CardTitle className="text-lg">Central de Cobrança</CardTitle>
                 <CardDescription>
-                  Acompanhamento consolidado de valores, contato com responsáveis e confirmação de pagamentos.
+                  Acompanhamento consolidado de valores, contato com responsáveis e confirmação de
+                  pagamentos.
                 </CardDescription>
               </div>
-              <Button onClick={() => {
-                setFaturaForm({
-                  paciente_id: "",
-                  competencia: format(startOfMonth(new Date()), "yyyy-MM-dd"),
-                  vencimento: "",
-                  valor: "",
-                  status: "aberta",
-                  observacoes: "",
-                });
-                setCreateDialog(true);
-              }} className="gap-1.5 self-start sm:self-center">
+              <Button
+                onClick={() => {
+                  setFaturaForm({
+                    paciente_id: "",
+                    competencia: format(startOfMonth(new Date()), "yyyy-MM-dd"),
+                    vencimento: "",
+                    valor: "",
+                    status: "aberta",
+                    observacoes: "",
+                  });
+                  setCreateDialog(true);
+                }}
+                className="gap-1.5 self-start sm:self-center"
+              >
                 <Plus className="h-4 w-4" /> Nova Cobrança
               </Button>
             </CardHeader>
@@ -1235,8 +1273,11 @@ Agradecemos a atenção!
                       <TableBody>
                         {filteredConsolidated.map((c) => {
                           const resps = responsaveisMap.get(c.pacienteId) || [];
-                          const primaryResp = resps.find(r => r.whatsapp) || resps.find(r => r.telefone) || resps[0];
-                          
+                          const primaryResp =
+                            resps.find((r) => r.whatsapp) ||
+                            resps.find((r) => r.telefone) ||
+                            resps[0];
+
                           return (
                             <TableRow key={c.pacienteId} className="hover:bg-muted/30">
                               <TableCell className="font-semibold text-foreground">
@@ -1246,7 +1287,9 @@ Agradecemos a atenção!
                                 {primaryResp ? (
                                   <div className="flex items-center gap-2">
                                     <div className="text-sm">
-                                      <span className="font-semibold text-foreground block leading-tight">{primaryResp.nome}</span>
+                                      <span className="font-semibold text-foreground block leading-tight">
+                                        {primaryResp.nome}
+                                      </span>
                                       {primaryResp.parentesco && (
                                         <span className="text-muted-foreground text-[11px]">
                                           {primaryResp.parentesco}
@@ -1258,7 +1301,9 @@ Agradecemos a atenção!
                                         variant="outline"
                                         size="sm"
                                         className="h-7 px-2.5 text-xs text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 border-emerald-500/20 hover:border-emerald-500/40 flex items-center gap-1"
-                                        onClick={() => handleWhatsAppClick(c.pacienteId, c.totalPendente, c.nome)}
+                                        onClick={() =>
+                                          handleWhatsAppClick(c.pacienteId, c.totalPendente, c.nome)
+                                        }
                                         title={`Chamar no WhatsApp: ${primaryResp.whatsapp || primaryResp.telefone}`}
                                       >
                                         <MessageCircle className="h-3.5 w-3.5 fill-emerald-600/10 shrink-0" />
@@ -1275,10 +1320,14 @@ Agradecemos a atenção!
                               <TableCell className="text-center font-medium">
                                 {c.faturasPendentesCount}
                               </TableCell>
-                              <TableCell className={`font-semibold ${c.totalPendente > 0 ? "text-rose-600 dark:text-rose-400" : "text-muted-foreground"}`}>
+                              <TableCell
+                                className={`font-semibold ${c.totalPendente > 0 ? "text-rose-600 dark:text-rose-400" : "text-muted-foreground"}`}
+                              >
                                 {brl(c.totalPendente)}
                               </TableCell>
-                              <TableCell className={`font-medium ${c.totalPago > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"}`}>
+                              <TableCell
+                                className={`font-medium ${c.totalPago > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"}`}
+                              >
                                 {brl(c.totalPago)}
                               </TableCell>
                               <TableCell className="font-medium text-foreground">
@@ -1290,32 +1339,35 @@ Agradecemos a atenção!
                                     c.temAtraso
                                       ? "destructive"
                                       : c.totalPendente > 0
-                                      ? "outline"
-                                      : c.totalPago > 0
-                                      ? "default"
-                                      : "secondary"
+                                        ? "outline"
+                                        : c.totalPago > 0
+                                          ? "default"
+                                          : "secondary"
                                   }
                                   className={
                                     c.temAtraso
                                       ? "bg-rose-500 hover:bg-rose-600 text-white border-transparent"
                                       : c.totalPendente > 0
-                                      ? "bg-sky-500 hover:bg-sky-600 text-white border-transparent"
-                                      : c.totalPago > 0
-                                      ? "bg-emerald-500 hover:bg-emerald-600 text-white border-transparent"
-                                      : ""
+                                        ? "bg-sky-500 hover:bg-sky-600 text-white border-transparent"
+                                        : c.totalPago > 0
+                                          ? "bg-emerald-500 hover:bg-emerald-600 text-white border-transparent"
+                                          : ""
                                   }
                                 >
                                   {c.temAtraso
                                     ? "Atrasado"
                                     : c.totalPendente > 0
-                                    ? "No Prazo"
-                                    : c.totalPago > 0
-                                    ? "Em Dia"
-                                    : "Sem Faturas"}
+                                      ? "No Prazo"
+                                      : c.totalPago > 0
+                                        ? "Em Dia"
+                                        : "Sem Faturas"}
                                 </Badge>
                               </TableCell>
                               <TableCell className="text-right">
-                                <div className="flex justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
+                                <div
+                                  className="flex justify-end gap-1.5"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
                                   <Button
                                     variant="outline"
                                     size="sm"
@@ -1353,181 +1405,192 @@ Agradecemos a atenção!
                     </Table>
                   </div>
                 )
+              ) : /* Histórico de Faturas */
+              loadingFaturas ? (
+                <div className="p-8 text-center text-sm text-muted-foreground">
+                  Carregando cobranças...
+                </div>
+              ) : filteredFaturas.length === 0 ? (
+                <div className="p-8 text-center text-sm text-muted-foreground border border-dashed rounded-lg">
+                  Nenhuma cobrança encontrada para os filtros selecionados.
+                </div>
               ) : (
-                /* Histórico de Faturas */
-                loadingFaturas ? (
-                  <div className="p-8 text-center text-sm text-muted-foreground">
-                    Carregando cobranças...
-                  </div>
-                ) : filteredFaturas.length === 0 ? (
-                  <div className="p-8 text-center text-sm text-muted-foreground border border-dashed rounded-lg">
-                    Nenhuma cobrança encontrada para os filtros selecionados.
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto rounded-lg border border-border">
-                    <Table>
-                      <TableHeader className="bg-muted/40 font-semibold text-foreground">
-                        <TableRow>
-                          <TableHead>Paciente</TableHead>
-                          <TableHead>Competência</TableHead>
-                          <TableHead>Vencimento</TableHead>
-                          <TableHead>Valor</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead>Pagamento</TableHead>
-                          <TableHead>Dias de Atraso</TableHead>
-                          <TableHead className="w-[140px] text-right">Ações</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {filteredFaturas.map((f: any) => {
-                          const daysDelayed = getDaysDelayed(f);
-                          const patientName = patientMap.get(f.paciente_id) || "—";
-                          
-                          return (
-                            <TableRow key={f.id}>
-                              <TableCell className="font-semibold text-foreground">
-                                {patientName}
-                              </TableCell>
-                              <TableCell>
-                                {f.competencia ? format(new Date(f.competencia + "T12:00:00"), "MM/yyyy") : "—"}
-                              </TableCell>
-                              <TableCell>
-                                {f.vencimento ? format(new Date(f.vencimento + "T12:00:00"), "dd/MM/yyyy") : "—"}
-                              </TableCell>
-                              <TableCell className="font-semibold">
-                                {brl(Number(f.valor))}
-                              </TableCell>
-                              <TableCell>
-                                <Badge
-                                  variant={
-                                    f.status === "paga"
-                                      ? "default"
-                                      : f.status === "vencida" || (f.status === "aberta" && daysDelayed > 0)
+                <div className="overflow-x-auto rounded-lg border border-border">
+                  <Table>
+                    <TableHeader className="bg-muted/40 font-semibold text-foreground">
+                      <TableRow>
+                        <TableHead>Paciente</TableHead>
+                        <TableHead>Competência</TableHead>
+                        <TableHead>Vencimento</TableHead>
+                        <TableHead>Valor</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Pagamento</TableHead>
+                        <TableHead>Dias de Atraso</TableHead>
+                        <TableHead className="w-[140px] text-right">Ações</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredFaturas.map((f: any) => {
+                        const daysDelayed = getDaysDelayed(f);
+                        const patientName = patientMap.get(f.paciente_id) || "—";
+
+                        return (
+                          <TableRow key={f.id}>
+                            <TableCell className="font-semibold text-foreground">
+                              {patientName}
+                            </TableCell>
+                            <TableCell>
+                              {f.competencia
+                                ? format(new Date(f.competencia + "T12:00:00"), "MM/yyyy")
+                                : "—"}
+                            </TableCell>
+                            <TableCell>
+                              {f.vencimento
+                                ? format(new Date(f.vencimento + "T12:00:00"), "dd/MM/yyyy")
+                                : "—"}
+                            </TableCell>
+                            <TableCell className="font-semibold">{brl(Number(f.valor))}</TableCell>
+                            <TableCell>
+                              <Badge
+                                variant={
+                                  f.status === "paga"
+                                    ? "default"
+                                    : f.status === "vencida" ||
+                                        (f.status === "aberta" && daysDelayed > 0)
                                       ? "destructive"
                                       : f.status === "cancelada"
-                                      ? "secondary"
-                                      : "outline"
-                                  }
-                                  className={
-                                    f.status === "paga"
-                                      ? "bg-emerald-500 hover:bg-emerald-600 text-white border-transparent"
-                                      : f.status === "aberta" && daysDelayed > 0
+                                        ? "secondary"
+                                        : "outline"
+                                }
+                                className={
+                                  f.status === "paga"
+                                    ? "bg-emerald-500 hover:bg-emerald-600 text-white border-transparent"
+                                    : f.status === "aberta" && daysDelayed > 0
                                       ? "bg-rose-500 hover:bg-rose-600 text-white border-transparent"
                                       : f.status === "aberta"
-                                      ? "bg-sky-500 hover:bg-sky-600 text-white border-transparent"
-                                      : ""
-                                  }
-                                >
-                                  {f.status === "aberta" && daysDelayed > 0
-                                    ? "Vencida (Atrasada)"
-                                    : f.status === "aberta"
+                                        ? "bg-sky-500 hover:bg-sky-600 text-white border-transparent"
+                                        : ""
+                                }
+                              >
+                                {f.status === "aberta" && daysDelayed > 0
+                                  ? "Vencida (Atrasada)"
+                                  : f.status === "aberta"
                                     ? "Em Aberto"
                                     : f.status === "paga"
-                                    ? "Pago"
-                                    : f.status === "vencida"
-                                    ? "Vencida"
-                                    : "Cancelada"}
-                                </Badge>
-                              </TableCell>
-                              <TableCell className="text-xs text-muted-foreground">
-                                {f.status === "paga" ? (
-                                  <div className="space-y-0.5">
-                                    <div>{f.pago_em ? format(new Date(f.pago_em), "dd/MM/yyyy") : "—"}</div>
-                                    <div className="font-semibold uppercase tracking-wider text-[10px] text-emerald-600 dark:text-emerald-400">
-                                      {f.metodo || ""}
-                                    </div>
+                                      ? "Pago"
+                                      : f.status === "vencida"
+                                        ? "Vencida"
+                                        : "Cancelada"}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-xs text-muted-foreground">
+                              {f.status === "paga" ? (
+                                <div className="space-y-0.5">
+                                  <div>
+                                    {f.pago_em ? format(new Date(f.pago_em), "dd/MM/yyyy") : "—"}
                                   </div>
+                                  <div className="font-semibold uppercase tracking-wider text-[10px] text-emerald-600 dark:text-emerald-400">
+                                    {f.metodo || ""}
+                                  </div>
+                                </div>
+                              ) : (
+                                "—"
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {f.status === "paga" ? (
+                                daysDelayed > 0 ? (
+                                  <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">
+                                    Pago com {daysDelayed}d de atraso
+                                  </span>
                                 ) : (
-                                  "—"
-                                )}
-                              </TableCell>
-                              <TableCell>
-                                {f.status === "paga" ? (
-                                  daysDelayed > 0 ? (
-                                    <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">
-                                      Pago com {daysDelayed}d de atraso
-                                    </span>
-                                  ) : (
-                                    <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
-                                      <Check className="h-3 w-3" /> Pago em dia
-                                    </span>
-                                  )
-                                ) : f.status === "cancelada" ? (
-                                  "—"
-                                ) : f.vencimento ? (
-                                  daysDelayed > 0 ? (
-                                    <span className="text-xs text-rose-600 dark:text-rose-400 font-semibold flex items-center gap-1">
-                                      <AlertCircle className="h-3.5 w-3.5 shrink-0" /> {daysDelayed} dias de atraso
-                                    </span>
-                                  ) : (
-                                    <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
-                                      <Clock className="h-3 w-3" /> No prazo
-                                    </span>
-                                  )
+                                  <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
+                                    <Check className="h-3 w-3" /> Pago em dia
+                                  </span>
+                                )
+                              ) : f.status === "cancelada" ? (
+                                "—"
+                              ) : f.vencimento ? (
+                                daysDelayed > 0 ? (
+                                  <span className="text-xs text-rose-600 dark:text-rose-400 font-semibold flex items-center gap-1">
+                                    <AlertCircle className="h-3.5 w-3.5 shrink-0" /> {daysDelayed}{" "}
+                                    dias de atraso
+                                  </span>
                                 ) : (
-                                  <span className="text-xs text-muted-foreground italic">Sem vencimento</span>
-                                )}
-                              </TableCell>
-                              <TableCell className="text-right">
-                                <div className="flex justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
-                                  {f.status !== "paga" && (
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      title="Confirmar Pagamento"
-                                      className="h-8 w-8 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/20"
-                                      onClick={() => handleOpenConfirmPayment(f)}
-                                    >
-                                      <Check className="h-4 w-4" />
-                                    </Button>
-                                  )}
+                                  <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
+                                    <Clock className="h-3 w-3" /> No prazo
+                                  </span>
+                                )
+                              ) : (
+                                <span className="text-xs text-muted-foreground italic">
+                                  Sem vencimento
+                                </span>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div
+                                className="flex justify-end gap-1.5"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                {f.status !== "paga" && (
                                   <Button
                                     variant="ghost"
                                     size="icon"
-                                    title="Editar Cobrança"
-                                    className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                                    onClick={() => handleOpenEdit(f)}
+                                    title="Confirmar Pagamento"
+                                    className="h-8 w-8 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/20"
+                                    onClick={() => handleOpenConfirmPayment(f)}
                                   >
-                                    <Pencil className="h-4 w-4" />
+                                    <Check className="h-4 w-4" />
                                   </Button>
-                                  <AlertDialog>
-                                    <AlertDialogTrigger asChild>
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        title="Excluir Cobrança"
-                                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                )}
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  title="Editar Cobrança"
+                                  className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                                  onClick={() => handleOpenEdit(f)}
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      title="Excluir Cobrança"
+                                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Excluir Cobrança</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        Tem certeza que deseja excluir esta cobrança? Todos os itens
+                                        de faturamento associados a agendamentos serão mantidos, mas
+                                        a cobrança em si será excluída.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                      <AlertDialogAction
+                                        className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+                                        onClick={() => deleteFaturaMutation.mutate(f.id)}
                                       >
-                                        <Trash2 className="h-4 w-4" />
-                                      </Button>
-                                    </AlertDialogTrigger>
-                                    <AlertDialogContent>
-                                      <AlertDialogHeader>
-                                        <AlertDialogTitle>Excluir Cobrança</AlertDialogTitle>
-                                        <AlertDialogDescription>
-                                          Tem certeza que deseja excluir esta cobrança? Todos os itens de faturamento associados a agendamentos serão mantidos, mas a cobrança em si será excluída.
-                                        </AlertDialogDescription>
-                                      </AlertDialogHeader>
-                                      <AlertDialogFooter>
-                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                        <AlertDialogAction
-                                          className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
-                                          onClick={() => deleteFaturaMutation.mutate(f.id)}
-                                        >
-                                          Excluir
-                                        </AlertDialogAction>
-                                      </AlertDialogFooter>
-                                    </AlertDialogContent>
-                                  </AlertDialog>
-                                </div>
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })}
-                      </TableBody>
-                    </Table>
-                  </div>
-                )
+                                        Excluir
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -1549,9 +1612,7 @@ Agradecemos a atenção!
                   <div className="text-2xl font-bold text-foreground">
                     {repasseCardsStats.totalSessões}
                   </div>
-                  <div className="text-[11px] text-muted-foreground">
-                    No período selecionado
-                  </div>
+                  <div className="text-[11px] text-muted-foreground">No período selecionado</div>
                 </div>
               </CardContent>
             </Card>
@@ -1569,9 +1630,7 @@ Agradecemos a atenção!
                   <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
                     {brl(repasseCardsStats.repassePago)}
                   </div>
-                  <div className="text-[11px] text-muted-foreground">
-                    Sessões com status Pago
-                  </div>
+                  <div className="text-[11px] text-muted-foreground">Sessões com status Pago</div>
                 </div>
               </CardContent>
             </Card>
@@ -1601,7 +1660,9 @@ Agradecemos a atenção!
           <Card className="border-border shadow-sm">
             <CardContent className="flex flex-wrap items-end gap-4 p-4">
               <div className="space-y-1.5 flex-1 min-w-[200px] max-w-xs">
-                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Profissional</Label>
+                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Profissional
+                </Label>
                 <Select value={selectedProfId} onValueChange={handleSelectProf}>
                   <SelectTrigger className="h-10">
                     <SelectValue placeholder="Todos os Profissionais" />
@@ -1618,7 +1679,9 @@ Agradecemos a atenção!
               </div>
 
               <div className="space-y-1.5 flex-1 min-w-[200px] max-w-xs">
-                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Status da Sessão</Label>
+                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Status da Sessão
+                </Label>
                 <Select value={sessionStatusFilter} onValueChange={setSessionStatusFilter}>
                   <SelectTrigger className="h-10">
                     <SelectValue />
@@ -1637,7 +1700,8 @@ Agradecemos a atenção!
                 <div className="text-[11px] text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/20 border border-amber-500/10 rounded-lg px-3 py-2 flex items-center gap-1.5 max-w-md">
                   <AlertCircle className="h-4 w-4 shrink-0" />
                   <span>
-                    Somente sessões nos status <strong>Confirmado</strong> ou <strong>Pago</strong> geram faturamento no sistema financeiro por padrão.
+                    Somente sessões nos status <strong>Confirmado</strong> ou <strong>Pago</strong>{" "}
+                    geram faturamento no sistema financeiro por padrão.
                   </span>
                 </div>
               </div>
@@ -1664,7 +1728,8 @@ Agradecemos a atenção!
                       <ChevronLeft className="h-4 w-4" /> Voltar
                     </Button>
                     <CardTitle className="text-lg">
-                      Detalhes do Profissional: {profissionais.find((p: any) => p.id === viewingProfDetail)?.nome || "—"}
+                      Detalhes do Profissional:{" "}
+                      {profissionais.find((p: any) => p.id === viewingProfDetail)?.nome || "—"}
                     </CardTitle>
                   </div>
                   <CardDescription className="mt-1 pl-12 sm:pl-16">
@@ -1687,7 +1752,9 @@ Agradecemos a atenção!
                             <Calendar className="h-5 w-5" />
                           </div>
                           <div>
-                            <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Sessões no Período</div>
+                            <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                              Sessões no Período
+                            </div>
                             <div className="text-xl font-bold">{repasseStats.totalSessões}</div>
                           </div>
                         </CardContent>
@@ -1699,8 +1766,12 @@ Agradecemos a atenção!
                             <DollarSign className="h-5 w-5" />
                           </div>
                           <div>
-                            <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Faturamento Total</div>
-                            <div className="text-xl font-bold">{brl(repasseStats.faturamentoBruto)}</div>
+                            <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                              Faturamento Total
+                            </div>
+                            <div className="text-xl font-bold">
+                              {brl(repasseStats.faturamentoBruto)}
+                            </div>
                           </div>
                         </CardContent>
                       </Card>
@@ -1711,10 +1782,21 @@ Agradecemos a atenção!
                             <TrendingUp className="h-5 w-5" />
                           </div>
                           <div>
-                            <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Repasse Profissional</div>
-                            <div className="text-xl font-bold text-emerald-600 dark:text-emerald-400">{brl(repasseStats.repasseProfissional)}</div>
+                            <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                              Repasse Profissional
+                            </div>
+                            <div className="text-xl font-bold text-emerald-600 dark:text-emerald-400">
+                              {brl(repasseStats.repasseProfissional)}
+                            </div>
                             <div className="text-[9px] text-muted-foreground mt-0.5">
-                              Apto: <span className="font-semibold text-emerald-600 dark:text-emerald-400">{brl(repasseStats.repasseApto)}</span> | Bloq: <span className="font-semibold text-rose-500">{brl(repasseStats.repasseBloqueado)}</span>
+                              Apto:{" "}
+                              <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                                {brl(repasseStats.repasseApto)}
+                              </span>{" "}
+                              | Bloq:{" "}
+                              <span className="font-semibold text-rose-500">
+                                {brl(repasseStats.repasseBloqueado)}
+                              </span>
                             </div>
                           </div>
                         </CardContent>
@@ -1726,10 +1808,21 @@ Agradecemos a atenção!
                             <TrendingDown className="h-5 w-5" />
                           </div>
                           <div>
-                            <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Comissão Clínica</div>
-                            <div className="text-xl font-bold text-purple-600 dark:text-purple-400">{brl(repasseStats.comissaoClinica)}</div>
+                            <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                              Comissão Clínica
+                            </div>
+                            <div className="text-xl font-bold text-purple-600 dark:text-purple-400">
+                              {brl(repasseStats.comissaoClinica)}
+                            </div>
                             <div className="text-[9px] text-muted-foreground mt-0.5">
-                              Recebida: <span className="font-semibold text-purple-600 dark:text-purple-400">{brl(repasseStats.comissaoRecebida)}</span> | Pend: <span className="font-semibold text-rose-500">{brl(repasseStats.comissaoPendente)}</span>
+                              Recebida:{" "}
+                              <span className="font-semibold text-purple-600 dark:text-purple-400">
+                                {brl(repasseStats.comissaoRecebida)}
+                              </span>{" "}
+                              | Pend:{" "}
+                              <span className="font-semibold text-rose-500">
+                                {brl(repasseStats.comissaoPendente)}
+                              </span>
                             </div>
                           </div>
                         </CardContent>
@@ -1739,8 +1832,13 @@ Agradecemos a atenção!
                     {/* Patient Billing Status Table */}
                     <div className="space-y-3">
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
-                        <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Situação de Cobrança dos Pacientes do Profissional</h3>
-                        <span className="text-[11px] text-muted-foreground">Consolidado de valores atendidos e cobranças por paciente deste profissional no período</span>
+                        <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">
+                          Situação de Cobrança dos Pacientes do Profissional
+                        </h3>
+                        <span className="text-[11px] text-muted-foreground">
+                          Consolidado de valores atendidos e cobranças por paciente deste
+                          profissional no período
+                        </span>
                       </div>
                       <div className="overflow-x-auto rounded-lg border border-border">
                         <Table>
@@ -1757,27 +1855,49 @@ Agradecemos a atenção!
                           <TableBody>
                             {professionalPatients.map((p) => {
                               const resps = responsaveisMap.get(p.pacienteId) || [];
-                              const primaryResp = resps.find(r => r.whatsapp) || resps.find(r => r.telefone) || resps[0];
-                              const patientBilling = consolidatedPatients.find(cp => cp.pacienteId === p.pacienteId);
+                              const primaryResp =
+                                resps.find((r) => r.whatsapp) ||
+                                resps.find((r) => r.telefone) ||
+                                resps[0];
+                              const patientBilling = consolidatedPatients.find(
+                                (cp) => cp.pacienteId === p.pacienteId,
+                              );
                               const totalPendente = patientBilling?.totalPendente || 0;
-                              
+
                               return (
                                 <TableRow key={p.pacienteId} className="hover:bg-muted/30">
-                                  <TableCell className="font-semibold text-foreground">{p.nome}</TableCell>
-                                  <TableCell className="text-center font-medium">{p.totalSessões}</TableCell>
-                                  <TableCell className="font-medium">{brl(p.faturamentoBruto)}</TableCell>
+                                  <TableCell className="font-semibold text-foreground">
+                                    {p.nome}
+                                  </TableCell>
+                                  <TableCell className="text-center font-medium">
+                                    {p.totalSessões}
+                                  </TableCell>
+                                  <TableCell className="font-medium">
+                                    {brl(p.faturamentoBruto)}
+                                  </TableCell>
                                   <TableCell className="font-semibold text-emerald-600 dark:text-emerald-400">
                                     <div className="space-y-0.5">
                                       <div>{brl(p.repasseProfissional)}</div>
                                       <div className="text-[10px] text-muted-foreground font-normal">
-                                        Apto: <span className="text-emerald-600 dark:text-emerald-400 font-semibold">{brl(p.repasseApto)}</span> | Bloq: <span className="text-rose-500 font-semibold">{brl(p.repasseBloqueado)}</span>
+                                        Apto:{" "}
+                                        <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
+                                          {brl(p.repasseApto)}
+                                        </span>{" "}
+                                        | Bloq:{" "}
+                                        <span className="text-rose-500 font-semibold">
+                                          {brl(p.repasseBloqueado)}
+                                        </span>
                                       </div>
                                     </div>
                                   </TableCell>
                                   <TableCell>
                                     <Badge
                                       variant={p.repasseBloqueado > 0 ? "destructive" : "default"}
-                                      className={p.repasseBloqueado > 0 ? "bg-rose-500 hover:bg-rose-600 text-white border-transparent" : "bg-emerald-500 hover:bg-emerald-600 text-white border-transparent"}
+                                      className={
+                                        p.repasseBloqueado > 0
+                                          ? "bg-rose-500 hover:bg-rose-600 text-white border-transparent"
+                                          : "bg-emerald-500 hover:bg-emerald-600 text-white border-transparent"
+                                      }
                                     >
                                       {p.repasseBloqueado > 0 ? "Com Pendências" : "Em Dia"}
                                     </Badge>
@@ -1786,27 +1906,38 @@ Agradecemos a atenção!
                                     {primaryResp ? (
                                       <div className="flex items-center gap-2">
                                         <div className="text-xs">
-                                          <span className="font-semibold text-foreground block leading-tight">{primaryResp.nome}</span>
+                                          <span className="font-semibold text-foreground block leading-tight">
+                                            {primaryResp.nome}
+                                          </span>
                                           {primaryResp.parentesco && (
                                             <span className="text-muted-foreground text-[10px]">
                                               {primaryResp.parentesco}
                                             </span>
                                           )}
                                         </div>
-                                        {totalPendente > 0 && (primaryResp.whatsapp || primaryResp.telefone) && (
-                                          <Button
-                                            variant="outline"
-                                            size="sm"
-                                            className="h-7 px-2 text-[10px] text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 border-emerald-500/20 hover:border-emerald-500/40 flex items-center gap-1 shrink-0"
-                                            onClick={() => handleWhatsAppClick(p.pacienteId, totalPendente, p.nome)}
-                                          >
-                                            <MessageCircle className="h-3 w-3 fill-emerald-600/10 shrink-0" />
-                                            Cobrar {brl(totalPendente)}
-                                          </Button>
-                                        )}
+                                        {totalPendente > 0 &&
+                                          (primaryResp.whatsapp || primaryResp.telefone) && (
+                                            <Button
+                                              variant="outline"
+                                              size="sm"
+                                              className="h-7 px-2 text-[10px] text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 border-emerald-500/20 hover:border-emerald-500/40 flex items-center gap-1 shrink-0"
+                                              onClick={() =>
+                                                handleWhatsAppClick(
+                                                  p.pacienteId,
+                                                  totalPendente,
+                                                  p.nome,
+                                                )
+                                              }
+                                            >
+                                              <MessageCircle className="h-3 w-3 fill-emerald-600/10 shrink-0" />
+                                              Cobrar {brl(totalPendente)}
+                                            </Button>
+                                          )}
                                       </div>
                                     ) : (
-                                      <span className="text-xs text-muted-foreground italic">Sem responsável</span>
+                                      <span className="text-xs text-muted-foreground italic">
+                                        Sem responsável
+                                      </span>
                                     )}
                                   </TableCell>
                                 </TableRow>
@@ -1820,8 +1951,13 @@ Agradecemos a atenção!
                     {/* Detailed Sessions List */}
                     <div className="space-y-3">
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
-                        <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Sessões Detalhadas</h3>
-                        <span className="text-[11px] text-muted-foreground">Lista de todos os atendimentos do profissional com elegibilidade para repasse</span>
+                        <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">
+                          Sessões Detalhadas
+                        </h3>
+                        <span className="text-[11px] text-muted-foreground">
+                          Lista de todos os atendimentos do profissional com elegibilidade para
+                          repasse
+                        </span>
                       </div>
                       <div className="overflow-x-auto rounded-lg border border-border">
                         <Table>
@@ -1841,12 +1977,20 @@ Agradecemos a atenção!
                           </TableHeader>
                           <TableBody>
                             {filteredRepasses
-                              .sort((a, b) => new Date(a.data_inicio).getTime() - new Date(b.data_inicio).getTime())
+                              .sort(
+                                (a, b) =>
+                                  new Date(a.data_inicio).getTime() -
+                                  new Date(b.data_inicio).getTime(),
+                              )
                               .map((a: any) => {
                                 const val = getAppointmentValue(a);
                                 const spec = getAppointmentSpecialty(a);
-                                const { profPct, clinicPct, label: splitLabel } = getRepasseRates(spec);
-                                
+                                const {
+                                  profPct,
+                                  clinicPct,
+                                  label: splitLabel,
+                                } = getRepasseRates(spec);
+
                                 const repasseVal = val * profPct;
                                 const clinicVal = val * clinicPct;
 
@@ -1870,19 +2014,19 @@ Agradecemos a atenção!
                                           a.status === "pago"
                                             ? "bg-emerald-500 hover:bg-emerald-600 text-white border-transparent"
                                             : a.status === "confirmado"
-                                            ? "bg-sky-500 hover:bg-sky-600 text-white border-transparent"
-                                            : ""
+                                              ? "bg-sky-500 hover:bg-sky-600 text-white border-transparent"
+                                              : ""
                                         }
                                       >
                                         {a.status === "pago"
                                           ? "Pago"
                                           : a.status === "confirmado"
-                                          ? "Confirmado"
-                                          : a.status === "realizado"
-                                          ? "Realizado"
-                                          : a.status === "falta"
-                                          ? "Falta"
-                                          : a.status}
+                                            ? "Confirmado"
+                                            : a.status === "realizado"
+                                              ? "Realizado"
+                                              : a.status === "falta"
+                                                ? "Falta"
+                                                : a.status}
                                       </Badge>
                                     </TableCell>
                                     <TableCell>
@@ -1908,7 +2052,10 @@ Agradecemos a atenção!
                                           );
                                         } else {
                                           return (
-                                            <Badge variant="outline" className="text-muted-foreground border-border">
+                                            <Badge
+                                              variant="outline"
+                                              className="text-muted-foreground border-border"
+                                            >
                                               Não Faturado
                                             </Badge>
                                           );
@@ -1920,19 +2067,28 @@ Agradecemos a atenção!
                                         const clientPayStatus = getPatientPaymentStatus(a);
                                         if (clientPayStatus === "paga") {
                                           return (
-                                            <Badge variant="outline" className="bg-emerald-50 text-emerald-700 dark:bg-emerald-950/20 dark:text-emerald-400 border-emerald-500/20">
+                                            <Badge
+                                              variant="outline"
+                                              className="bg-emerald-50 text-emerald-700 dark:bg-emerald-950/20 dark:text-emerald-400 border-emerald-500/20"
+                                            >
                                               Apto para Repasse
                                             </Badge>
                                           );
                                         } else if (clientPayStatus === "nao_faturado") {
                                           return (
-                                            <Badge variant="outline" className="text-muted-foreground border-border">
+                                            <Badge
+                                              variant="outline"
+                                              className="text-muted-foreground border-border"
+                                            >
                                               Não Faturado
                                             </Badge>
                                           );
                                         } else {
                                           return (
-                                            <Badge variant="outline" className="bg-amber-50 text-amber-700 dark:bg-amber-950/20 dark:text-amber-400 border-amber-500/20">
+                                            <Badge
+                                              variant="outline"
+                                              className="bg-amber-50 text-amber-700 dark:bg-amber-950/20 dark:text-amber-400 border-amber-500/20"
+                                            >
                                               Aguardando Cliente
                                             </Badge>
                                           );
@@ -1968,7 +2124,8 @@ Agradecemos a atenção!
               <CardHeader>
                 <CardTitle className="text-lg">Resumo por Profissional</CardTitle>
                 <CardDescription>
-                  Valores totais a repassar e comissões consolidadas por profissional no período selecionado.
+                  Valores totais a repassar e comissões consolidadas por profissional no período
+                  selecionado.
                 </CardDescription>
               </CardHeader>
               <CardContent className="p-0 sm:p-6 sm:pt-0">
@@ -1993,7 +2150,7 @@ Agradecemos a atenção!
                       <TableBody>
                         {consolidatedRepasses.map((group) => {
                           const specsArr = Array.from(group.especialidades);
-                          
+
                           return (
                             <TableRow key={group.profissionalId} className="hover:bg-muted/30">
                               <TableCell className="font-semibold text-foreground">
@@ -2027,7 +2184,14 @@ Agradecemos a atenção!
                                 <div className="space-y-0.5">
                                   <div>{brl(group.repasseProfissional)}</div>
                                   <div className="text-[10px] text-muted-foreground font-normal">
-                                    Apto: <span className="text-emerald-600 dark:text-emerald-400 font-semibold">{brl(group.repasseApto)}</span> | Bloq: <span className="text-rose-500 font-semibold">{brl(group.repasseBloqueado)}</span>
+                                    Apto:{" "}
+                                    <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
+                                      {brl(group.repasseApto)}
+                                    </span>{" "}
+                                    | Bloq:{" "}
+                                    <span className="text-rose-500 font-semibold">
+                                      {brl(group.repasseBloqueado)}
+                                    </span>
                                   </div>
                                 </div>
                               </TableCell>
@@ -2035,7 +2199,14 @@ Agradecemos a atenção!
                                 <div className="space-y-0.5">
                                   <div>{brl(group.comissaoClinica)}</div>
                                   <div className="text-[10px] text-muted-foreground font-normal">
-                                    Rec: <span className="text-purple-600 dark:text-purple-400 font-semibold">{brl(group.comissaoRecebida)}</span> | Pend: <span className="text-rose-500 font-semibold">{brl(group.comissaoPendente)}</span>
+                                    Rec:{" "}
+                                    <span className="text-purple-600 dark:text-purple-400 font-semibold">
+                                      {brl(group.comissaoRecebida)}
+                                    </span>{" "}
+                                    | Pend:{" "}
+                                    <span className="text-rose-500 font-semibold">
+                                      {brl(group.comissaoPendente)}
+                                    </span>
                                   </div>
                                 </div>
                               </TableCell>
@@ -2063,7 +2234,10 @@ Agradecemos a atenção!
       </Tabs>
 
       {/* Confirmar Pagamento Dialog */}
-      <Dialog open={payDialog.open} onOpenChange={(open) => setPayDialog({ open, fatura: open ? payDialog.fatura : null })}>
+      <Dialog
+        open={payDialog.open}
+        onOpenChange={(open) => setPayDialog({ open, fatura: open ? payDialog.fatura : null })}
+      >
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Confirmar Pagamento</DialogTitle>
@@ -2072,26 +2246,37 @@ Agradecemos a atenção!
             onSubmit={(e) => {
               e.preventDefault();
               if (payDialog.fatura) {
-                confirmPaymentMutation.mutate({
-                  id: payDialog.fatura.id,
-                  pago_em: new Date(payForm.pago_em + "T12:00:00").toISOString(),
-                  metodo: payForm.metodo,
-                  observacoes: payForm.observacoes,
-                }, {
-                  onSuccess: () => setPayDialog({ open: false, fatura: null })
-                });
+                confirmPaymentMutation.mutate(
+                  {
+                    id: payDialog.fatura.id,
+                    pago_em: new Date(payForm.pago_em + "T12:00:00").toISOString(),
+                    metodo: payForm.metodo,
+                    observacoes: payForm.observacoes,
+                  },
+                  {
+                    onSuccess: () => setPayDialog({ open: false, fatura: null }),
+                  },
+                );
               }
             }}
             className="space-y-4 pt-2"
           >
             <div className="space-y-1.5">
               <Label>Paciente</Label>
-              <Input value={payDialog.fatura ? (patientMap.get(payDialog.fatura.paciente_id) || "—") : ""} disabled className="bg-muted" />
+              <Input
+                value={payDialog.fatura ? patientMap.get(payDialog.fatura.paciente_id) || "—" : ""}
+                disabled
+                className="bg-muted"
+              />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label>Valor</Label>
-                <Input value={payDialog.fatura ? brl(Number(payDialog.fatura.valor)) : ""} disabled className="bg-muted" />
+                <Input
+                  value={payDialog.fatura ? brl(Number(payDialog.fatura.valor)) : ""}
+                  disabled
+                  className="bg-muted"
+                />
               </div>
               <div className="space-y-1.5">
                 <Label>Data de Pagamento</Label>
@@ -2105,7 +2290,10 @@ Agradecemos a atenção!
             </div>
             <div className="space-y-1.5">
               <Label>Método de Pagamento</Label>
-              <Select value={payForm.metodo} onValueChange={(val) => setPayForm({ ...payForm, metodo: val })}>
+              <Select
+                value={payForm.metodo}
+                onValueChange={(val) => setPayForm({ ...payForm, metodo: val })}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -2131,7 +2319,11 @@ Agradecemos a atenção!
               />
             </div>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setPayDialog({ open: false, fatura: null })}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setPayDialog({ open: false, fatura: null })}
+              >
                 Cancelar
               </Button>
               <Button type="submit" disabled={confirmPaymentMutation.isPending}>
@@ -2143,7 +2335,10 @@ Agradecemos a atenção!
       </Dialog>
 
       {/* Editar Cobrança Dialog */}
-      <Dialog open={editDialog.open} onOpenChange={(open) => setEditDialog({ open, fatura: open ? editDialog.fatura : null })}>
+      <Dialog
+        open={editDialog.open}
+        onOpenChange={(open) => setEditDialog({ open, fatura: open ? editDialog.fatura : null })}
+      >
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Editar Cobrança</DialogTitle>
@@ -2152,25 +2347,34 @@ Agradecemos a atenção!
             onSubmit={(e) => {
               e.preventDefault();
               if (editDialog.fatura) {
-                editFaturaMutation.mutate({
-                  id: editDialog.fatura.id,
-                  competencia: faturaForm.competencia,
-                  vencimento: faturaForm.vencimento ? faturaForm.vencimento : null,
-                  valor: parseFloat(faturaForm.valor.replace(",", ".")),
-                  status: faturaForm.status,
-                  observacoes: faturaForm.observacoes,
-                }, {
-                  onSuccess: () => setEditDialog({ open: false, fatura: null })
-                });
+                editFaturaMutation.mutate(
+                  {
+                    id: editDialog.fatura.id,
+                    competencia: faturaForm.competencia,
+                    vencimento: faturaForm.vencimento ? faturaForm.vencimento : null,
+                    valor: parseFloat(faturaForm.valor.replace(",", ".")),
+                    status: faturaForm.status,
+                    observacoes: faturaForm.observacoes,
+                  },
+                  {
+                    onSuccess: () => setEditDialog({ open: false, fatura: null }),
+                  },
+                );
               }
             }}
             className="space-y-4 pt-2"
           >
             <div className="space-y-1.5">
               <Label>Paciente</Label>
-              <Input value={editDialog.fatura ? (patientMap.get(editDialog.fatura.paciente_id) || "—") : ""} disabled className="bg-muted" />
+              <Input
+                value={
+                  editDialog.fatura ? patientMap.get(editDialog.fatura.paciente_id) || "—" : ""
+                }
+                disabled
+                className="bg-muted"
+              />
             </div>
-            
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label>Mês de Competência</Label>
@@ -2203,7 +2407,10 @@ Agradecemos a atenção!
               </div>
               <div className="space-y-1.5">
                 <Label>Status</Label>
-                <Select value={faturaForm.status} onValueChange={(val) => setFaturaForm({ ...faturaForm, status: val })}>
+                <Select
+                  value={faturaForm.status}
+                  onValueChange={(val) => setFaturaForm({ ...faturaForm, status: val })}
+                >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -2227,7 +2434,11 @@ Agradecemos a atenção!
               />
             </div>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setEditDialog({ open: false, fatura: null })}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setEditDialog({ open: false, fatura: null })}
+              >
                 Cancelar
               </Button>
               <Button type="submit" disabled={editFaturaMutation.isPending}>
@@ -2251,38 +2462,46 @@ Agradecemos a atenção!
                 toast.error("Selecione um paciente.");
                 return;
               }
-              createFaturaMutation.mutate({
-                paciente_id: faturaForm.paciente_id,
-                competencia: faturaForm.competencia,
-                vencimento: faturaForm.vencimento ? faturaForm.vencimento : null,
-                valor: parseFloat(faturaForm.valor.replace(",", ".")),
-                status: faturaForm.status,
-                observacoes: faturaForm.observacoes,
-              }, {
-                onSuccess: () => {
-                  setCreateDialog(false);
-                  setFaturaForm({
-                    paciente_id: "",
-                    competencia: format(startOfMonth(new Date()), "yyyy-MM-dd"),
-                    vencimento: "",
-                    valor: "",
-                    status: "aberta",
-                    observacoes: "",
-                  });
-                }
-              });
+              createFaturaMutation.mutate(
+                {
+                  paciente_id: faturaForm.paciente_id,
+                  competencia: faturaForm.competencia,
+                  vencimento: faturaForm.vencimento ? faturaForm.vencimento : null,
+                  valor: parseFloat(faturaForm.valor.replace(",", ".")),
+                  status: faturaForm.status,
+                  observacoes: faturaForm.observacoes,
+                },
+                {
+                  onSuccess: () => {
+                    setCreateDialog(false);
+                    setFaturaForm({
+                      paciente_id: "",
+                      competencia: format(startOfMonth(new Date()), "yyyy-MM-dd"),
+                      vencimento: "",
+                      valor: "",
+                      status: "aberta",
+                      observacoes: "",
+                    });
+                  },
+                },
+              );
             }}
             className="space-y-4 pt-2"
           >
             <div className="space-y-1.5">
               <Label>Paciente</Label>
-              <Select value={faturaForm.paciente_id} onValueChange={(val) => setFaturaForm({ ...faturaForm, paciente_id: val })}>
+              <Select
+                value={faturaForm.paciente_id}
+                onValueChange={(val) => setFaturaForm({ ...faturaForm, paciente_id: val })}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione o paciente..." />
                 </SelectTrigger>
                 <SelectContent>
                   {(pacientes || []).map((p) => (
-                    <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.nome}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -2320,7 +2539,10 @@ Agradecemos a atenção!
               </div>
               <div className="space-y-1.5">
                 <Label>Status</Label>
-                <Select value={faturaForm.status} onValueChange={(val) => setFaturaForm({ ...faturaForm, status: val })}>
+                <Select
+                  value={faturaForm.status}
+                  onValueChange={(val) => setFaturaForm({ ...faturaForm, status: val })}
+                >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -2355,14 +2577,23 @@ Agradecemos a atenção!
         </DialogContent>
       </Dialog>
 
-
-
       {/* Faturas do Paciente Dialog */}
-      <Dialog open={patientFaturasDialog.open} onOpenChange={(open) => setPatientFaturasDialog({ open, pacienteId: open ? patientFaturasDialog.pacienteId : "", pacienteNome: open ? patientFaturasDialog.pacienteNome : "" })}>
+      <Dialog
+        open={patientFaturasDialog.open}
+        onOpenChange={(open) =>
+          setPatientFaturasDialog({
+            open,
+            pacienteId: open ? patientFaturasDialog.pacienteId : "",
+            pacienteNome: open ? patientFaturasDialog.pacienteNome : "",
+          })
+        }
+      >
         <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
           <DialogHeader className="flex flex-row items-center justify-between">
             <div>
-              <DialogTitle className="text-xl">Faturas de {patientFaturasDialog.pacienteNome}</DialogTitle>
+              <DialogTitle className="text-xl">
+                Faturas de {patientFaturasDialog.pacienteNome}
+              </DialogTitle>
               <div className="text-sm text-muted-foreground mt-1">
                 Visualização de todas as cobranças vinculadas a este paciente.
               </div>
@@ -2385,7 +2616,7 @@ Agradecemos a atenção!
               <Plus className="h-4 w-4" /> Nova Cobrança
             </Button>
           </DialogHeader>
-          
+
           <div className="py-4">
             {patientFaturas.length === 0 ? (
               <div className="p-8 text-center text-sm text-muted-foreground border border-dashed rounded-lg">
@@ -2411,50 +2642,55 @@ Agradecemos a atenção!
                       return (
                         <TableRow key={f.id}>
                           <TableCell>
-                            {f.competencia ? format(new Date(f.competencia + "T12:00:00"), "MM/yyyy") : "—"}
+                            {f.competencia
+                              ? format(new Date(f.competencia + "T12:00:00"), "MM/yyyy")
+                              : "—"}
                           </TableCell>
                           <TableCell>
-                            {f.vencimento ? format(new Date(f.vencimento + "T12:00:00"), "dd/MM/yyyy") : "—"}
+                            {f.vencimento
+                              ? format(new Date(f.vencimento + "T12:00:00"), "dd/MM/yyyy")
+                              : "—"}
                           </TableCell>
-                          <TableCell className="font-semibold">
-                            {brl(Number(f.valor))}
-                          </TableCell>
+                          <TableCell className="font-semibold">{brl(Number(f.valor))}</TableCell>
                           <TableCell>
                             <Badge
                               variant={
                                 f.status === "paga"
                                   ? "default"
-                                  : f.status === "vencida" || (f.status === "aberta" && daysDelayed > 0)
-                                  ? "destructive"
-                                  : f.status === "cancelada"
-                                  ? "secondary"
-                                  : "outline"
+                                  : f.status === "vencida" ||
+                                      (f.status === "aberta" && daysDelayed > 0)
+                                    ? "destructive"
+                                    : f.status === "cancelada"
+                                      ? "secondary"
+                                      : "outline"
                               }
                               className={
                                 f.status === "paga"
                                   ? "bg-emerald-500 hover:bg-emerald-600 text-white border-transparent"
                                   : f.status === "aberta" && daysDelayed > 0
-                                  ? "bg-rose-500 hover:bg-rose-600 text-white border-transparent"
-                                  : f.status === "aberta"
-                                  ? "bg-sky-500 hover:bg-sky-600 text-white border-transparent"
-                                  : ""
+                                    ? "bg-rose-500 hover:bg-rose-600 text-white border-transparent"
+                                    : f.status === "aberta"
+                                      ? "bg-sky-500 hover:bg-sky-600 text-white border-transparent"
+                                      : ""
                               }
                             >
                               {f.status === "aberta" && daysDelayed > 0
                                 ? "Vencida (Atrasada)"
                                 : f.status === "aberta"
-                                ? "Em Aberto"
-                                : f.status === "paga"
-                                ? "Pago"
-                                : f.status === "vencida"
-                                ? "Vencida"
-                                : "Cancelada"}
+                                  ? "Em Aberto"
+                                  : f.status === "paga"
+                                    ? "Pago"
+                                    : f.status === "vencida"
+                                      ? "Vencida"
+                                      : "Cancelada"}
                             </Badge>
                           </TableCell>
                           <TableCell className="text-xs text-muted-foreground">
                             {f.status === "paga" ? (
                               <div className="space-y-0.5">
-                                <div>{f.pago_em ? format(new Date(f.pago_em), "dd/MM/yyyy") : "—"}</div>
+                                <div>
+                                  {f.pago_em ? format(new Date(f.pago_em), "dd/MM/yyyy") : "—"}
+                                </div>
                                 <div className="font-semibold uppercase tracking-wider text-[10px] text-emerald-600 dark:text-emerald-400">
                                   {f.metodo || ""}
                                 </div>
@@ -2479,7 +2715,8 @@ Agradecemos a atenção!
                             ) : f.vencimento ? (
                               daysDelayed > 0 ? (
                                 <span className="text-xs text-rose-600 dark:text-rose-400 font-semibold flex items-center gap-1">
-                                  <AlertCircle className="h-3.5 w-3.5 shrink-0" /> {daysDelayed} dias de atraso
+                                  <AlertCircle className="h-3.5 w-3.5 shrink-0" /> {daysDelayed}{" "}
+                                  dias de atraso
                                 </span>
                               ) : (
                                 <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
@@ -2487,11 +2724,16 @@ Agradecemos a atenção!
                                 </span>
                               )
                             ) : (
-                              <span className="text-xs text-muted-foreground italic">Sem vencimento</span>
+                              <span className="text-xs text-muted-foreground italic">
+                                Sem vencimento
+                              </span>
                             )}
                           </TableCell>
                           <TableCell className="text-right">
-                            <div className="flex justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
+                            <div
+                              className="flex justify-end gap-1.5"
+                              onClick={(e) => e.stopPropagation()}
+                            >
                               {f.status !== "paga" && (
                                 <Button
                                   variant="ghost"
@@ -2527,7 +2769,9 @@ Agradecemos a atenção!
                                   <AlertDialogHeader>
                                     <AlertDialogTitle>Excluir Cobrança</AlertDialogTitle>
                                     <AlertDialogDescription>
-                                      Tem certeza que deseja excluir esta cobrança? Todos os itens de faturamento associados a agendamentos serão mantidos, mas a cobrança em si será excluída.
+                                      Tem certeza que deseja excluir esta cobrança? Todos os itens
+                                      de faturamento associados a agendamentos serão mantidos, mas a
+                                      cobrança em si será excluída.
                                     </AlertDialogDescription>
                                   </AlertDialogHeader>
                                   <AlertDialogFooter>

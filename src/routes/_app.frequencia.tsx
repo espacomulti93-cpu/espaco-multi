@@ -5,13 +5,7 @@ import { useState, useMemo, useRef, useEffect } from "react";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -187,9 +181,19 @@ function FrequenciaPage() {
   const [fim, setFim] = useState(format(endOfMonth(today), "yyyy-MM-dd"));
 
   // Dialog States
-  const [signDialog, setSignDialog] = useState<{ open: boolean; ag: any }>({ open: false, ag: null });
-  const [viewSignDialog, setViewSignDialog] = useState<{ open: boolean; ag: any }>({ open: false, ag: null });
-  const [reportDialog, setReportDialog] = useState({ open: false, pacienteId: "", mesComp: format(today, "yyyy-MM") });
+  const [signDialog, setSignDialog] = useState<{ open: boolean; ag: any }>({
+    open: false,
+    ag: null,
+  });
+  const [viewSignDialog, setViewSignDialog] = useState<{ open: boolean; ag: any }>({
+    open: false,
+    ag: null,
+  });
+  const [reportDialog, setReportDialog] = useState({
+    open: false,
+    pacienteId: "",
+    mesComp: format(today, "yyyy-MM"),
+  });
 
   const [nomeResponsavel, setNomeResponsavel] = useState("");
 
@@ -233,12 +237,22 @@ function FrequenciaPage() {
         map.set(a.paciente_id, a.pacientes.nome);
       }
     });
-    return Array.from(map.entries()).map(([id, nome]) => ({ id, nome })).sort((a, b) => a.nome.localeCompare(b.nome));
+    return Array.from(map.entries())
+      .map(([id, nome]) => ({ id, nome }))
+      .sort((a, b) => a.nome.localeCompare(b.nome));
   }, [agendamentos]);
 
   // Sign Attendance Mutation
   const signMutation = useMutation({
-    mutationFn: async ({ agId, signatureBase64, name }: { agId: string; signatureBase64: string; name: string }) => {
+    mutationFn: async ({
+      agId,
+      signatureBase64,
+      name,
+    }: {
+      agId: string;
+      signatureBase64: string;
+      name: string;
+    }) => {
       const { data, error } = await supabase
         .from("agendamentos")
         .update({
@@ -326,7 +340,8 @@ function FrequenciaPage() {
   }, [agendamentos, reportDialog.pacienteId, reportDialog.mesComp]);
 
   const selectedProfessional = profissionais.find((p) => p.id === selectedProfId);
-  const selectedReportPatientName = reportPatients.find((p) => p.id === reportDialog.pacienteId)?.nome || "";
+  const selectedReportPatientName =
+    reportPatients.find((p) => p.id === reportDialog.pacienteId)?.nome || "";
 
   return (
     <div className="space-y-6">
@@ -393,7 +408,8 @@ function FrequenciaPage() {
             </div>
             <CardTitle className="text-lg font-bold">Frequência Digital MULTI</CardTitle>
             <CardDescription className="max-w-md mt-1.5">
-              Selecione o seu perfil profissional acima para gerenciar as suas sessões e recolher assinaturas digitais dos responsáveis no celular ou tablet.
+              Selecione o seu perfil profissional acima para gerenciar as suas sessões e recolher
+              assinaturas digitais dos responsáveis no celular ou tablet.
             </CardDescription>
           </CardContent>
         </Card>
@@ -404,14 +420,20 @@ function FrequenciaPage() {
               <div>
                 <CardTitle className="text-lg">Controle de Frequência</CardTitle>
                 <CardDescription>
-                  Profissional: <span className="font-semibold text-foreground">{selectedProfessional?.nome}</span>
+                  Profissional:{" "}
+                  <span className="font-semibold text-foreground">
+                    {selectedProfessional?.nome}
+                  </span>
                 </CardDescription>
               </div>
               <div className="flex gap-2">
                 <Badge variant="secondary" className="px-2.5 py-1 text-xs">
                   {agendamentos.length} Sessões
                 </Badge>
-                <Badge variant="outline" className="px-2.5 py-1 text-xs text-green-600 border-green-200 bg-green-50/20">
+                <Badge
+                  variant="outline"
+                  className="px-2.5 py-1 text-xs text-green-600 border-green-200 bg-green-50/20"
+                >
                   {agendamentos.filter((a: any) => a.assinatura_responsavel).length} Assinadas
                 </Badge>
               </div>
@@ -460,12 +482,18 @@ function FrequenciaPage() {
                               variant="outline"
                               className={cn(
                                 "text-[9px] font-bold uppercase",
-                                a.status === "confirmado" && "border-green-500/30 text-green-600 bg-green-50/50",
-                                a.status === "pago" && "border-emerald-500/30 text-emerald-600 bg-emerald-50/50",
-                                a.status === "cancelado" && "border-red-500/30 text-red-600 bg-red-50/50",
-                                a.status === "realizado" && "border-blue-500/30 text-blue-600 bg-blue-50/50",
-                                a.status === "falta" && "border-orange-500/30 text-orange-600 bg-orange-50/50",
-                                a.status === "pendente" && "border-yellow-500/30 text-yellow-600 bg-yellow-50/50"
+                                a.status === "confirmado" &&
+                                  "border-green-500/30 text-green-600 bg-green-50/50",
+                                a.status === "pago" &&
+                                  "border-emerald-500/30 text-emerald-600 bg-emerald-50/50",
+                                a.status === "cancelado" &&
+                                  "border-red-500/30 text-red-600 bg-red-50/50",
+                                a.status === "realizado" &&
+                                  "border-blue-500/30 text-blue-600 bg-blue-50/50",
+                                a.status === "falta" &&
+                                  "border-orange-500/30 text-orange-600 bg-orange-50/50",
+                                a.status === "pendente" &&
+                                  "border-yellow-500/30 text-yellow-600 bg-yellow-50/50",
                               )}
                             >
                               {STATUS_LABEL[a.status] || a.status}
@@ -481,7 +509,8 @@ function FrequenciaPage() {
                                   onClick={() => setViewSignDialog({ open: true, ag: a })}
                                   className="h-8 gap-1 border-green-200 hover:border-green-300 hover:bg-green-50 text-green-700 bg-green-50/20 text-xs px-2.5 cursor-pointer"
                                 >
-                                  <CheckCircle2 className="h-3.5 w-3.5" /> Assinado por {a.nome_assinante?.split(" ")[0]}
+                                  <CheckCircle2 className="h-3.5 w-3.5" /> Assinado por{" "}
+                                  {a.nome_assinante?.split(" ")[0]}
                                 </Button>
                               </div>
                             ) : a.status === "cancelado" ? (
@@ -509,7 +538,10 @@ function FrequenciaPage() {
       )}
 
       {/* Signature Modal */}
-      <Dialog open={signDialog.open} onOpenChange={(open) => setSignDialog({ open, ag: open ? signDialog.ag : null })}>
+      <Dialog
+        open={signDialog.open}
+        onOpenChange={(open) => setSignDialog({ open, ag: open ? signDialog.ag : null })}
+      >
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Assinatura Digital de Frequência</DialogTitle>
@@ -517,9 +549,25 @@ function FrequenciaPage() {
           <div className="space-y-4 pt-2">
             <div className="rounded-lg border bg-muted/30 p-3 text-xs space-y-2">
               <div className="grid grid-cols-2 gap-x-2 gap-y-1">
-                <div><span className="text-muted-foreground">Paciente:</span> <span className="font-semibold text-foreground">{signDialog.ag?.pacientes?.nome}</span></div>
-                <div><span className="text-muted-foreground">Profissional:</span> <span className="font-semibold text-foreground">{signDialog.ag?.profissionais?.nome}</span></div>
-                <div className="col-span-2"><span className="text-muted-foreground">Sessão:</span> <span className="font-semibold text-foreground">{signDialog.ag?.data_inicio && format(new Date(signDialog.ag.data_inicio), "dd/MM/yyyy 'às' HH:mm")}</span></div>
+                <div>
+                  <span className="text-muted-foreground">Paciente:</span>{" "}
+                  <span className="font-semibold text-foreground">
+                    {signDialog.ag?.pacientes?.nome}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Profissional:</span>{" "}
+                  <span className="font-semibold text-foreground">
+                    {signDialog.ag?.profissionais?.nome}
+                  </span>
+                </div>
+                <div className="col-span-2">
+                  <span className="text-muted-foreground">Sessão:</span>{" "}
+                  <span className="font-semibold text-foreground">
+                    {signDialog.ag?.data_inicio &&
+                      format(new Date(signDialog.ag.data_inicio), "dd/MM/yyyy 'às' HH:mm")}
+                  </span>
+                </div>
               </div>
             </div>
             <div className="space-y-1.5">
@@ -544,7 +592,10 @@ function FrequenciaPage() {
       </Dialog>
 
       {/* View Signature Modal */}
-      <Dialog open={viewSignDialog.open} onOpenChange={(open) => setViewSignDialog({ open, ag: open ? viewSignDialog.ag : null })}>
+      <Dialog
+        open={viewSignDialog.open}
+        onOpenChange={(open) => setViewSignDialog({ open, ag: open ? viewSignDialog.ag : null })}
+      >
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Assinatura Digital Registrada</DialogTitle>
@@ -552,9 +603,25 @@ function FrequenciaPage() {
           <div className="space-y-4 pt-2">
             <div className="rounded-lg border bg-muted/30 p-3 text-xs space-y-2">
               <div className="grid grid-cols-2 gap-x-2 gap-y-1">
-                <div><span className="text-muted-foreground">Paciente:</span> <span className="font-semibold text-foreground">{viewSignDialog.ag?.pacientes?.nome}</span></div>
-                <div><span className="text-muted-foreground">Assinante:</span> <span className="font-semibold text-foreground">{viewSignDialog.ag?.nome_assinante}</span></div>
-                <div className="col-span-2"><span className="text-muted-foreground">Data/Hora da Assinatura:</span> <span className="font-semibold text-foreground">{viewSignDialog.ag?.data_assinatura && format(new Date(viewSignDialog.ag.data_assinatura), "dd/MM/yyyy 'às' HH:mm")}</span></div>
+                <div>
+                  <span className="text-muted-foreground">Paciente:</span>{" "}
+                  <span className="font-semibold text-foreground">
+                    {viewSignDialog.ag?.pacientes?.nome}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Assinante:</span>{" "}
+                  <span className="font-semibold text-foreground">
+                    {viewSignDialog.ag?.nome_assinante}
+                  </span>
+                </div>
+                <div className="col-span-2">
+                  <span className="text-muted-foreground">Data/Hora da Assinatura:</span>{" "}
+                  <span className="font-semibold text-foreground">
+                    {viewSignDialog.ag?.data_assinatura &&
+                      format(new Date(viewSignDialog.ag.data_assinatura), "dd/MM/yyyy 'às' HH:mm")}
+                  </span>
+                </div>
               </div>
             </div>
             <div className="border border-border rounded-lg bg-white p-4 flex items-center justify-center">
@@ -592,16 +659,22 @@ function FrequenciaPage() {
       </Dialog>
 
       {/* Attendance Report View Dialog */}
-      <Dialog open={reportDialog.open} onOpenChange={(open) => setReportDialog({ ...reportDialog, open })}>
+      <Dialog
+        open={reportDialog.open}
+        onOpenChange={(open) => setReportDialog({ ...reportDialog, open })}
+      >
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader className="print:hidden">
             <DialogTitle>Gerar Relatório de Frequência</DialogTitle>
           </DialogHeader>
-          
+
           <div className="flex flex-wrap items-end gap-3 pb-4 border-b border-border/60 print:hidden">
             <div className="space-y-1.5 flex-1 min-w-[200px]">
               <Label>Paciente</Label>
-              <Select value={reportDialog.pacienteId} onValueChange={(val) => setReportDialog({ ...reportDialog, pacienteId: val })}>
+              <Select
+                value={reportDialog.pacienteId}
+                onValueChange={(val) => setReportDialog({ ...reportDialog, pacienteId: val })}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione o paciente..." />
                 </SelectTrigger>
@@ -633,29 +706,43 @@ function FrequenciaPage() {
           </div>
 
           {/* Printable Report Section */}
-          <div id="freq-report-printable" className="p-4 bg-white text-black font-sans min-h-[400px]">
+          <div
+            id="freq-report-printable"
+            className="p-4 bg-white text-black font-sans min-h-[400px]"
+          >
             {!reportDialog.pacienteId ? (
               <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground print:hidden">
                 <FileText className="h-10 w-10 text-muted-foreground/60 mb-2" />
-                <p className="text-sm font-medium">Selecione um paciente para carregar o relatório.</p>
+                <p className="text-sm font-medium">
+                  Selecione um paciente para carregar o relatório.
+                </p>
               </div>
             ) : reportData.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground print:hidden">
                 <AlertCircle className="h-10 w-10 text-muted-foreground/60 mb-2" />
-                <p className="text-sm font-medium">Nenhuma sessão encontrada para este paciente no mês selecionado.</p>
+                <p className="text-sm font-medium">
+                  Nenhuma sessão encontrada para este paciente no mês selecionado.
+                </p>
               </div>
             ) : (
               <div className="space-y-6">
                 {/* Header */}
                 <div className="flex items-center justify-between border-b-2 border-black pb-4">
                   <div>
-                    <h2 className="text-xl font-bold uppercase tracking-wider text-slate-900">Espaço MULTI</h2>
-                    <p className="text-[10px] text-muted-foreground font-semibold">Clínica Multidisciplinar de Desenvolvimento Infantil</p>
+                    <h2 className="text-xl font-bold uppercase tracking-wider text-slate-900">
+                      Espaço MULTI
+                    </h2>
+                    <p className="text-[10px] text-muted-foreground font-semibold">
+                      Clínica Multidisciplinar de Desenvolvimento Infantil
+                    </p>
                   </div>
                   <div className="text-right">
                     <h3 className="text-md font-bold uppercase">Relatório de Frequência</h3>
                     <p className="text-xs font-semibold text-slate-800">
-                      Mês: <span className="capitalize font-bold">{format(new Date(reportData[0].data_inicio), "MMMM yyyy", { locale: ptBR })}</span>
+                      Mês:{" "}
+                      <span className="capitalize font-bold">
+                        {format(new Date(reportData[0].data_inicio), "MMMM yyyy", { locale: ptBR })}
+                      </span>
                     </p>
                   </div>
                 </div>
@@ -663,12 +750,21 @@ function FrequenciaPage() {
                 {/* Details */}
                 <div className="grid grid-cols-2 gap-4 text-xs pb-4 border-b border-dashed border-gray-300">
                   <div>
-                    <p><span className="font-bold">Paciente:</span> {selectedReportPatientName}</p>
-                    <p className="mt-1"><span className="font-bold">Profissional:</span> {selectedProfessional?.nome}</p>
+                    <p>
+                      <span className="font-bold">Paciente:</span> {selectedReportPatientName}
+                    </p>
+                    <p className="mt-1">
+                      <span className="font-bold">Profissional:</span> {selectedProfessional?.nome}
+                    </p>
                   </div>
                   <div className="text-right">
-                    <p><span className="font-bold">Especialidade:</span> {selectedProfessional?.especialidade || "Terapia"}</p>
-                    <p className="mt-1"><span className="font-bold">Total de Sessões:</span> {reportData.length}</p>
+                    <p>
+                      <span className="font-bold">Especialidade:</span>{" "}
+                      {selectedProfessional?.especialidade || "Terapia"}
+                    </p>
+                    <p className="mt-1">
+                      <span className="font-bold">Total de Sessões:</span> {reportData.length}
+                    </p>
                   </div>
                 </div>
 
@@ -706,10 +802,14 @@ function FrequenciaPage() {
                                 alt="Assinatura"
                                 className="h-8 max-w-[120px] object-contain"
                               />
-                              <span className="text-[9px] text-gray-500 font-medium mt-0.5">Signed by: {a.nome_assinante}</span>
+                              <span className="text-[9px] text-gray-500 font-medium mt-0.5">
+                                Signed by: {a.nome_assinante}
+                              </span>
                             </div>
                           ) : (
-                            <span className="text-gray-400 italic text-[10px]">Pendente de assinatura</span>
+                            <span className="text-gray-400 italic text-[10px]">
+                              Pendente de assinatura
+                            </span>
                           )}
                         </td>
                       </tr>
@@ -722,7 +822,9 @@ function FrequenciaPage() {
                   <div>
                     <div className="border-t border-black w-48 mx-auto mt-4"></div>
                     <p className="font-bold mt-1.5">{selectedProfessional?.nome}</p>
-                    <p className="text-gray-500 font-medium">{selectedProfessional?.especialidade || "Profissional"}</p>
+                    <p className="text-gray-500 font-medium">
+                      {selectedProfessional?.especialidade || "Profissional"}
+                    </p>
                   </div>
                   <div>
                     <div className="border-t border-black w-48 mx-auto mt-4"></div>

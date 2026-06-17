@@ -51,7 +51,6 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { PacienteFormDialog } from "@/components/PacienteFormDialog";
 
-
 export const Route = createFileRoute("/_app/agenda")({
   component: Agenda,
 });
@@ -126,7 +125,6 @@ function Agenda() {
     return ags.filter((a) => selectedProfs.includes(a.profissional_id));
   }, [ags, selectedProfs]);
 
-
   return (
     <div className="space-y-4">
       {profsPopoverOpen && (
@@ -160,7 +158,7 @@ function Agenda() {
               size="sm"
               className={cn(
                 "h-9 gap-2 transition-all hover:bg-accent border-dashed ml-2",
-                selectedProfs.length > 0 && "border-solid border-primary bg-primary/5"
+                selectedProfs.length > 0 && "border-solid border-primary bg-primary/5",
               )}
             >
               <Filter className="h-4 w-4" />
@@ -215,10 +213,7 @@ function Agenda() {
                         }}
                         className="flex items-center gap-2 cursor-pointer"
                       >
-                        <Checkbox
-                          checked={isSelected}
-                          className="pointer-events-none"
-                        />
+                        <Checkbox checked={isSelected} className="pointer-events-none" />
                         <div
                           className="h-2.5 w-2.5 rounded-full shrink-0"
                           style={{ backgroundColor: p.cor || "var(--primary)" }}
@@ -261,7 +256,7 @@ function Agenda() {
                   key={d.toString()}
                   className={cn(
                     "sticky top-0 z-20 border-b border-r p-2 text-center text-xs font-medium bg-card",
-                    isToday && "text-primary font-semibold"
+                    isToday && "text-primary font-semibold",
                   )}
                 >
                   {isToday && (
@@ -446,7 +441,7 @@ const syncAgendamentoFinanceiro = async (
     }
 
     // If status IS realizado, pago, or falta:
-    const targetStatus = (status === "pago" || status === "falta") ? "paga" : "aberta";
+    const targetStatus = status === "pago" || status === "falta" ? "paga" : "aberta";
     const d = new Date(dataInicio);
     const competencia = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
     const dateStr = format(d, "dd/MM/yyyy HH:mm");
@@ -478,10 +473,7 @@ const syncAgendamentoFinanceiro = async (
       faturaId = matchedFaturas[0].id;
       faturaValor = Number(matchedFaturas[0].valor);
       if (targetStatus === "paga") {
-        await supabase
-          .from("faturas")
-          .update({ metodo: mappedMetodo })
-          .eq("id", faturaId);
+        await supabase.from("faturas").update({ metodo: mappedMetodo }).eq("id", faturaId);
       }
     } else {
       const insertData: any = {
@@ -648,8 +640,6 @@ function FragmentRow({ h, days, ags, onCellClick, onEdit }: any) {
   );
 }
 
-
-
 function AgendamentoDialog({
   editing,
   defaults,
@@ -662,7 +652,11 @@ function AgendamentoDialog({
   defaults?: any;
   onSaved: () => void;
   onCancel: (a: any) => void;
-  triggerNewPatient: (defaultSpecialty: string, defaultProfessionalId: string, onSaved: (newPac: any) => void) => void;
+  triggerNewPatient: (
+    defaultSpecialty: string,
+    defaultProfessionalId: string,
+    onSaved: (newPac: any) => void,
+  ) => void;
   triggerEditPatient: (paciente: any, onSaved: () => void) => void;
 }) {
   const qc = useQueryClient();
@@ -677,9 +671,7 @@ function AgendamentoDialog({
       ? safeFormatDate(editing.data_fim, "yyyy-MM-dd'T'HH:mm")
       : format(new Date(new Date(initialStart).getTime() + 50 * 60000), "yyyy-MM-dd'T'HH:mm");
 
-  const initialTipo: "sessao" | "anamnese" = editing?.observacoes?.startsWith(
-    "[Tipo: Anamnese]",
-  )
+  const initialTipo: "sessao" | "anamnese" = editing?.observacoes?.startsWith("[Tipo: Anamnese]")
     ? "anamnese"
     : "sessao";
   const [tipoAgendamento, setTipoAgendamento] = useState<"sessao" | "anamnese">(initialTipo);
@@ -719,9 +711,7 @@ function AgendamentoDialog({
 
   const { data: pacientes = [] } = useQuery({
     queryKey: ["pac-min"],
-    queryFn: async () =>
-      (await supabase.from("pacientes").select("*").order("nome")).data ??
-      [],
+    queryFn: async () => (await supabase.from("pacientes").select("*").order("nome")).data ?? [],
   });
   const { data: profissionais = [] } = useQuery({
     queryKey: ["prof-min"],
@@ -847,9 +837,9 @@ Fico à disposição para qualquer dúvida!`;
 
     const targetSpecs = selectedSpecialty
       ? [selectedSpecialty.toLowerCase()]
-      : (selectedProf.especialidade
-          ? selectedProf.especialidade.split(",").map((s: string) => s.trim().toLowerCase())
-          : []);
+      : selectedProf.especialidade
+        ? selectedProf.especialidade.split(",").map((s: string) => s.trim().toLowerCase())
+        : [];
 
     if (targetSpecs.length === 0) return pacientes;
 
@@ -1194,7 +1184,9 @@ Fico à disposição para qualquer dúvida!`;
           );
         }
       } else {
-        const { data: { user } } = await supabase.auth.getUser();
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
 
         if (form.recorrencia !== "unica") {
           const occurrences: any[] = [];
@@ -1276,7 +1268,7 @@ Fico à disposição para qualquer dúvida!`;
             observacoes: finalObservacoes,
             created_by: user?.id || null,
           };
-          delete (payload as any).meio_pagamento; 
+          delete (payload as any).meio_pagamento;
           const { data: insertedAg, error } = await supabase
             .from("agendamentos")
             .insert(payload)
@@ -1403,14 +1395,12 @@ Fico à disposição para qualquer dúvida!`;
               : "Novo agendamento"}
         </DialogTitle>
       </DialogHeader>
-      <form
-        onSubmit={handleSubmit}
-        className="space-y-3"
-      >
+      <form onSubmit={handleSubmit} className="space-y-3">
         {recorrenciaConfirmOpen ? (
           <div className="space-y-4 py-2 animate-in fade-in duration-200">
             <p className="text-sm text-muted-foreground">
-              Este agendamento faz parte de uma série recorrente. Deseja aplicar estas alterações também para todas as datas futuras da série?
+              Este agendamento faz parte de uma série recorrente. Deseja aplicar estas alterações
+              também para todas as datas futuras da série?
             </p>
             <div className="flex justify-end gap-2 pt-4 border-t mt-4">
               <Button
@@ -1444,491 +1434,520 @@ Fico à disposição para qualquer dúvida!`;
         ) : (
           <>
             {editing && (
-          <div className="rounded-lg border bg-muted/40 p-3 text-xs space-y-3 animate-in fade-in duration-200">
-            <div className="font-semibold text-muted-foreground uppercase tracking-wider text-[10px]">
-              Dados Agendados & Histórico
-            </div>
-
-            <div className="max-h-36 overflow-y-auto pr-1 space-y-3 divider-y">
-              {/* Resumo do Agendamento Atual */}
-              <div className="space-y-1.5 pb-2 border-b border-border/60">
-                <div className="font-medium text-primary text-[10px] uppercase">
-                  Agendamento Atual
+              <div className="rounded-lg border bg-muted/40 p-3 text-xs space-y-3 animate-in fade-in duration-200">
+                <div className="font-semibold text-muted-foreground uppercase tracking-wider text-[10px]">
+                  Dados Agendados & Histórico
                 </div>
-                <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-                  <div>
-                    <span className="text-muted-foreground font-medium">Paciente:</span>{" "}
-                    <span className="text-foreground font-semibold">
-                      {selectedPaciente ? selectedPaciente.nome : "—"}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground font-medium">Profissional:</span>{" "}
-                    <span className="text-foreground font-semibold">
-                      {profissionais.find((p: any) => p.id === form.profissional_id)?.nome || "—"}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground font-medium">Especialidade:</span>{" "}
-                    <span className="text-foreground font-semibold">
-                      {selectedSpecialty || "—"}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground font-medium">Data/Hora:</span>{" "}
-                    <span className="text-foreground font-semibold">
-                      {safeFormatDate(form.data_inicio, "dd/MM/yyyy HH:mm", { locale: ptBR })}
-                    </span>
-                  </div>
-                  <div className="flex items-center flex-wrap gap-1">
-                    <span className="text-muted-foreground font-medium">Status:</span>{" "}
-                    <Badge variant="secondary" className="h-4 px-1 text-[9px] font-semibold">
-                      {STATUS_LABEL[form.status] || form.status || ""}
-                    </Badge>
-                    {editing.status !== "confirmado" && editing.status !== "pago" && whatsappUrl && (
-                      <a
-                        href={whatsappUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-0.5 ml-1 text-[10px] text-green-600 hover:text-green-700 hover:underline font-semibold"
-                        title="Contatar via WhatsApp"
-                      >
-                        <MessageCircle className="h-3.5 w-3.5 fill-green-600/10" /> WhatsApp
-                      </a>
+
+                <div className="max-h-36 overflow-y-auto pr-1 space-y-3 divider-y">
+                  {/* Resumo do Agendamento Atual */}
+                  <div className="space-y-1.5 pb-2 border-b border-border/60">
+                    <div className="font-medium text-primary text-[10px] uppercase">
+                      Agendamento Atual
+                    </div>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                      <div>
+                        <span className="text-muted-foreground font-medium">Paciente:</span>{" "}
+                        <span className="text-foreground font-semibold">
+                          {selectedPaciente ? selectedPaciente.nome : "—"}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground font-medium">Profissional:</span>{" "}
+                        <span className="text-foreground font-semibold">
+                          {profissionais.find((p: any) => p.id === form.profissional_id)?.nome ||
+                            "—"}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground font-medium">Especialidade:</span>{" "}
+                        <span className="text-foreground font-semibold">
+                          {selectedSpecialty || "—"}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground font-medium">Data/Hora:</span>{" "}
+                        <span className="text-foreground font-semibold">
+                          {safeFormatDate(form.data_inicio, "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                        </span>
+                      </div>
+                      <div className="flex items-center flex-wrap gap-1">
+                        <span className="text-muted-foreground font-medium">Status:</span>{" "}
+                        <Badge variant="secondary" className="h-4 px-1 text-[9px] font-semibold">
+                          {STATUS_LABEL[form.status] || form.status || ""}
+                        </Badge>
+                        {editing.status !== "confirmado" &&
+                          editing.status !== "pago" &&
+                          whatsappUrl && (
+                            <a
+                              href={whatsappUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-0.5 ml-1 text-[10px] text-green-600 hover:text-green-700 hover:underline font-semibold"
+                              title="Contatar via WhatsApp"
+                            >
+                              <MessageCircle className="h-3.5 w-3.5 fill-green-600/10" /> WhatsApp
+                            </a>
+                          )}
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground font-medium">Recorrência:</span>{" "}
+                        <span className="text-foreground font-semibold capitalize">
+                          {form.recorrencia || "única"}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground font-medium">
+                          Meio de Pagamento:
+                        </span>{" "}
+                        <span className="text-foreground font-semibold">
+                          {isMensal ? "Mensal" : form.meio_pagamento || "Pix"}
+                        </span>
+                      </div>
+                    </div>
+                    {form.observacoes && (
+                      <div className="mt-1">
+                        <span className="text-muted-foreground font-medium">Observações:</span>{" "}
+                        <span className="text-foreground whitespace-pre-wrap">
+                          {form.observacoes}
+                        </span>
+                      </div>
                     )}
                   </div>
-                  <div>
-                    <span className="text-muted-foreground font-medium">Recorrência:</span>{" "}
-                    <span className="text-foreground font-semibold capitalize">
-                      {form.recorrencia || "única"}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground font-medium">Meio de Pagamento:</span>{" "}
-                    <span className="text-foreground font-semibold">
-                      {isMensal ? "Mensal" : (form.meio_pagamento || "Pix")}
-                    </span>
-                  </div>
-                </div>
-                {form.observacoes && (
-                  <div className="mt-1">
-                    <span className="text-muted-foreground font-medium">Observações:</span>{" "}
-                    <span className="text-foreground whitespace-pre-wrap">
-                      {form.observacoes}
-                    </span>
-                  </div>
-                )}
-              </div>
 
-              {/* Todos os Agendamentos do Paciente */}
-              <div className="space-y-1.5 pt-1">
-                <div className="font-medium text-primary text-[10px] uppercase flex items-center justify-between">
-                  <span>Todos os Agendamentos do Paciente ({patientAgs.length})</span>
-                </div>
-                {sortedPatientAgs.length === 0 ? (
-                  <p className="text-muted-foreground italic">
-                    Nenhum outro agendamento encontrado.
-                  </p>
-                ) : (
-                  <div className="space-y-1.5">
-                    {sortedPatientAgs.map((a: any) => (
-                      <div
-                        key={a.id}
-                        className={cn(
-                          "p-1.5 rounded border flex items-center justify-between text-[11px] transition",
-                          a.id === editing.id
-                            ? "bg-primary/5 border-primary/30"
-                            : "bg-card border-border/40",
-                        )}
-                      >
-                        <div className="flex items-center gap-2">
+                  {/* Todos os Agendamentos do Paciente */}
+                  <div className="space-y-1.5 pt-1">
+                    <div className="font-medium text-primary text-[10px] uppercase flex items-center justify-between">
+                      <span>Todos os Agendamentos do Paciente ({patientAgs.length})</span>
+                    </div>
+                    {sortedPatientAgs.length === 0 ? (
+                      <p className="text-muted-foreground italic">
+                        Nenhum outro agendamento encontrado.
+                      </p>
+                    ) : (
+                      <div className="space-y-1.5">
+                        {sortedPatientAgs.map((a: any) => (
                           <div
-                            className="h-2 w-2 rounded-full shrink-0"
-                            style={{ backgroundColor: a.profissionais?.cor || "var(--primary)" }}
-                          />
-                          <div>
-                            <span className="font-medium text-foreground">
-                              {safeFormatDate(a.data_inicio, "dd/MM/yyyy HH:mm", { locale: ptBR })}
-                            </span>
-                            <span className="text-muted-foreground mx-1">•</span>
-                            <span className="text-muted-foreground">
-                              {a.profissionais?.nome} ({a.servicos?.nome || "Sessão"})
-                            </span>
-                          </div>
-                        </div>
-                        <Badge
-                          variant="outline"
-                          className={cn(
-                            "h-4 px-1 text-[8px] uppercase font-bold shrink-0",
-                            a.status === "confirmado" &&
-                              "border-green-500/30 text-green-600 bg-green-50/50",
-                            a.status === "pago" &&
-                              "border-emerald-500/30 text-emerald-600 bg-emerald-50/50",
-                            a.status === "cancelado" &&
-                              "border-red-500/30 text-red-600 bg-red-50/50",
-                            a.status === "realizado" &&
-                              "border-blue-500/30 text-blue-600 bg-blue-50/50",
-                            a.status === "falta" &&
-                              "border-orange-500/30 text-orange-600 bg-orange-50/50",
-                            a.status === "pendente" &&
-                              "border-yellow-500/30 text-yellow-600 bg-yellow-50/50",
-                          )}
-                        >
-                          {STATUS_LABEL[a.status] || a.status || ""}
-                        </Badge>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-1.5">
-            <Label>Profissional *</Label>
-            <Select value={form.profissional_id} onValueChange={handleProfissionalChange}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione o profissional…" />
-              </SelectTrigger>
-              <SelectContent>
-                {profissionais.map((p: any) => (
-                  <SelectItem key={p.id} value={p.id}>
-                    {p.nome}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {(form.profissional_id || editing) && (
-            <div className="space-y-1.5 animate-in fade-in duration-200">
-              <Label>Especialidade *</Label>
-              <Select value={selectedSpecialty} onValueChange={handleSpecialtyChange}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione a especialidade…" />
-                </SelectTrigger>
-                <SelectContent>
-                  {professionalSpecialties.map((s: string) => (
-                    <SelectItem key={s} value={s}>
-                      {s}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-        </div>
-
-        {((form.profissional_id && selectedSpecialty) || editing) && (
-          <div className="grid grid-cols-2 gap-4 animate-in fade-in duration-200">
-            {/* Paciente Column */}
-            <div className="space-y-1.5">
-              <Label>Paciente *</Label>
-              <div className="flex gap-2">
-                <Popover open={pacienteOpen} onOpenChange={setPacienteOpen}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      role="combobox"
-                      aria-expanded={pacienteOpen}
-                      className="flex-1 justify-between font-normal text-left px-3 animate-in fade-in duration-200"
-                    >
-                      {selectedPaciente ? selectedPaciente.nome : "Selecione o paciente..."}
-                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent
-                    className="w-[var(--radix-popover-trigger-width)] min-w-[400px] p-0"
-                    align="start"
-                    onCloseAutoFocus={(e) => e.preventDefault()}
-                  >
-                    <Command>
-                      <CommandInput placeholder="Pesquisar paciente..." className="h-9" />
-                      <CommandList className="max-h-[450px]">
-                        <CommandEmpty className="p-4 text-center text-sm">
-                          <p className="text-muted-foreground mb-2">Nenhum paciente cadastrado nesta especialidade.</p>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="w-full gap-1.5"
-                            onClick={() => {
-                              setPacienteOpen(false);
-                              triggerNewPatient(selectedSpecialty, form.profissional_id, (newPac) => {
-                                if (newPac?.id) {
-                                  handlePacienteChange(newPac.id);
-                                }
-                              });
-                            }}
+                            key={a.id}
+                            className={cn(
+                              "p-1.5 rounded border flex items-center justify-between text-[11px] transition",
+                              a.id === editing.id
+                                ? "bg-primary/5 border-primary/30"
+                                : "bg-card border-border/40",
+                            )}
                           >
-                            <Plus className="h-4 w-4" /> Cadastrar Novo Paciente
-                          </Button>
-                        </CommandEmpty>
-                        <CommandGroup>
-                          {displayedPacientes.map((p: any) => (
-                            <CommandItem
-                              key={p.id}
-                              value={`${p.nome?.toLowerCase() || ""}-${p.id}`}
-                              onSelect={() => {
-                                handlePacienteChange(p.id);
-                                setPacienteOpen(false);
-                              }}
-                              className="flex items-center justify-between cursor-pointer"
-                            >
-                              <div className="flex items-center flex-1 min-w-0">
-                                <Check
-                                  className={cn(
-                                    "mr-2 h-4 w-4 shrink-0",
-                                    form.paciente_id === p.id ? "opacity-100" : "opacity-0",
-                                  )}
-                                />
-                                <span className="truncate font-medium">{p.nome}</span>
+                            <div className="flex items-center gap-2">
+                              <div
+                                className="h-2 w-2 rounded-full shrink-0"
+                                style={{
+                                  backgroundColor: a.profissionais?.cor || "var(--primary)",
+                                }}
+                              />
+                              <div>
+                                <span className="font-medium text-foreground">
+                                  {safeFormatDate(a.data_inicio, "dd/MM/yyyy HH:mm", {
+                                    locale: ptBR,
+                                  })}
+                                </span>
+                                <span className="text-muted-foreground mx-1">•</span>
+                                <span className="text-muted-foreground">
+                                  {a.profissionais?.nome} ({a.servicos?.nome || "Sessão"})
+                                </span>
                               </div>
-                              <Badge variant="outline" className="text-[10px] ml-2 shrink-0 font-medium bg-muted/50">
-                                {p.valor_mensal && p.valor_mensal > 0
-                                  ? "Mensal"
-                                  : "Por Sessão"}
-                              </Badge>
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
-
-                {selectedPaciente && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    className="shrink-0"
-                    onClick={() => triggerEditPatient(selectedPaciente, () => {
-                      qc.invalidateQueries({
-                        queryKey: ["responsaveis-paciente-dialog", selectedPaciente.id],
-                      });
-                    })}
-                    title="Editar dados do paciente"
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                )}
-              </div>
-
-              {selectedPaciente && (
-                <div className="text-[11px] text-muted-foreground flex items-center gap-1.5 mt-1.5 bg-muted/30 px-2.5 py-1.5 rounded border border-dashed border-border/80">
-                  <span className="font-medium">Cobrança:</span>
-                  <span className={cn(
-                    "font-semibold rounded-full px-2 py-0.5 text-[9px] uppercase",
-                    selectedPaciente.valor_mensal && selectedPaciente.valor_mensal > 0
-                      ? "bg-blue-50 text-blue-700 border border-blue-200"
-                      : "bg-green-50 text-green-700 border border-green-200"
-                  )}>
-                    {selectedPaciente.valor_mensal && selectedPaciente.valor_mensal > 0
-                      ? "Plano Mensal"
-                      : "Pagamento por Sessão"}
-                  </span>
-                </div>
-              )}
-            </div>
-
-            {/* Tipo de Agendamento Column */}
-            <div className="space-y-1.5 flex flex-col justify-start">
-              {((form.paciente_id && specialtyUpper !== "AP") || (editing && specialtyUpper !== "AP")) ? (
-                <div className="space-y-1.5 animate-in fade-in duration-200">
-                  <Label>Tipo de Agendamento *</Label>
-                  <Select value={tipoAgendamento} onValueChange={(v: any) => setTipoAgendamento(v)}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="sessao">Sessão Padrão</SelectItem>
-                      <SelectItem value="anamnese">Anamnese</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              ) : null}
-            </div>
-          </div>
-        )}
-
-        {((form.profissional_id && form.paciente_id && selectedSpecialty) || editing) && (
-          <div className="space-y-3 animate-in fade-in duration-200">
-            {currentPricing && (
-              <div className="rounded-lg border bg-accent/20 p-3 text-xs space-y-1.5 shadow-inner">
-                <div className="font-semibold text-muted-foreground flex justify-between">
-                  <span>Valor do Agendamento</span>
-                  <span className="text-[10px] uppercase tracking-wider text-primary font-bold">
-                    {currentPricing.type}
-                  </span>
-                </div>
-                <div className="mt-1">
-                  {specialtyUpper === "AP" && currentPricing.plano_mensal ? (
-                    <div>
-                      <span className="text-muted-foreground">Plano Mensal (AP): </span>
-                      <span className="font-semibold text-foreground">
-                        {currentPricing.plano_mensal}
-                      </span>
-                    </div>
-                  ) : (
-                    <div>
-                      <span className="text-muted-foreground">
-                        {tipoAgendamento === "sessao" ? "Sessão Padrão: " : "Anamnese: "}
-                      </span>
-                      <span className="font-bold text-foreground text-sm font-mono">
-                        {tipoAgendamento === "sessao"
-                          ? currentPricing.valor_sessao !== null &&
-                            currentPricing.valor_sessao !== undefined
-                            ? `R$ ${Number(currentPricing.valor_sessao).toFixed(2)}`
-                            : "—"
-                          : currentPricing.valor_avaliacao !== null &&
-                              currentPricing.valor_avaliacao !== undefined
-                            ? `R$ ${Number(currentPricing.valor_avaliacao).toFixed(2)}`
-                            : "—"}
-                      </span>
-                    </div>
-                  )}
+                            </div>
+                            <Badge
+                              variant="outline"
+                              className={cn(
+                                "h-4 px-1 text-[8px] uppercase font-bold shrink-0",
+                                a.status === "confirmado" &&
+                                  "border-green-500/30 text-green-600 bg-green-50/50",
+                                a.status === "pago" &&
+                                  "border-emerald-500/30 text-emerald-600 bg-emerald-50/50",
+                                a.status === "cancelado" &&
+                                  "border-red-500/30 text-red-600 bg-red-50/50",
+                                a.status === "realizado" &&
+                                  "border-blue-500/30 text-blue-600 bg-blue-50/50",
+                                a.status === "falta" &&
+                                  "border-orange-500/30 text-orange-600 bg-orange-50/50",
+                                a.status === "pendente" &&
+                                  "border-yellow-500/30 text-yellow-600 bg-yellow-50/50",
+                              )}
+                            >
+                              {STATUS_LABEL[a.status] || a.status || ""}
+                            </Badge>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             )}
-
-            <div className="space-y-1.5">
-              <Label>Data *</Label>
-              <div className="grid grid-cols-2 gap-3">
-                <Input
-                  type="date"
-                  required
-                  value={formDate || ""}
-                  onChange={(e) => handleDateChange(e.target.value)}
-                />
-                <Input
-                  type="time"
-                  required
-                  value={formTime || ""}
-                  onChange={(e) => handleTimeChange(e.target.value)}
-                />
-              </div>
-            </div>
-
-            <div className={cn("grid gap-3", form.status === "pendente" ? "grid-cols-2" : "grid-cols-1")}>
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label>Status</Label>
-                <Select
-                  value={form.status}
-                  onValueChange={(v) => setForm({ ...form, status: v as any })}
-                >
+                <Label>Profissional *</Label>
+                <Select value={form.profissional_id} onValueChange={handleProfissionalChange}>
                   <SelectTrigger>
-                    <SelectValue />
+                    <SelectValue placeholder="Selecione o profissional…" />
                   </SelectTrigger>
                   <SelectContent>
-                    {Object.entries(STATUS_LABEL).map(([v, l]) => (
-                      <SelectItem key={v} value={v}>
-                        {l}
+                    {profissionais.map((p: any) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.nome}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-                {form.status !== "confirmado" && form.status !== "pago" && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="w-full mt-1.5 h-8 gap-1.5 text-green-600 hover:text-green-700 hover:bg-green-50 border-green-200/60 dark:border-green-900/30 text-xs"
-                    disabled={!whatsappUrl}
-                    onClick={() => whatsappUrl && window.open(whatsappUrl, "_blank")}
-                  >
-                    <MessageCircle className="h-4 w-4 fill-green-600/10" />
-                    {whatsappUrl ? "WhatsApp Paciente" : "Sem WhatsApp"}
-                  </Button>
-                )}
               </div>
-              {form.status === "pendente" && (
+
+              {(form.profissional_id || editing) && (
                 <div className="space-y-1.5 animate-in fade-in duration-200">
-                  <Label>Recorrência</Label>
-                  <Select
-                    value={form.recorrencia}
-                    onValueChange={(v) => setForm({ ...form, recorrencia: v as any })}
-                  >
+                  <Label>Especialidade *</Label>
+                  <Select value={selectedSpecialty} onValueChange={handleSpecialtyChange}>
                     <SelectTrigger>
-                      <SelectValue />
+                      <SelectValue placeholder="Selecione a especialidade…" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="unica">Única</SelectItem>
-                      <SelectItem value="semanal">Semanal</SelectItem>
-                      <SelectItem value="quinzenal">Quinzenal</SelectItem>
-                      <SelectItem value="mensal">Mensal</SelectItem>
+                      {professionalSpecialties.map((s: string) => (
+                        <SelectItem key={s} value={s}>
+                          {s}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
               )}
             </div>
 
-            {!isMensal && (
-              <div className="space-y-1.5 animate-in fade-in duration-200">
-                <Label>Meio de pagamento realizado na sessão</Label>
-                <Select
-                  value={form.meio_pagamento}
-                  onValueChange={(v) => setForm({ ...form, meio_pagamento: v })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione o meio de pagamento..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Pix">Pix</SelectItem>
-                    <SelectItem value="Espécie">Espécie</SelectItem>
-                  </SelectContent>
-                </Select>
+            {((form.profissional_id && selectedSpecialty) || editing) && (
+              <div className="grid grid-cols-2 gap-4 animate-in fade-in duration-200">
+                {/* Paciente Column */}
+                <div className="space-y-1.5">
+                  <Label>Paciente *</Label>
+                  <div className="flex gap-2">
+                    <Popover open={pacienteOpen} onOpenChange={setPacienteOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          aria-expanded={pacienteOpen}
+                          className="flex-1 justify-between font-normal text-left px-3 animate-in fade-in duration-200"
+                        >
+                          {selectedPaciente ? selectedPaciente.nome : "Selecione o paciente..."}
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent
+                        className="w-[var(--radix-popover-trigger-width)] min-w-[400px] p-0"
+                        align="start"
+                        onCloseAutoFocus={(e) => e.preventDefault()}
+                      >
+                        <Command>
+                          <CommandInput placeholder="Pesquisar paciente..." className="h-9" />
+                          <CommandList className="max-h-[450px]">
+                            <CommandEmpty className="p-4 text-center text-sm">
+                              <p className="text-muted-foreground mb-2">
+                                Nenhum paciente cadastrado nesta especialidade.
+                              </p>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="w-full gap-1.5"
+                                onClick={() => {
+                                  setPacienteOpen(false);
+                                  triggerNewPatient(
+                                    selectedSpecialty,
+                                    form.profissional_id,
+                                    (newPac) => {
+                                      if (newPac?.id) {
+                                        handlePacienteChange(newPac.id);
+                                      }
+                                    },
+                                  );
+                                }}
+                              >
+                                <Plus className="h-4 w-4" /> Cadastrar Novo Paciente
+                              </Button>
+                            </CommandEmpty>
+                            <CommandGroup>
+                              {displayedPacientes.map((p: any) => (
+                                <CommandItem
+                                  key={p.id}
+                                  value={`${p.nome?.toLowerCase() || ""}-${p.id}`}
+                                  onSelect={() => {
+                                    handlePacienteChange(p.id);
+                                    setPacienteOpen(false);
+                                  }}
+                                  className="flex items-center justify-between cursor-pointer"
+                                >
+                                  <div className="flex items-center flex-1 min-w-0">
+                                    <Check
+                                      className={cn(
+                                        "mr-2 h-4 w-4 shrink-0",
+                                        form.paciente_id === p.id ? "opacity-100" : "opacity-0",
+                                      )}
+                                    />
+                                    <span className="truncate font-medium">{p.nome}</span>
+                                  </div>
+                                  <Badge
+                                    variant="outline"
+                                    className="text-[10px] ml-2 shrink-0 font-medium bg-muted/50"
+                                  >
+                                    {p.valor_mensal && p.valor_mensal > 0 ? "Mensal" : "Por Sessão"}
+                                  </Badge>
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+
+                    {selectedPaciente && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        className="shrink-0"
+                        onClick={() =>
+                          triggerEditPatient(selectedPaciente, () => {
+                            qc.invalidateQueries({
+                              queryKey: ["responsaveis-paciente-dialog", selectedPaciente.id],
+                            });
+                          })
+                        }
+                        title="Editar dados do paciente"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+
+                  {selectedPaciente && (
+                    <div className="text-[11px] text-muted-foreground flex items-center gap-1.5 mt-1.5 bg-muted/30 px-2.5 py-1.5 rounded border border-dashed border-border/80">
+                      <span className="font-medium">Cobrança:</span>
+                      <span
+                        className={cn(
+                          "font-semibold rounded-full px-2 py-0.5 text-[9px] uppercase",
+                          selectedPaciente.valor_mensal && selectedPaciente.valor_mensal > 0
+                            ? "bg-blue-50 text-blue-700 border border-blue-200"
+                            : "bg-green-50 text-green-700 border border-green-200",
+                        )}
+                      >
+                        {selectedPaciente.valor_mensal && selectedPaciente.valor_mensal > 0
+                          ? "Plano Mensal"
+                          : "Pagamento por Sessão"}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Tipo de Agendamento Column */}
+                <div className="space-y-1.5 flex flex-col justify-start">
+                  {(form.paciente_id && specialtyUpper !== "AP") ||
+                  (editing && specialtyUpper !== "AP") ? (
+                    <div className="space-y-1.5 animate-in fade-in duration-200">
+                      <Label>Tipo de Agendamento *</Label>
+                      <Select
+                        value={tipoAgendamento}
+                        onValueChange={(v: any) => setTipoAgendamento(v)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="sessao">Sessão Padrão</SelectItem>
+                          <SelectItem value="anamnese">Anamnese</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  ) : null}
+                </div>
               </div>
             )}
 
-            <DialogFooter className="gap-2 pt-2 border-t mt-4 justify-between flex-wrap">
-              <div className="flex gap-2">
-                {editing && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    className="gap-1.5 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                    disabled={deleteMutation.isPending}
-                    onClick={() => {
-                      if (
-                        confirm(
-                          "Tem certeza que deseja excluir permanentemente este agendamento? Esta ação não pode ser desfeita.",
-                        )
-                      ) {
-                        const hasFuture = editing?.recorrencia_grupo;
-                        let deleteAllFuture = false;
-                        if (hasFuture) {
-                          deleteAllFuture = confirm(
-                            "Este agendamento faz parte de uma série recorrente. Deseja excluir também todos os agendamentos futuros desta série?",
-                          );
-                        }
-                        deleteMutation.mutate(deleteAllFuture);
-                      }
-                    }}
-                  >
-                    <Trash2 className="h-4 w-4" /> Excluir
-                  </Button>
+            {((form.profissional_id && form.paciente_id && selectedSpecialty) || editing) && (
+              <div className="space-y-3 animate-in fade-in duration-200">
+                {currentPricing && (
+                  <div className="rounded-lg border bg-accent/20 p-3 text-xs space-y-1.5 shadow-inner">
+                    <div className="font-semibold text-muted-foreground flex justify-between">
+                      <span>Valor do Agendamento</span>
+                      <span className="text-[10px] uppercase tracking-wider text-primary font-bold">
+                        {currentPricing.type}
+                      </span>
+                    </div>
+                    <div className="mt-1">
+                      {specialtyUpper === "AP" && currentPricing.plano_mensal ? (
+                        <div>
+                          <span className="text-muted-foreground">Plano Mensal (AP): </span>
+                          <span className="font-semibold text-foreground">
+                            {currentPricing.plano_mensal}
+                          </span>
+                        </div>
+                      ) : (
+                        <div>
+                          <span className="text-muted-foreground">
+                            {tipoAgendamento === "sessao" ? "Sessão Padrão: " : "Anamnese: "}
+                          </span>
+                          <span className="font-bold text-foreground text-sm font-mono">
+                            {tipoAgendamento === "sessao"
+                              ? currentPricing.valor_sessao !== null &&
+                                currentPricing.valor_sessao !== undefined
+                                ? `R$ ${Number(currentPricing.valor_sessao).toFixed(2)}`
+                                : "—"
+                              : currentPricing.valor_avaliacao !== null &&
+                                  currentPricing.valor_avaliacao !== undefined
+                                ? `R$ ${Number(currentPricing.valor_avaliacao).toFixed(2)}`
+                                : "—"}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 )}
-                {editing && editing.status !== "cancelado" && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="gap-1.5 text-muted-foreground hover:text-destructive"
-                    onClick={() => onCancel(editing)}
-                  >
-                    <X className="h-4 w-4" /> Cancelar agendamento
-                  </Button>
+
+                <div className="space-y-1.5">
+                  <Label>Data *</Label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Input
+                      type="date"
+                      required
+                      value={formDate || ""}
+                      onChange={(e) => handleDateChange(e.target.value)}
+                    />
+                    <Input
+                      type="time"
+                      required
+                      value={formTime || ""}
+                      onChange={(e) => handleTimeChange(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div
+                  className={cn(
+                    "grid gap-3",
+                    form.status === "pendente" ? "grid-cols-2" : "grid-cols-1",
+                  )}
+                >
+                  <div className="space-y-1.5">
+                    <Label>Status</Label>
+                    <Select
+                      value={form.status}
+                      onValueChange={(v) => setForm({ ...form, status: v as any })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(STATUS_LABEL).map(([v, l]) => (
+                          <SelectItem key={v} value={v}>
+                            {l}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {form.status !== "confirmado" && form.status !== "pago" && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="w-full mt-1.5 h-8 gap-1.5 text-green-600 hover:text-green-700 hover:bg-green-50 border-green-200/60 dark:border-green-900/30 text-xs"
+                        disabled={!whatsappUrl}
+                        onClick={() => whatsappUrl && window.open(whatsappUrl, "_blank")}
+                      >
+                        <MessageCircle className="h-4 w-4 fill-green-600/10" />
+                        {whatsappUrl ? "WhatsApp Paciente" : "Sem WhatsApp"}
+                      </Button>
+                    )}
+                  </div>
+                  {form.status === "pendente" && (
+                    <div className="space-y-1.5 animate-in fade-in duration-200">
+                      <Label>Recorrência</Label>
+                      <Select
+                        value={form.recorrencia}
+                        onValueChange={(v) => setForm({ ...form, recorrencia: v as any })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="unica">Única</SelectItem>
+                          <SelectItem value="semanal">Semanal</SelectItem>
+                          <SelectItem value="quinzenal">Quinzenal</SelectItem>
+                          <SelectItem value="mensal">Mensal</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                </div>
+
+                {!isMensal && (
+                  <div className="space-y-1.5 animate-in fade-in duration-200">
+                    <Label>Meio de pagamento realizado na sessão</Label>
+                    <Select
+                      value={form.meio_pagamento}
+                      onValueChange={(v) => setForm({ ...form, meio_pagamento: v })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione o meio de pagamento..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Pix">Pix</SelectItem>
+                        <SelectItem value="Espécie">Espécie</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 )}
+
+                <DialogFooter className="gap-2 pt-2 border-t mt-4 justify-between flex-wrap">
+                  <div className="flex gap-2">
+                    {editing && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className="gap-1.5 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                        disabled={deleteMutation.isPending}
+                        onClick={() => {
+                          if (
+                            confirm(
+                              "Tem certeza que deseja excluir permanentemente este agendamento? Esta ação não pode ser desfeita.",
+                            )
+                          ) {
+                            const hasFuture = editing?.recorrencia_grupo;
+                            let deleteAllFuture = false;
+                            if (hasFuture) {
+                              deleteAllFuture = confirm(
+                                "Este agendamento faz parte de uma série recorrente. Deseja excluir também todos os agendamentos futuros desta série?",
+                              );
+                            }
+                            deleteMutation.mutate(deleteAllFuture);
+                          }
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" /> Excluir
+                      </Button>
+                    )}
+                    {editing && editing.status !== "cancelado" && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="gap-1.5 text-muted-foreground hover:text-destructive"
+                        onClick={() => onCancel(editing)}
+                      >
+                        <X className="h-4 w-4" /> Cancelar agendamento
+                      </Button>
+                    )}
+                  </div>
+                  <Button type="submit" disabled={save.isPending}>
+                    {save.isPending ? "Salvando…" : "Salvar"}
+                  </Button>
+                </DialogFooter>
               </div>
-              <Button type="submit" disabled={save.isPending}>
-                {save.isPending ? "Salvando…" : "Salvar"}
-              </Button>
-            </DialogFooter>
-          </div>
+            )}
+          </>
         )}
-      </>
-      )}
       </form>
     </DialogContent>
   );
