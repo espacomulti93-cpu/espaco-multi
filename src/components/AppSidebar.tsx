@@ -81,6 +81,9 @@ export function AppSidebar() {
       <SidebarFooter>
         <div className="px-2 pb-2 group-data-[collapsible=icon]:hidden">
           <div className="truncate text-xs font-medium text-muted-foreground">Clínica Multi</div>
+          <div className="truncate text-[9px] text-muted-foreground/60 mt-0.5">
+            DB: {import.meta.env.VITE_SUPABASE_PROJECT_ID || "—"}
+          </div>
         </div>
       </SidebarFooter>
     </Sidebar>
