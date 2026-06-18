@@ -669,7 +669,7 @@ function AgendamentoDialog({
   const initialEnd =
     editing && editing.data_fim
       ? safeFormatDate(editing.data_fim, "yyyy-MM-dd'T'HH:mm")
-      : format(new Date(new Date(initialStart).getTime() + 50 * 60000), "yyyy-MM-dd'T'HH:mm");
+      : format(new Date(new Date(initialStart).getTime() + 60 * 60000), "yyyy-MM-dd'T'HH:mm");
 
   const initialTipo: "sessao" | "anamnese" = editing?.observacoes?.startsWith("[Tipo: Anamnese]")
     ? "anamnese"
@@ -971,10 +971,12 @@ Fico à disposição para qualquer dúvida!`;
   }, [form.profissional_id, form.paciente_id, selectedSpecialty, profissionais, specialtyUpper]);
 
   const getSelectedSpecialtyDuration = () => {
+    const specUpper = (selectedSpecialty || "").toUpperCase();
+    if (specUpper === "AT ABA") return 90;
     const s: any = servicos.find(
       (x: any) => x.nome?.toLowerCase() === selectedSpecialty?.toLowerCase(),
     );
-    return s ? s.duracao_minutos : 50;
+    return s ? s.duracao_minutos : 60;
   };
 
   const handleDateChange = (dateVal: string) => {
@@ -1028,8 +1030,9 @@ Fico à disposição para qualquer dúvida!`;
 
   const handleSpecialtyChange = (spec: string) => {
     setSelectedSpecialty(spec);
+    const specUpper = (spec || "").toUpperCase();
     const s: any = servicos.find((x: any) => x.nome?.toLowerCase() === spec?.toLowerCase());
-    const duration = s ? s.duracao_minutos : 50;
+    const duration = specUpper === "AT ABA" ? 90 : (s ? s.duracao_minutos : 60);
     const newEnd = safeFormatDate(
       new Date(form.data_inicio).getTime() + duration * 60000,
       "yyyy-MM-dd'T'HH:mm",
@@ -1067,9 +1070,11 @@ Fico à disposição para qualquer dúvida!`;
       );
 
       if (!matchingServico && selectedSpecialty) {
+        const specUpper = (selectedSpecialty || "").toUpperCase();
+        const duration = specUpper === "AT ABA" ? 90 : 60;
         const { data: newServ, error: servError } = await supabase
           .from("servicos")
-          .insert({ nome: selectedSpecialty, duracao_minutos: 50 })
+          .insert({ nome: selectedSpecialty, duracao_minutos: duration })
           .select()
           .single();
         if (servError) throw servError;
@@ -1391,7 +1396,7 @@ Fico à disposição para qualquer dúvida!`;
       form.meio_pagamento !== initialPaymentMethod ||
       form.sala_id !== (editing?.sala_id ?? "");
 
-    if (editing?.recorrencia_grupo && hasOtherFieldsChanged && form.status !== "pago") {
+    if (editing?.recorrencia_grupo && hasOtherFieldsChanged && form.status !== "pago" && form.status !== "realizado") {
       setRecorrenciaConfirmOpen(true);
     } else {
       save.mutate(false);
