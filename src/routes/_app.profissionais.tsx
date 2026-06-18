@@ -15,7 +15,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Pencil, Trash2, DollarSign, GripVertical } from "lucide-react";
+import { Plus, Pencil, Trash2, DollarSign, GripVertical, Users } from "lucide-react";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -383,6 +383,20 @@ function ProfForm({ prof, onSaved }: { prof: any; onSaved: () => void }) {
       if (error) throw error;
       return data;
     },
+  });
+
+  const { data: acompanhados = [] } = useQuery({
+    queryKey: ["prof-pacientes", prof?.id],
+    queryFn: async () => {
+      if (!prof?.id) return [];
+      const { data, error } = await supabase
+        .from("paciente_profissional")
+        .select("paciente_id, pacientes(id, nome)")
+        .eq("profissional_id", prof.id);
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: !!prof?.id,
   });
 
   const config = (prof?.valores_config as any) || { especialidades: [], descontos: [] };
@@ -892,6 +906,44 @@ function ProfForm({ prof, onSaved }: { prof: any; onSaved: () => void }) {
     );
   };
 
+  const renderPacientesForm = () => {
+    return (
+      <div className="space-y-4">
+        <p className="text-xs text-muted-foreground">
+          Lista de pacientes associados ao profissional para acompanhamento de sessões e especialidades.
+        </p>
+        <div className="border rounded-lg overflow-hidden bg-card">
+          <div className="divide-y divide-border/60 max-h-[40vh] overflow-y-auto pr-1">
+            {acompanhados.length === 0 ? (
+              <div className="text-center text-xs text-muted-foreground py-10">
+                Nenhum paciente associado a este profissional no momento.
+              </div>
+            ) : (
+              acompanhados.map((item: any) => {
+                const pac = item.pacientes;
+                return (
+                  <div
+                    key={item.paciente_id}
+                    className="flex items-center justify-between p-3 hover:bg-muted/10 transition-colors"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="h-7 w-7 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                        <Users className="h-4 w-4" />
+                      </div>
+                      <span className="font-medium text-xs text-foreground truncate">
+                        {pac?.nome || "Carregando..."}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col p-6">
       <DialogHeader>
@@ -906,9 +958,10 @@ function ProfForm({ prof, onSaved }: { prof: any; onSaved: () => void }) {
       >
         {prof ? (
           <Tabs defaultValue="geral" className="flex-1 flex flex-col overflow-hidden">
-            <TabsList className="grid grid-cols-2 shrink-0">
+            <TabsList className="grid grid-cols-3 shrink-0">
               <TabsTrigger value="geral">Dados Gerais & Valores</TabsTrigger>
               <TabsTrigger value="descontos">Descontos por Paciente</TabsTrigger>
+              <TabsTrigger value="pacientes">Pacientes ({acompanhados.length})</TabsTrigger>
             </TabsList>
 
             <TabsContent value="geral" className="flex-1 overflow-y-auto py-2 pr-1 space-y-3">
@@ -917,6 +970,10 @@ function ProfForm({ prof, onSaved }: { prof: any; onSaved: () => void }) {
 
             <TabsContent value="descontos" className="flex-1 overflow-y-auto py-2 pr-1 space-y-3">
               {renderDescontosForm()}
+            </TabsContent>
+
+            <TabsContent value="pacientes" className="flex-1 overflow-y-auto py-2 pr-1 space-y-3">
+              {renderPacientesForm()}
             </TabsContent>
           </Tabs>
         ) : (
