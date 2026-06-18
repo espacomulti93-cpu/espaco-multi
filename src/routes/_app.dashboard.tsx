@@ -165,7 +165,9 @@ function Dashboard() {
               // Encontrar agendamento ativo agora
               const currentAppt = roomAgendamentos.find((a: any) => {
                 const start = new Date(a.data_inicio);
-                const end = new Date(a.data_fim);
+                const specUpper = (a.servicos?.nome || a.profissionais?.especialidade || "").toUpperCase();
+                const duration = specUpper === "AT ABA" ? 90 : 60;
+                const end = new Date(start.getTime() + duration * 60000);
                 return start <= now && end >= now;
               });
 
@@ -184,7 +186,9 @@ function Dashboard() {
               let remainingMin = 0;
               if (currentAppt) {
                 const start = new Date(currentAppt.data_inicio).getTime();
-                const end = new Date(currentAppt.data_fim).getTime();
+                const specUpper = (currentAppt.servicos?.nome || currentAppt.profissionais?.especialidade || "").toUpperCase();
+                const duration = specUpper === "AT ABA" ? 90 : 60;
+                const end = start + duration * 60000;
                 const total = end - start;
                 const elapsed = now.getTime() - start;
                 progress = Math.min(100, Math.max(0, (elapsed / total) * 100));
@@ -245,7 +249,13 @@ function Dashboard() {
                           <div className="flex items-center justify-between text-[10px] text-muted-foreground">
                             <span>
                               {format(new Date(currentAppt.data_inicio), "HH:mm")} –{" "}
-                              {format(new Date(currentAppt.data_fim), "HH:mm")}
+                              {(() => {
+                                const start = new Date(currentAppt.data_inicio);
+                                const specUpper = (currentAppt.servicos?.nome || currentAppt.profissionais?.especialidade || "").toUpperCase();
+                                const duration = specUpper === "AT ABA" ? 90 : 60;
+                                const end = new Date(start.getTime() + duration * 60000);
+                                return format(end, "HH:mm");
+                              })()}
                             </span>
                             <span>{remainingMin} min restantes</span>
                           </div>
@@ -312,7 +322,13 @@ function Dashboard() {
                   />
                   <div className="min-w-[80px] text-sm font-medium">
                     {format(new Date(a.data_inicio), "HH:mm")} –{" "}
-                    {format(new Date(a.data_fim), "HH:mm")}
+                    {(() => {
+                      const start = new Date(a.data_inicio);
+                      const specUpper = (a.servicos?.nome || a.profissionais?.especialidade || "").toUpperCase();
+                      const duration = specUpper === "AT ABA" ? 90 : 60;
+                      const end = new Date(start.getTime() + duration * 60000);
+                      return format(end, "HH:mm");
+                    })()}
                   </div>
                   <div className="flex-1">
                     <div className="text-sm font-medium">{a.pacientes?.nome}</div>

@@ -1396,7 +1396,14 @@ Fico à disposição para qualquer dúvida!`;
       form.meio_pagamento !== initialPaymentMethod ||
       form.sala_id !== (editing?.sala_id ?? "");
 
-    if (editing?.recorrencia_grupo && hasOtherFieldsChanged && form.status !== "pago" && form.status !== "realizado") {
+    if (
+      editing?.recorrencia_grupo &&
+      hasOtherFieldsChanged &&
+      form.status !== "pago" &&
+      form.status !== "realizado" &&
+      form.status !== "cancelado" &&
+      form.status !== "confirmado"
+    ) {
       setRecorrenciaConfirmOpen(true);
     } else {
       save.mutate(false);
