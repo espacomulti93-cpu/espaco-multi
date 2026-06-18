@@ -1545,6 +1545,12 @@ Fico à disposição para qualquer dúvida!`;
                           {isMensal ? "Mensal" : form.meio_pagamento || "Pix"}
                         </span>
                       </div>
+                      <div>
+                        <span className="text-muted-foreground font-medium">Sala:</span>{" "}
+                        <span className="text-foreground font-semibold">
+                          {salas.find((s: any) => s.id === form.sala_id)?.nome || "Sem Sala"}
+                        </span>
+                      </div>
                     </div>
                     {form.observacoes && (
                       <div className="mt-1">
