@@ -695,6 +695,7 @@ function AgendamentoDialog({
     recorrencia: editing?.recorrencia ?? "unica",
     observacoes: initialObservacoes,
     meio_pagamento: initialPaymentMethod,
+    sala_id: editing?.sala_id ?? "",
   });
 
   const [pacienteOpen, setPacienteOpen] = useState(false);
@@ -731,6 +732,17 @@ function AgendamentoDialog({
         await supabase
           .from("servicos")
           .select("id, nome, duracao_minutos")
+          .eq("ativo", true)
+          .order("nome")
+      ).data ?? [],
+  });
+  const { data: salas = [] } = useQuery({
+    queryKey: ["salas-dialog"],
+    queryFn: async () =>
+      (
+        await supabase
+          .from("salas")
+          .select("id, nome")
           .eq("ativo", true)
           .order("nome")
       ).data ?? [],
@@ -1094,7 +1106,8 @@ Fico à disposição para qualquer dúvida!`;
           form.observacoes !== initialObservacoes ||
           form.status !== (editing.status ?? "pendente") ||
           tipoAgendamento !== initialTipo ||
-          form.meio_pagamento !== initialPaymentMethod;
+          form.meio_pagamento !== initialPaymentMethod ||
+          form.sala_id !== (editing.sala_id ?? "");
         void hasOtherFieldsChanged;
 
         const explicitPayload = {
@@ -1106,7 +1119,7 @@ Fico à disposição para qualquer dúvida!`;
           status: form.status,
           recorrencia: form.recorrencia,
           observacoes: finalObservacoes,
-          sala_id: null,
+          sala_id: form.sala_id || null,
         };
 
         if (updateAllFuture) {
@@ -1136,7 +1149,7 @@ Fico à disposição para qualquer dúvida!`;
                 data_inicio: occStart,
                 data_fim: occEnd,
                 status: form.status,
-                sala_id: null,
+                sala_id: form.sala_id || null,
                 recorrencia: form.recorrencia,
                 observacoes: finalObservacoes,
               })
@@ -1226,7 +1239,7 @@ Fico à disposição para qualquer dúvida!`;
 
             const payload: any = {
               ...form,
-              sala_id: null,
+              sala_id: form.sala_id || null,
               servico_id: matchingServico ? matchingServico.id : null,
               data_inicio: occStart.toISOString(),
               data_fim: occEnd.toISOString(),
@@ -1261,7 +1274,7 @@ Fico à disposição para qualquer dúvida!`;
         } else {
           const payload: any = {
             ...form,
-            sala_id: null,
+            sala_id: form.sala_id || null,
             servico_id: matchingServico ? matchingServico.id : null,
             data_inicio: start,
             data_fim: end,
@@ -1375,7 +1388,8 @@ Fico à disposição para qualquer dúvida!`;
       form.observacoes !== initialObservacoes ||
       form.status !== (editing?.status ?? "pendente") ||
       tipoAgendamento !== initialTipo ||
-      form.meio_pagamento !== initialPaymentMethod;
+      form.meio_pagamento !== initialPaymentMethod ||
+      form.sala_id !== (editing?.sala_id ?? "");
 
     if (editing?.recorrencia_grupo && hasOtherFieldsChanged && form.status !== "pago") {
       setRecorrenciaConfirmOpen(true);
@@ -1823,6 +1837,27 @@ Fico à disposição para qualquer dúvida!`;
                       onChange={(e) => handleTimeChange(e.target.value)}
                     />
                   </div>
+                </div>
+
+                {/* Seleção de Sala */}
+                <div className="space-y-1.5 animate-in fade-in duration-200">
+                  <Label>Sala</Label>
+                  <Select
+                    value={form.sala_id || "sem_sala"}
+                    onValueChange={(v) => setForm({ ...form, sala_id: v === "sem_sala" ? "" : v })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione uma sala..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="sem_sala">Sem Sala</SelectItem>
+                      {salas.map((s: any) => (
+                        <SelectItem key={s.id} value={s.id}>
+                          {s.nome}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div
