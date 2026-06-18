@@ -110,7 +110,7 @@ function Agenda() {
       const { data, error } = await supabase
         .from("agendamentos")
         .select(
-          "*, pacientes(nome, cids_secundarios), profissionais(nome, cor, especialidade), servicos(nome)",
+          "*, pacientes(nome, cids_secundarios), profissionais(nome, cor, especialidade), servicos(nome), salas(nome)",
         )
         .gte("data_inicio", weekStart.toISOString())
         .lt("data_inicio", addDays(weekEnd, 1).toISOString())
@@ -616,7 +616,7 @@ function FragmentRow({ h, days, ags, onCellClick, onEdit }: any) {
               >
                 <div className="truncate font-medium text-foreground">{a.pacientes?.nome}</div>
                 <div className="truncate text-[10px] text-muted-foreground">
-                  {safeFormatDate(a.data_inicio, "HH:mm")}
+                  {safeFormatDate(a.data_inicio, "HH:mm")} {a.salas?.nome ? `• ${a.salas.nome}` : ""}
                 </div>
                 <div className="truncate text-[9px] text-muted-foreground">
                   {a.profissionais?.nome}
@@ -754,7 +754,7 @@ function AgendamentoDialog({
       if (!form.paciente_id) return [];
       const { data, error } = await supabase
         .from("agendamentos")
-        .select("*, profissionais(nome, cor), servicos(nome)")
+        .select("*, profissionais(nome, cor), servicos(nome), salas(nome)")
         .eq("paciente_id", form.paciente_id)
         .order("data_inicio", { ascending: true });
       if (error) throw error;
@@ -1565,7 +1565,7 @@ Fico à disposição para qualquer dúvida!`;
                                 </span>
                                 <span className="text-muted-foreground mx-1">•</span>
                                 <span className="text-muted-foreground">
-                                  {a.profissionais?.nome} ({a.servicos?.nome || "Sessão"})
+                                  {a.profissionais?.nome} ({a.servicos?.nome || "Sessão"}){a.salas?.nome ? ` • ${a.salas.nome}` : ""}
                                 </span>
                               </div>
                             </div>
