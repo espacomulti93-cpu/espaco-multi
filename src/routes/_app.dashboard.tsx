@@ -1,9 +1,11 @@
+import { useState, useEffect } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar, Users, Stethoscope, CheckCircle2, Clock, XCircle } from "lucide-react";
+import { Calendar, Users, Stethoscope, CheckCircle2, Clock, XCircle, DoorOpen, DoorClosed } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -68,6 +70,30 @@ function Dashboard() {
     },
   });
 
+  // Estado para atualizar a contagem de tempo real a cada 15 segundos
+  const [now, setNow] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setNow(new Date());
+    }, 15000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Buscar salas ativas
+  const { data: salas = [] } = useQuery({
+    queryKey: ["salas"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("salas")
+        .select("*")
+        .eq("ativo", true)
+        .order("nome");
+      if (error) throw error;
+      return data;
+    },
+  });
+
   return (
     <div className="space-y-6">
       <div>
@@ -97,6 +123,160 @@ function Dashboard() {
           value={stats?.pacientes ?? 0}
           tone="accent"
         />
+      </div>
+
+      {/* Central de Monitoramento de Salas */}
+      <div className="space-y-3">
+        <h3 className="text-base font-semibold flex items-center gap-2">
+          <span className="relative flex h-2.5 w-2.5">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+          </span>
+          Monitoramento de Salas (Tempo Real)
+        </h3>
+
+        {salas.length === 0 ? (
+          <Card className="border-dashed">
+            <CardContent className="py-6 text-center text-sm text-muted-foreground">
+              Nenhuma sala ativa cadastrada no momento.
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {salas.map((sala) => {
+              // Filtrar agendamentos do dia vinculados a esta sala
+              const roomAgendamentos = agHoje.filter(
+                (a: any) =>
+                  a.sala_id === sala.id &&
+                  a.status !== "cancelado" &&
+                  a.status !== "falta"
+              );
+
+              // Encontrar agendamento ativo agora
+              const currentAppt = roomAgendamentos.find((a: any) => {
+                const start = new Date(a.data_inicio);
+                const end = new Date(a.data_fim);
+                return start <= now && end >= now;
+              });
+
+              const isOccupied = !!currentAppt;
+
+              // Encontrar próximo agendamento hoje
+              const nextAppt = roomAgendamentos
+                .filter((a: any) => new Date(a.data_inicio) > now)
+                .sort(
+                  (a: any, b: any) =>
+                    new Date(a.data_inicio).getTime() - new Date(b.data_inicio).getTime()
+                )[0];
+
+              // Computar tempo restante e progresso caso ocupada
+              let progress = 0;
+              let remainingMin = 0;
+              if (currentAppt) {
+                const start = new Date(currentAppt.data_inicio).getTime();
+                const end = new Date(currentAppt.data_fim).getTime();
+                const total = end - start;
+                const elapsed = now.getTime() - start;
+                progress = Math.min(100, Math.max(0, (elapsed / total) * 100));
+                remainingMin = Math.max(0, Math.round((end - now.getTime()) / 60000));
+              }
+
+              return (
+                <Card
+                  key={sala.id}
+                  className={`overflow-hidden border transition-all duration-300 ${
+                    isOccupied
+                      ? "border-rose-500/25 bg-rose-500/[0.01] dark:bg-rose-500/[0.03]"
+                      : "border-emerald-500/25 bg-emerald-500/[0.01] dark:bg-emerald-500/[0.03]"
+                  }`}
+                >
+                  <CardContent className="p-4 space-y-3">
+                    {/* Nome da Sala e Badge de Status */}
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium text-sm text-card-foreground">
+                        {sala.nome}
+                      </span>
+                      <Badge
+                        className={
+                          isOccupied
+                            ? "bg-rose-500/10 text-rose-600 hover:bg-rose-500/15 dark:text-rose-400 border border-rose-500/20"
+                            : "bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/15 dark:text-emerald-400 border border-emerald-500/20"
+                        }
+                        variant="outline"
+                      >
+                        <span
+                          className={`mr-1.5 h-1.5 w-1.5 rounded-full ${
+                            isOccupied ? "bg-rose-500 animate-pulse" : "bg-emerald-500"
+                          }`}
+                        />
+                        {isOccupied ? "Ocupada" : "Disponível"}
+                      </Badge>
+                    </div>
+
+                    {/* Detalhes de Atendimento */}
+                    {isOccupied ? (
+                      <div className="space-y-2.5">
+                        <div className="flex items-start gap-2">
+                          <div className="mt-0.5 p-1 rounded bg-rose-500/10 text-rose-600 dark:text-rose-400">
+                            <DoorClosed className="h-3.5 w-3.5" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="text-xs font-semibold truncate text-foreground">
+                              {currentAppt.pacientes?.nome}
+                            </div>
+                            <div className="text-[10px] text-muted-foreground truncate">
+                              {currentAppt.servicos?.nome} • {currentAppt.profissionais?.nome}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Barra de Progresso e Tempo Restante */}
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                            <span>
+                              {format(new Date(currentAppt.data_inicio), "HH:mm")} –{" "}
+                              {format(new Date(currentAppt.data_fim), "HH:mm")}
+                            </span>
+                            <span>{remainingMin} min restantes</span>
+                          </div>
+                          <Progress value={progress} className="h-1 bg-rose-500/15" />
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-2 py-1">
+                        <div className="flex items-start gap-2">
+                          <div className="mt-0.5 p-1 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                            <DoorOpen className="h-3.5 w-3.5" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            {nextAppt ? (
+                              <div className="text-[10px] leading-tight">
+                                <span className="text-muted-foreground block text-[9px] font-medium uppercase tracking-wider mb-0.5">
+                                  Próximo Atendimento
+                                </span>
+                                <span className="font-semibold text-foreground truncate block">
+                                  {nextAppt.pacientes?.nome}
+                                </span>
+                                <span className="text-muted-foreground block truncate">
+                                  {format(new Date(nextAppt.data_inicio), "HH:mm")} •{" "}
+                                  {nextAppt.servicos?.nome}
+                                </span>
+                              </div>
+                            ) : (
+                              <div className="text-xs text-muted-foreground py-1">
+                                Sem mais atendimentos hoje.
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       <Card>
