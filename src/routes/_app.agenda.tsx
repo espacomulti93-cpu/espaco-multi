@@ -626,11 +626,26 @@ function FragmentRow({ h, days, ags, onCellClick, onEdit }: any) {
                     {getEspecialidade(a)}
                   </div>
                 )}
-                {a.status !== "pendente" && (
-                  <Badge variant="secondary" className="mt-1 h-4 px-1 text-[9px]">
-                    {STATUS_LABEL[a.status]}
-                  </Badge>
-                )}
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    "mt-1 h-4 px-1 text-[8px] uppercase font-bold shrink-0 border",
+                    a.status === "confirmado" &&
+                      "border-green-500/30 text-green-600 bg-green-50/50",
+                    a.status === "pago" &&
+                      "border-emerald-500/30 text-emerald-600 bg-emerald-50/50",
+                    a.status === "cancelado" &&
+                      "border-red-500/30 text-red-600 bg-red-50/50",
+                    a.status === "realizado" &&
+                      "border-blue-500/30 text-blue-600 bg-blue-50/50",
+                    a.status === "falta" &&
+                      "border-orange-500/30 text-orange-600 bg-orange-50/50",
+                    a.status === "pendente" &&
+                      "border-yellow-500/30 text-yellow-600 bg-yellow-50/50",
+                  )}
+                >
+                  {STATUS_LABEL[a.status] || a.status}
+                </Badge>
               </button>
             ))}
           </div>

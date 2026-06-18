@@ -183,7 +183,7 @@ function ProfissionaisPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 items-stretch">
           {orderedData.map((p, idx) => (
             <Card
               key={p.id}
@@ -191,154 +191,147 @@ function ProfissionaisPage() {
               onDragStart={(e) => handleDragStart(e, idx)}
               onDragOver={handleDragOver}
               onDrop={(e) => handleDrop(e, idx)}
-              className="cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow relative group"
+              className="cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow relative group h-full flex flex-col"
             >
-              <CardContent className="p-4">
+              <CardContent className="p-4 flex flex-col flex-1 justify-between">
                 <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab">
                   <GripVertical className="h-4 w-4 text-muted-foreground" />
                 </div>
-                <div className="flex items-start gap-3">
-                  <div className="h-12 w-12 shrink-0 rounded-full" style={{ background: p.cor }} />
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate font-medium">{p.nome}</div>
-                    <div className="mt-1 flex flex-wrap gap-1">
-                      {p.especialidade ? (
-                        p.especialidade
-                          .split(",")
-                          .map((s: string) => s.trim())
-                          .filter(Boolean)
-                          .map((esp: string) => (
-                            <Badge
-                              key={esp}
-                              variant="outline"
-                              className="text-[10px] px-1.5 py-0 font-normal"
-                            >
-                              {esp}
-                            </Badge>
-                          ))
-                      ) : (
-                        <span className="text-xs text-muted-foreground">—</span>
-                      )}
-                    </div>
-                    <div className="mt-2 space-y-1">
-                      {p.valores_config && (p.valores_config as any).especialidades?.length > 0 ? (
-                        (p.valores_config as any).especialidades
-                          .filter((esp: any) => {
-                            const activeSpecs = p.especialidade
-                              ? p.especialidade
-                                  .split(",")
-                                  .map((s: string) => s.trim().toLowerCase())
-                              : [];
-                            return activeSpecs.includes(esp.nome.toLowerCase());
-                          })
-                          .map((esp: any) => {
-                            if (esp.nome.toUpperCase() === "AP") {
-                              const plano = PLANOS_AP.find(
-                                (pl) => pl.value === String(esp.plano_mensal),
-                              );
-                              return (
-                                <div
-                                  key={esp.nome}
-                                  className="text-xs text-muted-foreground flex justify-between gap-4"
+                
+                {/* Upper block with all details */}
+                <div className="space-y-3 flex-1 flex flex-col justify-start">
+                  {/* Header (avatar + name + status) */}
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-3 min-w-0 flex-1">
+                      <div className="h-10 w-10 shrink-0 rounded-full border border-border/20 shadow-sm" style={{ background: p.cor }} />
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate font-semibold text-sm text-foreground">{p.nome}</div>
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {p.especialidade ? (
+                            p.especialidade
+                              .split(",")
+                              .map((s: string) => s.trim())
+                              .filter(Boolean)
+                              .map((esp: string) => (
+                                <Badge
+                                  key={esp}
+                                  variant="outline"
+                                  className="text-[9px] px-1.5 py-0 font-medium bg-primary/5 border-primary/20 text-primary"
                                 >
-                                  <span className="font-semibold">AP:</span>
-                                  <span className="font-medium text-foreground">
-                                    {plano ? plano.label : "Plano não configurado"}
-                                  </span>
-                                </div>
-                              );
-                            }
-                            const isSupervisorABA = esp.nome.toLowerCase() === "supervisor aba";
-                            const isAtABA = esp.nome.toLowerCase() === "at aba";
-                            let valStr = "";
-                            if (isSupervisorABA) {
-                              valStr = `Anamnese R$ ${Number(esp.valor_avaliacao ?? 0).toFixed(2)}`;
-                            } else if (isAtABA) {
-                              valStr = `Sessão R$ ${Number(esp.valor_sessao ?? 0).toFixed(2)}`;
-                            } else {
-                              valStr = `Sessão R$ ${Number(esp.valor_sessao ?? 0).toFixed(2)} | Anamnese R$ ${Number(esp.valor_avaliacao ?? 0).toFixed(2)}`;
-                            }
+                                  {esp}
+                                </Badge>
+                              ))
+                          ) : (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <Badge
+                      variant={p.ativo ? "default" : "secondary"}
+                      onDragStart={(e) => e.stopPropagation()}
+                      className="shrink-0 text-[10px] h-5 px-1.5"
+                    >
+                      {p.ativo ? "Ativo" : "Inativo"}
+                    </Badge>
+                  </div>
+
+                  {/* Pricing Details */}
+                  <div className="space-y-1 text-[11px] text-muted-foreground bg-muted/30 p-2.5 rounded border border-border/40 mt-1">
+                    {p.valores_config && (p.valores_config as any).especialidades?.length > 0 ? (
+                      (p.valores_config as any).especialidades
+                        .filter((esp: any) => {
+                          const activeSpecs = p.especialidade
+                            ? p.especialidade
+                                .split(",")
+                                .map((s: string) => s.trim().toLowerCase())
+                            : [];
+                          return activeSpecs.includes(esp.nome.toLowerCase());
+                        })
+                        .slice(0, 2)
+                        .map((esp: any) => {
+                          if (esp.nome.toUpperCase() === "AP") {
+                            const plano = PLANOS_AP.find(
+                              (pl) => pl.value === String(esp.plano_mensal),
+                            );
                             return (
                               <div
                                 key={esp.nome}
-                                className="text-xs text-muted-foreground flex justify-between gap-4"
+                                className="flex justify-between gap-4"
                               >
-                                <span>{esp.nome}:</span>
-                                <span className="font-medium text-foreground">{valStr}</span>
+                                <span className="font-medium text-foreground">AP:</span>
+                                <span className="font-semibold text-foreground">
+                                  {plano ? `R$ ${plano.value}` : "Não config."}
+                                </span>
                               </div>
                             );
-                          })
-                      ) : p.valor_sessao ? (
-                        <div className="text-xs text-muted-foreground">
-                          Geral: R$ {Number(p.valor_sessao).toFixed(2)}/sessão
-                        </div>
-                      ) : (
-                        <div className="text-xs text-muted-foreground">
-                          Valores não configurados
-                        </div>
-                      )}
-                    </div>
-                    {p.valores_config && (p.valores_config as any).descontos?.length > 0 && (
-                      <div className="mt-2 pt-2 border-t text-[11px] text-muted-foreground space-y-0.5">
-                        <span className="font-semibold text-foreground block">
-                          Descontos ativos:
-                        </span>
-                        {(p.valores_config as any).descontos.map((d: any, idx: number) => {
-                          const pac = pacientes.find((pac: any) => pac.id === d.paciente_id);
-                          const isSupervisorABA =
-                            d.especialidade?.toLowerCase() === "supervisor aba";
-                          const val = isSupervisorABA ? d.valor_avaliacao : d.valor_sessao;
-                          const prefix = isSupervisorABA ? "Ana.: " : "";
+                          }
+                          const isSupervisorABA = esp.nome.toLowerCase() === "supervisor aba";
+                          const isAtABA = esp.nome.toLowerCase() === "at aba";
+                          let valStr = "";
+                          if (isSupervisorABA) {
+                            valStr = `Ana. R$ ${Number(esp.valor_avaliacao ?? 0).toFixed(0)}`;
+                          } else if (isAtABA) {
+                            valStr = `Sess. R$ ${Number(esp.valor_sessao ?? 0).toFixed(0)}`;
+                          } else {
+                            valStr = `Sess. R$ ${Number(esp.valor_sessao ?? 0).toFixed(0)} | Ana. R$ ${Number(esp.valor_avaliacao ?? 0).toFixed(0)}`;
+                          }
                           return (
                             <div
-                              key={idx}
-                              className="flex justify-between text-[10px] text-muted-foreground"
+                              key={esp.nome}
+                              className="flex justify-between gap-4"
                             >
-                              <span>
-                                {pac?.nome || "Carregando..."} ({d.especialidade})
-                              </span>
-                              <span>
-                                {prefix}R$ {Number(val ?? 0).toFixed(2)}
-                              </span>
+                              <span className="font-medium truncate">{esp.nome}:</span>
+                              <span className="font-semibold text-foreground shrink-0">{valStr}</span>
                             </div>
                           );
-                        })}
+                        })
+                    ) : p.valor_sessao ? (
+                      <div className="flex justify-between gap-4">
+                        <span className="font-medium text-foreground">Geral:</span>
+                        <span className="font-semibold text-foreground">
+                          R$ {Number(p.valor_sessao).toFixed(0)}/sessão
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="italic text-muted-foreground text-center py-1">
+                        Valores não configurados
                       </div>
                     )}
+                    {p.valores_config && (p.valores_config as any).especialidades?.length > 2 && (
+                      <div className="text-[10px] text-muted-foreground/80 italic text-right pt-0.5">
+                        + {(p.valores_config as any).especialidades.length - 2} especialidade(s)
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Summary Badges (Pacientes & Descontos) */}
+                  <div className="flex flex-wrap gap-1.5 pt-1">
                     {(() => {
                       const acompanhados = pacienteProfissional.filter(
                         (m: any) => m.profissional_id === p.id,
                       );
-                      if (acompanhados.length === 0) return null;
+                      const descontosCount = p.valores_config && (p.valores_config as any).descontos?.length || 0;
+                      
                       return (
-                        <div className="mt-2 pt-2 border-t text-[11px] text-muted-foreground space-y-1">
-                          <span className="font-semibold text-foreground block">
-                            Pacientes Acompanhados:
-                          </span>
-                          <div className="flex flex-wrap gap-1 mt-1">
-                            {acompanhados.map((item: any) => (
-                              <Badge
-                                key={item.paciente_id}
-                                variant="outline"
-                                className="text-[10px] px-1.5 py-0"
-                              >
-                                {item.pacientes?.nome}
-                              </Badge>
-                            ))}
-                          </div>
-                        </div>
+                        <>
+                          <Badge variant="secondary" className="text-[10px] px-2 py-0.5 font-normal bg-muted/60 text-muted-foreground hover:bg-muted/60 shrink-0">
+                            👥 {acompanhados.length} {acompanhados.length === 1 ? "Paciente" : "Pacientes"}
+                          </Badge>
+                          {descontosCount > 0 && (
+                            <Badge variant="secondary" className="text-[10px] px-2 py-0.5 font-normal bg-muted/60 text-muted-foreground hover:bg-muted/60 shrink-0">
+                              🏷️ {descontosCount} {descontosCount === 1 ? "Desconto" : "Descontos"}
+                            </Badge>
+                          )}
+                        </>
                       );
                     })()}
                   </div>
-                  <Badge
-                    variant={p.ativo ? "default" : "secondary"}
-                    onDragStart={(e) => e.stopPropagation()}
-                  >
-                    {p.ativo ? "Ativo" : "Inativo"}
-                  </Badge>
                 </div>
+
+                {/* Footer with Edit/Delete Buttons */}
                 <div
-                  className="mt-4 flex justify-end items-center gap-2"
+                  className="mt-4 pt-2 border-t border-border/30 flex justify-end items-center gap-2"
                   onDragStart={(e) => e.stopPropagation()}
                 >
                   <div className="flex gap-1">
