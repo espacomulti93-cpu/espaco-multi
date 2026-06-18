@@ -23,27 +23,46 @@ const statusColors: Record<string, string> = {
 };
 
 function Dashboard() {
-  const today = new Date();
-  const startOfDay = new Date(today.setHours(0, 0, 0, 0)).toISOString();
-  const endOfDay = new Date(today.setHours(23, 59, 59, 999)).toISOString();
+  // Estado para atualizar a contagem de tempo real a cada 15 segundos
+  const [now, setNow] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setNow(new Date());
+    }, 15000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const dateKey = format(now, "yyyy-MM-dd");
 
   const { data: agHoje = [] } = useQuery({
-    queryKey: ["ag-hoje"],
+    queryKey: ["ags", "hoje", dateKey],
     queryFn: async () => {
+      const start = new Date(now);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(now);
+      end.setHours(23, 59, 59, 999);
+
       const { data, error } = await supabase
         .from("agendamentos")
         .select("*, pacientes(nome), profissionais(nome, cor), servicos(nome)")
-        .gte("data_inicio", startOfDay)
-        .lte("data_inicio", endOfDay)
+        .gte("data_inicio", start.toISOString())
+        .lte("data_inicio", end.toISOString())
         .order("data_inicio");
       if (error) throw error;
       return data;
     },
+    refetchInterval: 15000,
   });
 
   const { data: stats } = useQuery({
-    queryKey: ["dashboard-stats"],
+    queryKey: ["ags", "stats", dateKey],
     queryFn: async () => {
+      const start = new Date(now);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(now);
+      end.setHours(23, 59, 59, 999);
+
       const [pac, prof, ag] = await Promise.all([
         supabase
           .from("pacientes")
@@ -55,9 +74,9 @@ function Dashboard() {
           .eq("ativo", true),
         supabase
           .from("agendamentos")
-          .select("status", { count: "exact" })
-          .gte("data_inicio", startOfDay)
-          .lte("data_inicio", endOfDay),
+          .select("status")
+          .gte("data_inicio", start.toISOString())
+          .lte("data_inicio", end.toISOString()),
       ]);
       const ags = ag.data ?? [];
       return {
@@ -68,17 +87,8 @@ function Dashboard() {
         faltas: ags.filter((a) => a.status === "falta").length,
       };
     },
+    refetchInterval: 15000,
   });
-
-  // Estado para atualizar a contagem de tempo real a cada 15 segundos
-  const [now, setNow] = useState(new Date());
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setNow(new Date());
-    }, 15000);
-    return () => clearInterval(timer);
-  }, []);
 
   // Buscar salas ativas
   const { data: salas = [] } = useQuery({
