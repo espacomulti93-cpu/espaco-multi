@@ -197,8 +197,8 @@ function DiretoriaPageContent() {
         )
         .gte("competencia", inicio)
         .lte("competencia", fim)
-        .order("competencia", { ascending: false })
-        .order("vencimento", { ascending: false });
+        .order("competencia", { ascending: true })
+        .order("vencimento", { ascending: true });
       if (error) throw error;
       return data;
     },
@@ -1023,7 +1023,7 @@ Agradecemos a atenção!
         const matchesStatus = statusFilter === "all" || f.status === statusFilter;
         return matchesSearch && matchesStatus;
       })
-      .sort((a, b) => new Date(b.competencia).getTime() - new Date(a.competencia).getTime());
+      .sort((a, b) => new Date(a.competencia).getTime() - new Date(b.competencia).getTime());
   }, [faturas, searchPatient, statusFilter, patientMap]);
 
   return (
