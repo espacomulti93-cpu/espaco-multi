@@ -196,7 +196,9 @@ function DiretoriaPageContent() {
           "id, valor, status, competencia, vencimento, pago_em, metodo, observacoes, paciente_id",
         )
         .gte("competencia", inicio)
-        .lte("competencia", fim);
+        .lte("competencia", fim)
+        .order("competencia", { ascending: false })
+        .order("vencimento", { ascending: false });
       if (error) throw error;
       return data;
     },
@@ -1014,12 +1016,14 @@ Agradecemos a atenção!
   };
 
   const filteredFaturas = useMemo(() => {
-    return (faturas || []).filter((f) => {
-      const patientName = patientMap.get(f.paciente_id) || "";
-      const matchesSearch = patientName.toLowerCase().includes(searchPatient.toLowerCase());
-      const matchesStatus = statusFilter === "all" || f.status === statusFilter;
-      return matchesSearch && matchesStatus;
-    });
+    return (faturas || [])
+      .filter((f) => {
+        const patientName = patientMap.get(f.paciente_id) || "";
+        const matchesSearch = patientName.toLowerCase().includes(searchPatient.toLowerCase());
+        const matchesStatus = statusFilter === "all" || f.status === statusFilter;
+        return matchesSearch && matchesStatus;
+      })
+      .sort((a, b) => new Date(b.competencia).getTime() - new Date(a.competencia).getTime());
   }, [faturas, searchPatient, statusFilter, patientMap]);
 
   return (
