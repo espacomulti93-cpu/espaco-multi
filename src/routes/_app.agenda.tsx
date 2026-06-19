@@ -1524,9 +1524,7 @@ Fico à disposição para qualquer dúvida!`;
                         <Badge variant="secondary" className="h-4 px-1 text-[9px] font-semibold">
                           {STATUS_LABEL[form.status] || form.status || ""}
                         </Badge>
-                        {editing.status !== "confirmado" &&
-                          editing.status !== "pago" &&
-                          whatsappUrl && (
+                        {whatsappUrl && (
                             <a
                               href={whatsappUrl}
                               target="_blank"
@@ -1923,19 +1921,17 @@ Fico à disposição para qualquer dúvida!`;
                         ))}
                       </SelectContent>
                     </Select>
-                    {form.status !== "confirmado" && form.status !== "pago" && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="w-full mt-1.5 h-8 gap-1.5 text-green-600 hover:text-green-700 hover:bg-green-50 border-green-200/60 dark:border-green-900/30 text-xs"
-                        disabled={!whatsappUrl}
-                        onClick={() => whatsappUrl && window.open(whatsappUrl, "_blank")}
-                      >
-                        <MessageCircle className="h-4 w-4 fill-green-600/10" />
-                        {whatsappUrl ? "WhatsApp Paciente" : "Sem WhatsApp"}
-                      </Button>
-                    )}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="w-full mt-1.5 h-8 gap-1.5 text-green-600 hover:text-green-700 hover:bg-green-50 border-green-200/60 dark:border-green-900/30 text-xs"
+                      disabled={!whatsappUrl}
+                      onClick={() => whatsappUrl && window.open(whatsappUrl, "_blank")}
+                    >
+                      <MessageCircle className="h-4 w-4 fill-green-600/10" />
+                      {whatsappUrl ? "WhatsApp Paciente" : "Sem WhatsApp"}
+                    </Button>
                   </div>
                   {form.status === "pendente" && (
                     <div className="space-y-1.5 animate-in fade-in duration-200">
