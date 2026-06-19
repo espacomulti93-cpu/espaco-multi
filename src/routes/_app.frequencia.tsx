@@ -449,89 +449,178 @@ function FrequenciaPage() {
                 Nenhum agendamento encontrado no período.
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Data & Hora</TableHead>
-                      <TableHead>Paciente</TableHead>
-                      <TableHead>Especialidade</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Frequência / Assinatura</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {agendamentos.map((a: any) => {
-                      const signed = !!a.assinatura_responsavel;
-                      return (
-                        <TableRow key={a.id}>
-                          <TableCell className="font-medium whitespace-nowrap">
-                            <div className="font-semibold text-foreground">
+              <>
+                {/* Visualização Mobile (celular) */}
+                <div className="md:hidden divide-y divide-border/60">
+                  {agendamentos.map((a: any) => {
+                    const signed = !!a.assinatura_responsavel;
+                    return (
+                      <div key={a.id} className="p-4 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div className="space-y-0.5">
+                            <span className="text-sm font-semibold text-foreground">
                               {format(new Date(a.data_inicio), "dd/MM/yyyy")}
-                            </div>
-                            <div className="text-[11px] text-muted-foreground capitalize">
+                            </span>
+                            <span className="text-[11px] text-muted-foreground block capitalize">
                               {format(new Date(a.data_inicio), "EEEE 'às' HH:mm", { locale: ptBR })}
-                            </div>
-                          </TableCell>
-                          <TableCell className="font-medium">{a.pacientes?.nome}</TableCell>
-                          <TableCell className="text-muted-foreground text-xs font-semibold">
-                            {a.servicos?.nome || "Sessão"}
-                          </TableCell>
-                          <TableCell>
-                            <Badge
+                            </span>
+                          </div>
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              "text-[9px] font-bold uppercase",
+                              a.status === "confirmado" &&
+                                "border-green-500/30 text-green-600 bg-green-50/50",
+                              a.status === "pago" &&
+                                "border-emerald-500/30 text-emerald-600 bg-emerald-50/50",
+                              a.status === "cancelado" &&
+                                "border-red-500/30 text-red-600 bg-red-50/50",
+                              a.status === "realizado" &&
+                                "border-blue-500/30 text-blue-600 bg-blue-50/50",
+                              a.status === "falta" &&
+                                "border-orange-500/30 text-orange-600 bg-orange-50/50",
+                              a.status === "pendente" &&
+                                "border-yellow-500/30 text-yellow-600 bg-yellow-50/50",
+                            )}
+                          >
+                            {STATUS_LABEL[a.status] || a.status}
+                          </Badge>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          <div>
+                            <span className="text-muted-foreground block text-[10px] uppercase font-semibold tracking-wider">
+                              Paciente
+                            </span>
+                            <span className="font-medium text-foreground">{a.pacientes?.nome}</span>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground block text-[10px] uppercase font-semibold tracking-wider">
+                              Especialidade
+                            </span>
+                            <span className="font-medium text-foreground">
+                              {a.servicos?.nome || "Sessão"}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="pt-1">
+                          {signed ? (
+                            <Button
                               variant="outline"
-                              className={cn(
-                                "text-[9px] font-bold uppercase",
-                                a.status === "confirmado" &&
-                                  "border-green-500/30 text-green-600 bg-green-50/50",
-                                a.status === "pago" &&
-                                  "border-emerald-500/30 text-emerald-600 bg-emerald-50/50",
-                                a.status === "cancelado" &&
-                                  "border-red-500/30 text-red-600 bg-red-50/50",
-                                a.status === "realizado" &&
-                                  "border-blue-500/30 text-blue-600 bg-blue-50/50",
-                                a.status === "falta" &&
-                                  "border-orange-500/30 text-orange-600 bg-orange-50/50",
-                                a.status === "pendente" &&
-                                  "border-yellow-500/30 text-yellow-600 bg-yellow-50/50",
-                              )}
+                              type="button"
+                              size="sm"
+                              onClick={() => setViewSignDialog({ open: true, ag: a })}
+                              className="w-full h-9 gap-1.5 border-green-200 hover:border-green-300 hover:bg-green-50 text-green-700 bg-green-50/20 text-xs px-2.5 cursor-pointer justify-center"
                             >
-                              {STATUS_LABEL[a.status] || a.status}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            {signed ? (
-                              <div className="flex items-center gap-2">
+                              <CheckCircle2 className="h-3.5 w-3.5" /> Assinado por{" "}
+                              {a.nome_assinante?.split(" ")[0]}
+                            </Button>
+                          ) : a.status === "cancelado" ? (
+                            <div className="text-center text-xs text-muted-foreground py-1.5 bg-muted/30 rounded">
+                              Sessão cancelada
+                            </div>
+                          ) : (
+                            <Button
+                              onClick={() => handleOpenSign(a)}
+                              type="button"
+                              size="sm"
+                              className="w-full h-9 gap-1.5 text-xs px-2.5 cursor-pointer justify-center"
+                            >
+                              <Plus className="h-3.5 w-3.5" /> Assinar Digitalmente
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Visualização Desktop */}
+                <div className="hidden md:block overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Data & Hora</TableHead>
+                        <TableHead>Paciente</TableHead>
+                        <TableHead>Especialidade</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Frequência / Assinatura</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {agendamentos.map((a: any) => {
+                        const signed = !!a.assinatura_responsavel;
+                        return (
+                          <TableRow key={a.id}>
+                            <TableCell className="font-medium whitespace-nowrap">
+                              <div className="font-semibold text-foreground">
+                                {format(new Date(a.data_inicio), "dd/MM/yyyy")}
+                              </div>
+                              <div className="text-[11px] text-muted-foreground capitalize">
+                                {format(new Date(a.data_inicio), "EEEE 'às' HH:mm", { locale: ptBR })}
+                              </div>
+                            </TableCell>
+                            <TableCell className="font-medium">{a.pacientes?.nome}</TableCell>
+                            <TableCell className="text-muted-foreground text-xs font-semibold">
+                              {a.servicos?.nome || "Sessão"}
+                            </TableCell>
+                            <TableCell>
+                              <Badge
+                                variant="outline"
+                                className={cn(
+                                  "text-[9px] font-bold uppercase",
+                                  a.status === "confirmado" &&
+                                    "border-green-500/30 text-green-600 bg-green-50/50",
+                                  a.status === "pago" &&
+                                    "border-emerald-500/30 text-emerald-600 bg-emerald-50/50",
+                                  a.status === "cancelado" &&
+                                    "border-red-500/30 text-red-600 bg-red-50/50",
+                                  a.status === "realizado" &&
+                                    "border-blue-500/30 text-blue-600 bg-blue-50/50",
+                                  a.status === "falta" &&
+                                    "border-orange-500/30 text-orange-600 bg-orange-50/50",
+                                  a.status === "pendente" &&
+                                    "border-yellow-500/30 text-yellow-600 bg-yellow-50/50",
+                                )}
+                              >
+                                {STATUS_LABEL[a.status] || a.status}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              {signed ? (
+                                <div className="flex items-center gap-2">
+                                  <Button
+                                    variant="outline"
+                                    type="button"
+                                    size="sm"
+                                    onClick={() => setViewSignDialog({ open: true, ag: a })}
+                                    className="h-8 gap-1 border-green-200 hover:border-green-300 hover:bg-green-50 text-green-700 bg-green-50/20 text-xs px-2.5 cursor-pointer"
+                                  >
+                                    <CheckCircle2 className="h-3.5 w-3.5" /> Assinado por{" "}
+                                    {a.nome_assinante?.split(" ")[0]}
+                                  </Button>
+                                </div>
+                              ) : a.status === "cancelado" ? (
+                                <span className="text-muted-foreground text-xs">—</span>
+                              ) : (
                                 <Button
-                                  variant="outline"
+                                  onClick={() => handleOpenSign(a)}
                                   type="button"
                                   size="sm"
-                                  onClick={() => setViewSignDialog({ open: true, ag: a })}
-                                  className="h-8 gap-1 border-green-200 hover:border-green-300 hover:bg-green-50 text-green-700 bg-green-50/20 text-xs px-2.5 cursor-pointer"
+                                  className="h-8 gap-1 text-xs px-2.5 cursor-pointer"
                                 >
-                                  <CheckCircle2 className="h-3.5 w-3.5" /> Assinado por{" "}
-                                  {a.nome_assinante?.split(" ")[0]}
+                                  <Plus className="h-3.5 w-3.5" /> Assinar Digitalmente
                                 </Button>
-                              </div>
-                            ) : a.status === "cancelado" ? (
-                              <span className="text-muted-foreground text-xs">—</span>
-                            ) : (
-                              <Button
-                                onClick={() => handleOpenSign(a)}
-                                type="button"
-                                size="sm"
-                                className="h-8 gap-1 text-xs px-2.5 cursor-pointer"
-                              >
-                                <Plus className="h-3.5 w-3.5" /> Assinar Digitalmente
-                              </Button>
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              </>
             )}
           </CardContent>
         </Card>
