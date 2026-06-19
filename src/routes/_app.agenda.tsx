@@ -51,6 +51,9 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { PacienteFormDialog } from "@/components/PacienteFormDialog";
 
+const normalizeString = (str: string) =>
+  str ? str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() : "";
+
 export const Route = createFileRoute("/_app/agenda")({
   component: Agenda,
 });
@@ -203,7 +206,7 @@ function Agenda() {
                     return (
                       <CommandItem
                         key={p.id}
-                        value={`${p.nome?.toLowerCase() || ""}-${p.id}`}
+                        value={`${normalizeString(p.nome)}-${p.id}`}
                         onSelect={() => {
                           if (isSelected) {
                             setSelectedProfs(selectedProfs.filter((id) => id !== p.id));
@@ -1726,7 +1729,7 @@ Fico à disposição para qualquer dúvida!`;
                               {displayedPacientes.map((p: any) => (
                                 <CommandItem
                                   key={p.id}
-                                  value={`${p.nome?.toLowerCase() || ""}-${p.id}`}
+                                  value={`${normalizeString(p.nome)}-${p.id}`}
                                   onSelect={() => {
                                     handlePacienteChange(p.id);
                                     setPacienteOpen(false);

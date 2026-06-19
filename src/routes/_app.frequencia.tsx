@@ -239,9 +239,11 @@ function FrequenciaPage() {
   // Filter appointments by patient name
   const filteredAgendamentos = useMemo(() => {
     if (!searchTerm.trim()) return agendamentos;
-    const term = searchTerm.toLowerCase().trim();
+    const normalizeString = (str: string) =>
+      str ? str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() : "";
+    const term = normalizeString(searchTerm);
     return agendamentos.filter((a: any) =>
-      a.pacientes?.nome?.toLowerCase().includes(term)
+      normalizeString(a.pacientes?.nome || "").includes(term)
     );
   }, [agendamentos, searchTerm]);
 

@@ -148,7 +148,8 @@ function DiretoriaPageContent() {
   const queryClient = useQueryClient();
   const today = new Date();
   const [inicio, setInicio] = useState(format(startOfMonth(today), "yyyy-MM-dd"));
-  const [fim, setFim] = useState(format(endOfMonth(today), "yyyy-MM-dd"));
+  const normalizeString = (str: string) =>
+    str ? str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() : "";
 
   // Fetch Patients
   const { data: pacientes = [] } = useQuery({
@@ -897,7 +898,7 @@ function DiretoriaPageContent() {
 
   const filteredConsolidated = useMemo(() => {
     return consolidatedPatients.filter((c) => {
-      const matchesSearch = c.nome.toLowerCase().includes(searchPatient.toLowerCase());
+      const matchesSearch = normalizeString(c.nome).includes(normalizeString(searchPatient));
       if (statusFilter === "aberta" && c.totalPendente === 0) return false;
       if (statusFilter === "paga" && c.totalPago === 0) return false;
       if (statusFilter === "vencida" && !c.temAtraso) return false;
@@ -1019,7 +1020,7 @@ Agradecemos a atenção!
     return (faturas || [])
       .filter((f) => {
         const patientName = patientMap.get(f.paciente_id) || "";
-        const matchesSearch = patientName.toLowerCase().includes(searchPatient.toLowerCase());
+        const matchesSearch = normalizeString(patientName).includes(normalizeString(searchPatient));
         const matchesStatus = statusFilter === "all" || f.status === statusFilter;
         return matchesSearch && matchesStatus;
       })

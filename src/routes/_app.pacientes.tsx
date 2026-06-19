@@ -103,7 +103,12 @@ function PacientesPage() {
     }
   };
 
-  const filtered = (pacientes || []).filter((p) => p.nome.toLowerCase().includes(q.toLowerCase()));
+  const normalizeString = (str: string) =>
+    str ? str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() : "";
+
+  const filtered = (pacientes || []).filter((p) =>
+    normalizeString(p.nome).includes(normalizeString(q))
+  );
 
   return (
     <div className="space-y-4">
