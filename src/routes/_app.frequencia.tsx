@@ -42,6 +42,7 @@ import {
   User,
   Trash2,
   Plus,
+  Search,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -196,6 +197,12 @@ function FrequenciaPage() {
   });
 
   const [nomeResponsavel, setNomeResponsavel] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+
+  // Reset search term when selectedProfId changes
+  useEffect(() => {
+    setSearchTerm("");
+  }, [selectedProfId]);
 
   // Fetch Professionals
   const { data: profissionais = [] } = useQuery({
@@ -228,6 +235,15 @@ function FrequenciaPage() {
     },
     enabled: !!selectedProfId,
   });
+
+  // Filter appointments by patient name
+  const filteredAgendamentos = useMemo(() => {
+    if (!searchTerm.trim()) return agendamentos;
+    const term = searchTerm.toLowerCase().trim();
+    return agendamentos.filter((a: any) =>
+      a.pacientes?.nome?.toLowerCase().includes(term)
+    );
+  }, [agendamentos, searchTerm]);
 
   // Fetch all Patients who have sessions for reporting dropdown
   const reportPatients = useMemo(() => {
@@ -387,11 +403,25 @@ function FrequenciaPage() {
               className="h-10"
             />
           </div>
+          {selectedProfId && (
+            <div className="space-y-1.5 flex-1 min-w-[200px]">
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                <Search className="h-3.5 w-3.5" /> Buscar Paciente
+              </Label>
+              <Input
+                type="text"
+                placeholder="Nome do paciente..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="h-10"
+              />
+            </div>
+          )}
           {selectedProfId && agendamentos.length > 0 && (
             <Button
               onClick={() => setReportDialog({ ...reportDialog, open: true })}
               variant="outline"
-              className="gap-2 h-10 ml-auto"
+              className="gap-2 h-10 sm:ml-auto"
             >
               <FileText className="h-4 w-4" /> Relatório de Frequência
             </Button>
@@ -448,11 +478,15 @@ function FrequenciaPage() {
               <div className="p-12 text-center text-sm text-muted-foreground">
                 Nenhum agendamento encontrado no período.
               </div>
+            ) : filteredAgendamentos.length === 0 ? (
+              <div className="p-12 text-center text-sm text-muted-foreground">
+                Nenhum agendamento correspondente à busca.
+              </div>
             ) : (
               <>
                 {/* Visualização Mobile (celular) */}
                 <div className="md:hidden divide-y divide-border/60">
-                  {agendamentos.map((a: any) => {
+                  {filteredAgendamentos.map((a: any) => {
                     const signed = !!a.assinatura_responsavel;
                     return (
                       <div key={a.id} className="p-4 space-y-3">
@@ -549,7 +583,7 @@ function FrequenciaPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {agendamentos.map((a: any) => {
+                      {filteredAgendamentos.map((a: any) => {
                         const signed = !!a.assinatura_responsavel;
                         return (
                           <TableRow key={a.id}>
