@@ -34,6 +34,7 @@ import {
   Filter,
   Users,
   Pencil,
+  FileText,
 } from "lucide-react";
 import { toast } from "sonner";
 import { addDays, addWeeks, endOfWeek, format, isSameDay, startOfWeek } from "date-fns";
@@ -50,6 +51,7 @@ import {
 } from "@/components/ui/command";
 import { Checkbox } from "@/components/ui/checkbox";
 import { PacienteFormDialog } from "@/components/PacienteFormDialog";
+import { AnamneseFormDialog } from "@/components/AnamneseFormDialog";
 
 const normalizeString = (str: string) =>
   str ? str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() : "";
@@ -94,6 +96,13 @@ function Agenda() {
     defaultProfessionalId?: string;
     onSaved?: (newPac?: any) => void;
   }>({ open: false });
+
+  const [anamneseDialogState, setAnamneseDialogState] = useState<{
+    open: boolean;
+    pacienteId: string;
+    agendamentoId?: string;
+    profissionalId?: string;
+  }>({ open: false, pacienteId: "" });
 
   const { data: profissionais = [] } = useQuery({
     queryKey: ["prof-min"],
@@ -316,6 +325,14 @@ function Agenda() {
                 onSaved,
               });
             }}
+            triggerAnamnese={(pacienteId, agendamentoId, profissionalId) => {
+              setAnamneseDialogState({
+                open: true,
+                pacienteId,
+                agendamentoId,
+                profissionalId,
+              });
+            }}
           />
         )}
       </Dialog>
@@ -349,6 +366,20 @@ function Agenda() {
                 await patientDialogState.onSaved(newPac);
               }
             }}
+          />
+        )}
+      </Dialog>
+
+      <Dialog
+        open={anamneseDialogState.open}
+        onOpenChange={(o) => setAnamneseDialogState((prev) => ({ ...prev, open: o }))}
+      >
+        {anamneseDialogState.open && (
+          <AnamneseFormDialog
+            pacienteId={anamneseDialogState.pacienteId}
+            agendamentoId={anamneseDialogState.agendamentoId}
+            profissionalId={anamneseDialogState.profissionalId}
+            onClose={() => setAnamneseDialogState((prev) => ({ ...prev, open: false }))}
           />
         )}
       </Dialog>
@@ -665,6 +696,7 @@ function AgendamentoDialog({
   onCancel,
   triggerNewPatient,
   triggerEditPatient,
+  triggerAnamnese,
 }: {
   editing?: any;
   defaults?: any;
@@ -676,6 +708,7 @@ function AgendamentoDialog({
     onSaved: (newPac: any) => void,
   ) => void;
   triggerEditPatient: (paciente: any, onSaved: () => void) => void;
+  triggerAnamnese?: (pacienteId: string, agendamentoId?: string, profissionalId?: string) => void;
 }) {
   const qc = useQueryClient();
   const initialStart =
@@ -1837,6 +1870,17 @@ Fico à disposição para qualquer dúvida!`;
                           <SelectItem value="anamnese">Anamnese</SelectItem>
                         </SelectContent>
                       </Select>
+                      {tipoAgendamento === "anamnese" && triggerAnamnese && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="w-full mt-2 gap-1.5 border-primary/40 hover:bg-primary/5 text-primary text-xs font-semibold h-8"
+                          onClick={() => triggerAnamnese(form.paciente_id, editing?.id, form.profissional_id)}
+                        >
+                          <FileText className="h-3.5 w-3.5" />
+                          {editing ? "Preencher Anamnese" : "Ver Rascunho Anamnese"}
+                        </Button>
+                      )}
                     </div>
                   ) : null}
                 </div>
