@@ -858,21 +858,28 @@ Fico à disposição para qualquer dúvida!`;
   ]);
 
   const displayedPacientes = useMemo(() => {
-    if (!form.profissional_id) return pacientes;
-    const selectedProf = profissionais.find((p: any) => p.id === form.profissional_id);
-    if (!selectedProf) return pacientes;
-
-    const targetSpecs = selectedSpecialty
-      ? [selectedSpecialty.toLowerCase()]
-      : selectedProf.especialidade
+    if (!selectedSpecialty) {
+      if (!form.profissional_id) return pacientes;
+      const selectedProf = profissionais.find((p: any) => p.id === form.profissional_id);
+      if (!selectedProf) return pacientes;
+      const targetSpecs = selectedProf.especialidade
         ? selectedProf.especialidade.split(",").map((s: string) => s.trim().toLowerCase())
         : [];
+      if (targetSpecs.length === 0) return pacientes;
+      return pacientes.filter((p: any) => {
+        const pacSpecs = Array.isArray(p.cids_secundarios) 
+          ? p.cids_secundarios.map((s: any) => String(s).trim().toLowerCase()) 
+          : [];
+        return pacSpecs.some((s: string) => targetSpecs.includes(s));
+      });
+    }
 
-    if (targetSpecs.length === 0) return pacientes;
-
+    const targetSpec = selectedSpecialty.trim().toLowerCase();
     return pacientes.filter((p: any) => {
-      const pacSpecs = Array.isArray(p.cids_secundarios) ? p.cids_secundarios : [];
-      return pacSpecs.some((s: string) => targetSpecs.includes(s.toLowerCase()));
+      const pacSpecs = Array.isArray(p.cids_secundarios) 
+        ? p.cids_secundarios.map((s: any) => String(s).trim().toLowerCase()) 
+        : [];
+      return pacSpecs.includes(targetSpec);
     });
   }, [pacientes, form.profissional_id, selectedSpecialty, profissionais]);
 
