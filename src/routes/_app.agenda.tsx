@@ -732,6 +732,20 @@ function AgendamentoDialog({
     queryKey: ["pac-min"],
     queryFn: async () => (await supabase.from("pacientes").select("*").order("nome")).data ?? [],
   });
+
+  const { data: profPacientes = [] } = useQuery({
+    queryKey: ["prof-pacientes-agenda", form.profissional_id],
+    queryFn: async () => {
+      if (!form.profissional_id) return [];
+      const { data, error } = await supabase
+        .from("paciente_profissional")
+        .select("paciente_id")
+        .eq("profissional_id", form.profissional_id);
+      if (error) throw error;
+      return (data ?? []).map((item: any) => item.paciente_id);
+    },
+    enabled: !!form.profissional_id,
+  });
   const { data: profissionais = [] } = useQuery({
     queryKey: ["prof-min"],
     queryFn: async () =>
@@ -861,15 +875,22 @@ Fico à disposição para qualquer dúvida!`;
   ]);
 
   const displayedPacientes = useMemo(() => {
+    let basePacientes = pacientes;
+    if (form.profissional_id) {
+      basePacientes = pacientes.filter((p: any) =>
+        profPacientes.includes(p.id) || p.id === form.paciente_id
+      );
+    }
+
     if (!selectedSpecialty) {
-      if (!form.profissional_id) return pacientes;
+      if (!form.profissional_id) return basePacientes;
       const selectedProf = profissionais.find((p: any) => p.id === form.profissional_id);
-      if (!selectedProf) return pacientes;
+      if (!selectedProf) return basePacientes;
       const targetSpecs = selectedProf.especialidade
         ? selectedProf.especialidade.split(",").map((s: string) => s.trim().toLowerCase())
         : [];
-      if (targetSpecs.length === 0) return pacientes;
-      return pacientes.filter((p: any) => {
+      if (targetSpecs.length === 0) return basePacientes;
+      return basePacientes.filter((p: any) => {
         const pacSpecs = Array.isArray(p.cids_secundarios) 
           ? p.cids_secundarios.map((s: any) => String(s).trim().toLowerCase()) 
           : [];
@@ -878,13 +899,13 @@ Fico à disposição para qualquer dúvida!`;
     }
 
     const targetSpec = selectedSpecialty.trim().toLowerCase();
-    return pacientes.filter((p: any) => {
+    return basePacientes.filter((p: any) => {
       const pacSpecs = Array.isArray(p.cids_secundarios) 
         ? p.cids_secundarios.map((s: any) => String(s).trim().toLowerCase()) 
         : [];
       return pacSpecs.includes(targetSpec);
     });
-  }, [pacientes, form.profissional_id, selectedSpecialty, profissionais]);
+  }, [pacientes, form.profissional_id, selectedSpecialty, profissionais, profPacientes]);
 
   const formDate = form.data_inicio ? form.data_inicio.split("T")[0] : "";
   const formTime = form.data_inicio ? form.data_inicio.split("T")[1] : "";
