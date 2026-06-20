@@ -559,7 +559,7 @@ function DiretoriaPageContent() {
 
   // State variables for payment calculation tab
   const [selectedProfId, setSelectedProfId] = useState<string>("all");
-  const [sessionStatusFilter, setSessionStatusFilter] = useState<string>("confirmado_pago");
+  const [sessionStatusFilter, setSessionStatusFilter] = useState<string>("realizado_pago");
   const [viewingProfDetail, setViewingProfDetail] = useState<string | null>(null);
 
   const handleSelectProf = (val: string) => {
@@ -578,8 +578,8 @@ function DiretoriaPageContent() {
       const matchesProf = selectedProfId === "all" || a.profissional_id === selectedProfId;
 
       let matchesStatus = true;
-      if (sessionStatusFilter === "confirmado_pago") {
-        matchesStatus = a.status === "confirmado" || a.status === "pago";
+      if (sessionStatusFilter === "realizado_pago") {
+        matchesStatus = a.status === "realizado" || a.status === "pago";
       } else if (sessionStatusFilter === "confirmado") {
         matchesStatus = a.status === "confirmado";
       } else if (sessionStatusFilter === "pago") {
@@ -1693,7 +1693,7 @@ Agradecemos a atenção!
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="confirmado_pago">Confirmados & Pagos</SelectItem>
+                    <SelectItem value="realizado_pago">Realizados & Pagos</SelectItem>
                     <SelectItem value="confirmado">Confirmados</SelectItem>
                     <SelectItem value="pago">Pagos</SelectItem>
                     <SelectItem value="realizado">Realizados</SelectItem>
@@ -1706,7 +1706,7 @@ Agradecemos a atenção!
                 <div className="text-[11px] text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/20 border border-amber-500/10 rounded-lg px-3 py-2 flex items-center gap-1.5 max-w-md">
                   <AlertCircle className="h-4 w-4 shrink-0" />
                   <span>
-                    Somente sessões nos status <strong>Confirmado</strong> ou <strong>Pago</strong>{" "}
+                    Somente sessões nos status <strong>Realizado</strong> ou <strong>Pago</strong>{" "}
                     geram faturamento no sistema financeiro por padrão.
                   </span>
                 </div>
