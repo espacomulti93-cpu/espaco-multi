@@ -17,6 +17,15 @@ import { FileText, Printer, Save, Loader2, User, HelpCircle, Users, Activity, Gr
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
+const formatBirthDateForDisplay = (dateStr: string | null | undefined) => {
+  if (!dateStr) return "";
+  const parts = dateStr.split("-");
+  if (parts.length === 3) {
+    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  }
+  return dateStr;
+};
+
 interface AnamneseFormDialogProps {
   pacienteId: string;
   agendamentoId?: string;
@@ -171,7 +180,7 @@ export function AnamneseFormDialog({
       // Auto-prepopulate from patient card
       setRespostas((prev) => {
         const formattedBirth = paciente?.data_nascimento
-          ? format(new Date(paciente.data_nascimento), "dd/MM/yyyy")
+          ? formatBirthDateForDisplay(paciente.data_nascimento)
           : "";
         const age = paciente?.data_nascimento
           ? calculateAge(paciente.data_nascimento)
@@ -282,7 +291,7 @@ export function AnamneseFormDialog({
 
   return (
     <DialogContent className="max-w-[95vw] w-[1200px] h-[90vh] flex flex-col p-0 overflow-hidden bg-background">
-      <DialogHeader className="px-6 py-4 border-b border-border flex flex-row items-center justify-between shrink-0 print:hidden">
+      <DialogHeader className="px-6 py-4 border-b border-border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shrink-0 print:hidden">
         <div>
           <DialogTitle className="text-xl font-bold flex items-center gap-2 text-primary">
             <FileText className="h-5 w-5" /> Ficha de Anamnese Digital
@@ -291,12 +300,12 @@ export function AnamneseFormDialog({
             Metodologia Integrada — Psicologia, Fonoaudiologia e Psicopedagogia
           </p>
         </div>
-        <div className="flex gap-2 mr-6">
+        <div className="flex gap-2 w-full sm:w-auto justify-end sm:mr-6">
           <Button
             variant="outline"
             size="sm"
             onClick={handlePrint}
-            className="gap-1.5 hover:bg-primary/5 hover:text-primary transition-all"
+            className="gap-1.5 hover:bg-primary/5 hover:text-primary transition-all text-xs"
           >
             <Printer className="h-4 w-4" /> Imprimir / PDF
           </Button>
@@ -304,7 +313,7 @@ export function AnamneseFormDialog({
             size="sm"
             onClick={() => saveMutation.mutate()}
             disabled={saveMutation.isPending}
-            className="gap-1.5 shadow-sm transition-all"
+            className="gap-1.5 shadow-sm transition-all text-xs"
           >
             {saveMutation.isPending ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -327,11 +336,10 @@ export function AnamneseFormDialog({
           <Tabs
             value={activeTab}
             onValueChange={setActiveTab}
-            orientation="vertical"
-            className="flex-1 flex overflow-hidden print:hidden"
+            className="flex-1 flex flex-col md:flex-row overflow-hidden print:hidden"
           >
-            <TabsList className="w-[280px] h-full flex flex-col justify-start items-stretch border-r border-border bg-muted/20 p-2 overflow-y-auto shrink-0">
-              <div className="px-3 py-2 text-xs font-semibold text-muted-foreground tracking-wider uppercase mb-2">
+            <TabsList className="w-full md:w-[280px] h-auto md:h-full flex flex-row md:flex-col justify-start items-center md:items-stretch border-b md:border-b-0 md:border-r border-border bg-muted/20 p-2 overflow-x-auto md:overflow-y-auto shrink-0">
+              <div className="hidden md:block px-3 py-2 text-xs font-semibold text-muted-foreground tracking-wider uppercase mb-2">
                 Seções do Formulário
               </div>
               {tabItems.map((tab) => {
@@ -340,7 +348,7 @@ export function AnamneseFormDialog({
                   <TabsTrigger
                     key={tab.id}
                     value={tab.id}
-                    className="justify-start gap-2.5 px-3 py-2.5 rounded-lg text-left text-sm font-medium transition-all hover:bg-muted data-[state=active]:bg-primary data-[state=active]:text-primary-foreground mb-1 cursor-pointer"
+                    className="justify-start gap-2.5 px-3 py-2 md:py-2.5 rounded-lg text-left text-sm font-medium transition-all hover:bg-muted data-[state=active]:bg-primary data-[state=active]:text-primary-foreground mb-0 md:mb-1 shrink-0 cursor-pointer"
                   >
                     <IconComponent className="h-4 w-4 shrink-0" />
                     <span className="truncate">{tab.label}</span>

@@ -95,6 +95,7 @@ function Agenda() {
     defaultSpecialty?: string;
     defaultProfessionalId?: string;
     onSaved?: (newPac?: any) => void;
+    restoreDialog?: any;
   }>({ open: false });
 
   const [anamneseDialogState, setAnamneseDialogState] = useState<{
@@ -102,6 +103,7 @@ function Agenda() {
     pacienteId: string;
     agendamentoId?: string;
     profissionalId?: string;
+    restoreDialog?: any;
   }>({ open: false, pacienteId: "" });
 
   const { data: profissionais = [] } = useQuery({
@@ -311,26 +313,35 @@ function Agenda() {
               setCancelTarget(a);
             }}
             triggerNewPatient={(defaultSpecialty, defaultProfessionalId, onSaved) => {
+              const currentDialog = { ...dialog };
+              setDialog({ open: false });
               setPatientDialogState({
                 open: true,
                 defaultSpecialty,
                 defaultProfessionalId,
                 onSaved,
+                restoreDialog: currentDialog,
               });
             }}
             triggerEditPatient={(paciente, onSaved) => {
+              const currentDialog = { ...dialog };
+              setDialog({ open: false });
               setPatientDialogState({
                 open: true,
                 paciente,
                 onSaved,
+                restoreDialog: currentDialog,
               });
             }}
             triggerAnamnese={(pacienteId, agendamentoId, profissionalId) => {
+              const currentDialog = { ...dialog };
+              setDialog({ open: false });
               setAnamneseDialogState({
                 open: true,
                 pacienteId,
                 agendamentoId,
                 profissionalId,
+                restoreDialog: currentDialog,
               });
             }}
           />
@@ -353,7 +364,17 @@ function Agenda() {
 
       <Dialog
         open={patientDialogState.open}
-        onOpenChange={(o) => setPatientDialogState((prev) => ({ ...prev, open: o }))}
+        onOpenChange={(o) => {
+          if (!o) {
+            const restore = patientDialogState.restoreDialog;
+            setPatientDialogState((prev) => ({ ...prev, open: false }));
+            if (restore) {
+              setDialog(restore);
+            }
+          } else {
+            setPatientDialogState((prev) => ({ ...prev, open: true }));
+          }
+        }}
       >
         {patientDialogState.open && (
           <PacienteFormDialog
@@ -361,9 +382,13 @@ function Agenda() {
             defaultSpecialty={patientDialogState.defaultSpecialty}
             defaultProfessionalId={patientDialogState.defaultProfessionalId}
             onSaved={async (newPac: any) => {
+              const restore = patientDialogState.restoreDialog;
               setPatientDialogState((prev) => ({ ...prev, open: false }));
               if (patientDialogState.onSaved) {
                 await patientDialogState.onSaved(newPac);
+              }
+              if (restore) {
+                setDialog(restore);
               }
             }}
           />
@@ -372,14 +397,30 @@ function Agenda() {
 
       <Dialog
         open={anamneseDialogState.open}
-        onOpenChange={(o) => setAnamneseDialogState((prev) => ({ ...prev, open: o }))}
+        onOpenChange={(o) => {
+          if (!o) {
+            const restore = anamneseDialogState.restoreDialog;
+            setAnamneseDialogState((prev) => ({ ...prev, open: false }));
+            if (restore) {
+              setDialog(restore);
+            }
+          } else {
+            setAnamneseDialogState((prev) => ({ ...prev, open: true }));
+          }
+        }}
       >
         {anamneseDialogState.open && (
           <AnamneseFormDialog
             pacienteId={anamneseDialogState.pacienteId}
             agendamentoId={anamneseDialogState.agendamentoId}
             profissionalId={anamneseDialogState.profissionalId}
-            onClose={() => setAnamneseDialogState((prev) => ({ ...prev, open: false }))}
+            onClose={() => {
+              const restore = anamneseDialogState.restoreDialog;
+              setAnamneseDialogState((prev) => ({ ...prev, open: false }));
+              if (restore) {
+                setDialog(restore);
+              }
+            }}
           />
         )}
       </Dialog>
@@ -1737,13 +1778,16 @@ Fico à disposição para qualquer dúvida!`;
                     <Popover open={pacienteOpen} onOpenChange={setPacienteOpen}>
                       <PopoverTrigger asChild>
                         <Button
+                          type="button"
                           variant="outline"
                           role="combobox"
                           aria-expanded={pacienteOpen}
-                          className="flex-1 justify-between font-normal text-left px-3 animate-in fade-in duration-200"
+                          className="flex-1 min-w-0 justify-between font-normal text-left px-3 animate-in fade-in duration-200"
                         >
-                          {selectedPaciente ? selectedPaciente.nome : "Selecione o paciente..."}
-                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                          <span className="truncate mr-2 flex-1">
+                            {selectedPaciente ? selectedPaciente.nome : "Selecione o paciente..."}
+                          </span>
+                          <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50" />
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent
