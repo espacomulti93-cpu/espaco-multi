@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
@@ -15,8 +15,10 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Pencil, Trash2, DollarSign, GripVertical, Users } from "lucide-react";
+import { Plus, Pencil, Trash2, DollarSign, GripVertical, Users, Calendar } from "lucide-react";
 import { toast } from "sonner";
+import { format, addMonths, startOfMonth, endOfMonth } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
@@ -59,6 +61,45 @@ function ProfissionaisPage() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);
+
+  const [selectedMonth, setSelectedMonth] = useState(() => format(new Date(), "yyyy-MM"));
+
+  const monthOptions = useMemo(() => {
+    const options = [];
+    const today = new Date();
+    for (let i = -6; i <= 3; i++) {
+      const d = addMonths(today, i);
+      const value = format(d, "yyyy-MM");
+      const label = format(d, "MMMM 'de' yyyy", { locale: ptBR });
+      options.push({ value, label: label.charAt(0).toUpperCase() + label.slice(1) });
+    }
+    return options;
+  }, []);
+
+  const startOfSelectedMonth = useMemo(() => {
+    const [year, month] = selectedMonth.split("-");
+    const d = new Date(Number(year), Number(month) - 1, 1);
+    return startOfMonth(d);
+  }, [selectedMonth]);
+
+  const endOfSelectedMonth = useMemo(() => {
+    const [year, month] = selectedMonth.split("-");
+    const d = new Date(Number(year), Number(month) - 1, 1);
+    return endOfMonth(d);
+  }, [selectedMonth]);
+
+  const { data: agendamentos = [] } = useQuery({
+    queryKey: ["profissionais-agendamentos", selectedMonth],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("agendamentos")
+        .select("id, profissional_id, status")
+        .gte("data_inicio", startOfSelectedMonth.toISOString())
+        .lte("data_inicio", endOfSelectedMonth.toISOString());
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
 
   const { data = [] } = useQuery({
     queryKey: ["profissionais"],
@@ -151,7 +192,23 @@ function ProfissionaisPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end gap-2">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-card p-3 rounded-lg border border-border/80 shadow-sm">
+        <div className="flex items-center gap-2 flex-1 min-w-[200px] max-w-xs">
+          <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
+          <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+            <SelectTrigger className="h-9 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {monthOptions.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value} className="text-xs">
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
         <Dialog
           open={open}
           onOpenChange={(o) => {
@@ -160,7 +217,7 @@ function ProfissionaisPage() {
           }}
         >
           <DialogTrigger asChild>
-            <Button className="gap-1.5">
+            <Button className="gap-1.5 h-9 text-xs self-end sm:self-auto">
               <Plus className="h-4 w-4" /> Novo profissional
             </Button>
           </DialogTrigger>
@@ -305,13 +362,16 @@ function ProfissionaisPage() {
                     )}
                   </div>
 
-                  {/* Summary Badges (Pacientes & Descontos) */}
+                  {/* Summary Badges (Pacientes & Descontos & Sessões) */}
                   <div className="flex flex-wrap gap-1.5 pt-1">
                     {(() => {
                       const acompanhados = pacienteProfissional.filter(
                         (m: any) => m.profissional_id === p.id,
                       );
                       const descontosCount = p.valores_config && (p.valores_config as any).descontos?.length || 0;
+                      const sessionsCount = agendamentos.filter(
+                        (a: any) => a.profissional_id === p.id && a.status !== "cancelado"
+                      ).length;
                       
                       return (
                         <>
@@ -323,6 +383,9 @@ function ProfissionaisPage() {
                               🏷️ {descontosCount} {descontosCount === 1 ? "Desconto" : "Descontos"}
                             </Badge>
                           )}
+                          <Badge variant="secondary" className="text-[10px] px-2 py-0.5 font-normal bg-primary/10 text-primary hover:bg-primary/10 shrink-0 border border-primary/10">
+                            📅 {sessionsCount} {sessionsCount === 1 ? "Sessão" : "Sessões"}
+                          </Badge>
                         </>
                       );
                     })()}
