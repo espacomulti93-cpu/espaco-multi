@@ -88,6 +88,8 @@ function Agenda() {
 
   const [selectedProfs, setSelectedProfs] = useState<string[]>([]);
   const [profsPopoverOpen, setProfsPopoverOpen] = useState(false);
+  const [selectedPacs, setSelectedPacs] = useState<string[]>([]);
+  const [pacsPopoverOpen, setPacsPopoverOpen] = useState(false);
 
   const [patientDialogState, setPatientDialogState] = useState<{
     open: boolean;
@@ -118,6 +120,17 @@ function Agenda() {
       ).data ?? [],
   });
 
+  const { data: pacientes = [] } = useQuery({
+    queryKey: ["pacientes-filter-list"],
+    queryFn: async () =>
+      (
+        await supabase
+          .from("pacientes")
+          .select("id, nome")
+          .order("nome")
+      ).data ?? [],
+  });
+
   const { data: ags = [] } = useQuery({
     queryKey: ["ags", weekStart.toISOString()],
     queryFn: async () => {
@@ -135,128 +148,252 @@ function Agenda() {
   });
 
   const filteredAgs = useMemo(() => {
-    if (selectedProfs.length === 0) return ags;
-    return ags.filter((a) => selectedProfs.includes(a.profissional_id));
-  }, [ags, selectedProfs]);
+    let result = ags;
+    if (selectedProfs.length > 0) {
+      result = result.filter((a) => selectedProfs.includes(a.profissional_id));
+    }
+    if (selectedPacs.length > 0) {
+      result = result.filter((a) => selectedPacs.includes(a.paciente_id));
+    }
+    return result;
+  }, [ags, selectedProfs, selectedPacs]);
 
   return (
     <div className="space-y-4">
-      {profsPopoverOpen && (
+      {(profsPopoverOpen || pacsPopoverOpen) && (
         <div
           className="fixed inset-0 z-40 bg-transparent cursor-default"
-          onClick={() => setProfsPopoverOpen(false)}
+          onClick={() => {
+            setProfsPopoverOpen(false);
+            setPacsPopoverOpen(false);
+          }}
         />
       )}
-      <div className="flex flex-wrap items-center gap-2">
-        <Button variant="outline" size="icon" onClick={() => setWeekStart(addWeeks(weekStart, -1))}>
-          <ChevronLeft className="h-4 w-4" />
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setWeekStart(startOfWeek(new Date(), { weekStartsOn: 1 }))}
-        >
-          Hoje
-        </Button>
-        <Button variant="outline" size="icon" onClick={() => setWeekStart(addWeeks(weekStart, 1))}>
-          <ChevronRight className="h-4 w-4" />
-        </Button>
-        <div className="ml-2 text-sm font-medium">
-          {format(weekStart, "d 'de' MMM", { locale: ptBR })} –{" "}
-          {format(weekEnd, "d 'de' MMM yyyy", { locale: ptBR })}
-        </div>
-        <Popover open={profsPopoverOpen} onOpenChange={setProfsPopoverOpen}>
-          <PopoverTrigger asChild>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-card p-3 rounded-lg border border-border/80 shadow-sm">
+        {/* Date Navigation & Range */}
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
+          <div className="flex items-center gap-1.5">
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => setWeekStart(addWeeks(weekStart, -1))}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
             <Button
               variant="outline"
               size="sm"
-              className={cn(
-                "h-9 gap-2 transition-all hover:bg-accent border-dashed ml-2",
-                selectedProfs.length > 0 && "border-solid border-primary bg-primary/5",
-              )}
+              className="h-8 text-xs font-medium px-2.5"
+              onClick={() => setWeekStart(startOfWeek(new Date(), { weekStartsOn: 1 }))}
             >
-              <Filter className="h-4 w-4" />
-              <span>Profissionais</span>
-              {selectedProfs.length > 0 && (
-                <>
-                  <div className="h-4 w-[1px] bg-border mx-1" />
-                  <Badge variant="secondary" className="rounded-sm px-1 font-normal lg:hidden">
-                    {selectedProfs.length}
-                  </Badge>
-                  <div className="hidden space-x-1 lg:flex items-center">
-                    {selectedProfs.length > 2 ? (
-                      <Badge variant="secondary" className="rounded-sm px-1 font-normal">
-                        {selectedProfs.length} selecionados
-                      </Badge>
-                    ) : (
-                      profissionais
-                        .filter((p: any) => selectedProfs.includes(p.id))
-                        .map((p: any) => (
-                          <Badge
-                            variant="secondary"
-                            key={p.id}
-                            className="rounded-sm px-1 font-normal"
-                          >
-                            {p.nome.split(" ")[0]}
-                          </Badge>
-                        ))
-                    )}
-                  </div>
-                </>
-              )}
+              Hoje
             </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-[200px] p-0" align="start">
-            <Command>
-              <CommandInput placeholder="Buscar profissional..." />
-              <CommandList>
-                <CommandEmpty>Nenhum profissional encontrado.</CommandEmpty>
-                <CommandGroup>
-                  {profissionais.map((p: any) => {
-                    const isSelected = selectedProfs.includes(p.id);
-                    return (
-                      <CommandItem
-                        key={p.id}
-                        value={`${normalizeString(p.nome)}-${p.id}`}
-                        onSelect={() => {
-                          if (isSelected) {
-                            setSelectedProfs(selectedProfs.filter((id) => id !== p.id));
-                          } else {
-                            setSelectedProfs([...selectedProfs, p.id]);
-                          }
-                        }}
-                        className="flex items-center gap-2 cursor-pointer"
-                      >
-                        <Checkbox checked={isSelected} className="pointer-events-none" />
-                        <div
-                          className="h-2.5 w-2.5 rounded-full shrink-0"
-                          style={{ backgroundColor: p.cor || "var(--primary)" }}
-                        />
-                        <span className="truncate">{p.nome}</span>
-                      </CommandItem>
-                    );
-                  })}
-                </CommandGroup>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => setWeekStart(addWeeks(weekStart, 1))}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+          <div className="text-xs sm:text-sm font-semibold ml-1 text-foreground/95">
+            {format(weekStart, "d 'de' MMM", { locale: ptBR })} –{" "}
+            {format(weekEnd, "d 'de' MMM yyyy", { locale: ptBR })}
+          </div>
+        </div>
+
+        {/* Filters & Actions Group */}
+        <div className="flex flex-wrap items-center gap-2 sm:ml-auto w-full sm:w-auto">
+          {/* Professionals Filter */}
+          <Popover open={profsPopoverOpen} onOpenChange={setProfsPopoverOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className={cn(
+                  "h-8 gap-1.5 text-xs transition-all hover:bg-accent border-dashed",
+                  selectedProfs.length > 0 && "border-solid border-primary bg-primary/5 text-primary",
+                )}
+              >
+                <Filter className="h-3.5 w-3.5" />
+                <span>Profissionais</span>
                 {selectedProfs.length > 0 && (
                   <>
-                    <div className="border-t border-border" />
-                    <CommandGroup>
-                      <CommandItem
-                        onSelect={() => setSelectedProfs([])}
-                        className="justify-center text-center text-xs text-muted-foreground font-medium hover:text-foreground py-2 cursor-pointer"
-                      >
-                        Limpar filtros
-                      </CommandItem>
-                    </CommandGroup>
+                    <div className="h-3.5 w-[1px] bg-border mx-1" />
+                    <Badge variant="secondary" className="rounded-sm px-1 font-normal h-4 text-[9px] min-w-[16px] justify-center lg:hidden">
+                      {selectedProfs.length}
+                    </Badge>
+                    <div className="hidden space-x-1 lg:flex items-center">
+                      {selectedProfs.length > 2 ? (
+                        <Badge variant="secondary" className="rounded-sm px-1 font-normal h-4 text-[9px]">
+                          {selectedProfs.length} selecionados
+                        </Badge>
+                      ) : (
+                        profissionais
+                          .filter((p: any) => selectedProfs.includes(p.id))
+                          .map((p: any) => (
+                            <Badge
+                              variant="secondary"
+                              key={p.id}
+                              className="rounded-sm px-1 font-normal h-4 text-[9px]"
+                            >
+                              {p.nome.split(" ")[0]}
+                            </Badge>
+                          ))
+                      )}
+                    </div>
                   </>
                 )}
-              </CommandList>
-            </Command>
-          </PopoverContent>
-        </Popover>
-        <Button className="ml-auto gap-1.5" onClick={() => setDialog({ open: true })}>
-          <Plus className="h-4 w-4" /> Novo agendamento
-        </Button>
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[200px] p-0" align="start">
+              <Command>
+                <CommandInput placeholder="Buscar profissional..." className="h-8 text-xs" />
+                <CommandList>
+                  <CommandEmpty className="py-2.5 text-center text-xs text-muted-foreground">Nenhum profissional encontrado.</CommandEmpty>
+                  <CommandGroup>
+                    {profissionais.map((p: any) => {
+                      const isSelected = selectedProfs.includes(p.id);
+                      return (
+                        <CommandItem
+                          key={p.id}
+                          value={`${normalizeString(p.nome)}-${p.id}`}
+                          onSelect={() => {
+                            if (isSelected) {
+                              setSelectedProfs(selectedProfs.filter((id) => id !== p.id));
+                            } else {
+                              setSelectedProfs([...selectedProfs, p.id]);
+                            }
+                          }}
+                          className="flex items-center gap-2 cursor-pointer text-xs py-1.5"
+                        >
+                          <Checkbox checked={isSelected} className="pointer-events-none h-3.5 w-3.5" />
+                          <div
+                            className="h-2 w-2 rounded-full shrink-0"
+                            style={{ backgroundColor: p.cor || "var(--primary)" }}
+                          />
+                          <span className="truncate">{p.nome}</span>
+                        </CommandItem>
+                      );
+                    })}
+                  </CommandGroup>
+                  {selectedProfs.length > 0 && (
+                    <>
+                      <div className="border-t border-border" />
+                      <CommandGroup>
+                        <CommandItem
+                          onSelect={() => setSelectedProfs([])}
+                          className="justify-center text-center text-xs text-muted-foreground font-medium hover:text-foreground py-1.5 cursor-pointer"
+                        >
+                          Limpar filtros
+                        </CommandItem>
+                      </CommandGroup>
+                    </>
+                  )}
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
+
+          {/* Patients Filter */}
+          <Popover open={pacsPopoverOpen} onOpenChange={setPacsPopoverOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className={cn(
+                  "h-8 gap-1.5 text-xs transition-all hover:bg-accent border-dashed",
+                  selectedPacs.length > 0 && "border-solid border-primary bg-primary/5 text-primary",
+                )}
+              >
+                <Users className="h-3.5 w-3.5" />
+                <span>Pacientes</span>
+                {selectedPacs.length > 0 && (
+                  <>
+                    <div className="h-3.5 w-[1px] bg-border mx-1" />
+                    <Badge variant="secondary" className="rounded-sm px-1 font-normal h-4 text-[9px] min-w-[16px] justify-center lg:hidden">
+                      {selectedPacs.length}
+                    </Badge>
+                    <div className="hidden space-x-1 lg:flex items-center">
+                      {selectedPacs.length > 2 ? (
+                        <Badge variant="secondary" className="rounded-sm px-1 font-normal h-4 text-[9px]">
+                          {selectedPacs.length} selecionados
+                        </Badge>
+                      ) : (
+                        pacientes
+                          .filter((p: any) => selectedPacs.includes(p.id))
+                          .map((p: any) => (
+                            <Badge
+                              variant="secondary"
+                              key={p.id}
+                              className="rounded-sm px-1 font-normal h-4 text-[9px]"
+                            >
+                              {p.nome.split(" ")[0]}
+                            </Badge>
+                          ))
+                      )}
+                    </div>
+                  </>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[220px] p-0" align="start">
+              <Command>
+                <CommandInput placeholder="Buscar paciente..." className="h-8 text-xs" />
+                <CommandList>
+                  <CommandEmpty className="py-2.5 text-center text-xs text-muted-foreground">Nenhum paciente encontrado.</CommandEmpty>
+                  <CommandGroup className="max-h-[250px] overflow-y-auto">
+                    {pacientes.map((p: any) => {
+                      const isSelected = selectedPacs.includes(p.id);
+                      return (
+                        <CommandItem
+                          key={p.id}
+                          value={`${normalizeString(p.nome)}-${p.id}`}
+                          onSelect={() => {
+                            if (isSelected) {
+                              setSelectedPacs(selectedPacs.filter((id) => id !== p.id));
+                            } else {
+                              setSelectedPacs([...selectedPacs, p.id]);
+                            }
+                          }}
+                          className="flex items-center gap-2 cursor-pointer text-xs py-1.5"
+                        >
+                          <Checkbox checked={isSelected} className="pointer-events-none h-3.5 w-3.5" />
+                          <span className="truncate">{p.nome}</span>
+                        </CommandItem>
+                      );
+                    })}
+                  </CommandGroup>
+                  {selectedPacs.length > 0 && (
+                    <>
+                      <div className="border-t border-border" />
+                      <CommandGroup>
+                        <CommandItem
+                          onSelect={() => setSelectedPacs([])}
+                          className="justify-center text-center text-xs text-muted-foreground font-medium hover:text-foreground py-1.5 cursor-pointer"
+                        >
+                          Limpar filtros
+                        </CommandItem>
+                      </CommandGroup>
+                    </>
+                  )}
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
+
+          {/* New Appointment Button */}
+          <Button
+            size="sm"
+            className="h-8 text-xs font-semibold gap-1.5 ml-auto sm:ml-2 shadow-sm transition-all"
+            onClick={() => setDialog({ open: true })}
+          >
+            <Plus className="h-3.5 w-3.5" />
+            <span>Novo<span className="hidden min-[380px]:inline"> agendamento</span></span>
+          </Button>
+        </div>
       </div>
 
       <Card>
