@@ -148,6 +148,7 @@ function DiretoriaPageContent() {
   const queryClient = useQueryClient();
   const today = new Date();
   const [inicio, setInicio] = useState(format(startOfMonth(today), "yyyy-MM-dd"));
+  const [fim, setFim] = useState(format(endOfMonth(today), "yyyy-MM-dd"));
   const normalizeString = (str: string) =>
     str ? str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() : "";
 
@@ -162,7 +163,7 @@ function DiretoriaPageContent() {
   });
 
   const patientMap = useMemo(() => {
-    return new Map((pacientes || []).map((p) => [p.id, p.nome]));
+    return new Map<string, string>((pacientes || []).map((p) => [p.id, p.nome]));
   }, [pacientes]);
 
   // Fetch all responsaveis to map their contacts
@@ -399,7 +400,7 @@ function DiretoriaPageContent() {
   });
 
   const professionalMap = useMemo(() => {
-    return new Map((profissionais || []).map((p) => [p.id, p.nome]));
+    return new Map<string, string>((profissionais || []).map((p) => [p.id, p.nome]));
   }, [profissionais]);
 
   // Fetch all agendamentos for professional payment calculation
