@@ -77,15 +77,21 @@ function ProfissionaisPage() {
   }, []);
 
   const startOfSelectedMonth = useMemo(() => {
+    if (!selectedMonth || typeof selectedMonth !== "string" || !selectedMonth.includes("-")) {
+      return startOfMonth(new Date());
+    }
     const [year, month] = selectedMonth.split("-");
     const d = new Date(Number(year), Number(month) - 1, 1);
-    return startOfMonth(d);
+    return isNaN(d.getTime()) ? startOfMonth(new Date()) : startOfMonth(d);
   }, [selectedMonth]);
 
   const endOfSelectedMonth = useMemo(() => {
+    if (!selectedMonth || typeof selectedMonth !== "string" || !selectedMonth.includes("-")) {
+      return endOfMonth(new Date());
+    }
     const [year, month] = selectedMonth.split("-");
     const d = new Date(Number(year), Number(month) - 1, 1);
-    return endOfMonth(d);
+    return isNaN(d.getTime()) ? endOfMonth(new Date()) : endOfMonth(d);
   }, [selectedMonth]);
 
   const { data: agendamentos = [] } = useQuery({
@@ -136,19 +142,25 @@ function ProfissionaisPage() {
     if (data.length > 0) {
       const savedOrder = localStorage.getItem("profissionais_ordem");
       if (savedOrder) {
-        const orderIds = JSON.parse(savedOrder);
-        const sorted = [...data].sort((a, b) => {
-          const idxA = orderIds.indexOf(a.id);
-          const idxB = orderIds.indexOf(b.id);
-          if (idxA === -1 && idxB === -1) return 0;
-          if (idxA === -1) return 1;
-          if (idxB === -1) return -1;
-          return idxA - idxB;
-        });
-        setOrderedData(sorted);
-      } else {
-        setOrderedData(data);
+        try {
+          const orderIds = JSON.parse(savedOrder);
+          if (Array.isArray(orderIds)) {
+            const sorted = [...data].sort((a, b) => {
+              const idxA = orderIds.indexOf(a.id);
+              const idxB = orderIds.indexOf(b.id);
+              if (idxA === -1 && idxB === -1) return 0;
+              if (idxA === -1) return 1;
+              if (idxB === -1) return -1;
+              return idxA - idxB;
+            });
+            setOrderedData(sorted);
+            return;
+          }
+        } catch (e) {
+          console.error("Error parsing profissionais_ordem from localStorage:", e);
+        }
       }
+      setOrderedData(data);
     } else {
       setOrderedData([]);
     }
@@ -295,9 +307,10 @@ function ProfissionaisPage() {
 
                   {/* Pricing Details */}
                   <div className="space-y-1 text-[11px] text-muted-foreground bg-muted/30 p-2.5 rounded border border-border/40 mt-1">
-                    {p.valores_config && (p.valores_config as any).especialidades?.length > 0 ? (
+                    {p.valores_config && Array.isArray((p.valores_config as any).especialidades) && (p.valores_config as any).especialidades.length > 0 ? (
                       (p.valores_config as any).especialidades
                         .filter((esp: any) => {
+                          if (!esp || !esp.nome) return false;
                           const activeSpecs = p.especialidade
                             ? p.especialidade
                                 .split(",")
@@ -306,14 +319,14 @@ function ProfissionaisPage() {
                           return activeSpecs.includes(esp.nome.toLowerCase());
                         })
                         .slice(0, 2)
-                        .map((esp: any) => {
-                          if (esp.nome.toUpperCase() === "AP") {
+                        .map((esp: any, espIdx: number) => {
+                          if (esp?.nome?.toUpperCase() === "AP") {
                             const plano = PLANOS_AP.find(
                               (pl) => pl.value === String(esp.plano_mensal),
                             );
                             return (
                               <div
-                                key={esp.nome}
+                                key={esp?.nome || `ap-${espIdx}`}
                                 className="flex justify-between gap-4"
                               >
                                 <span className="font-medium text-foreground">AP:</span>
@@ -323,22 +336,22 @@ function ProfissionaisPage() {
                               </div>
                             );
                           }
-                          const isSupervisorABA = esp.nome.toLowerCase() === "supervisor aba";
-                          const isAtABA = esp.nome.toLowerCase() === "at aba";
+                          const isSupervisorABA = esp?.nome?.toLowerCase() === "supervisor aba";
+                          const isAtABA = esp?.nome?.toLowerCase() === "at aba";
                           let valStr = "";
                           if (isSupervisorABA) {
-                            valStr = `Ana. R$ ${Number(esp.valor_avaliacao ?? 0).toFixed(0)}`;
+                            valStr = `Ana. R$ ${Number(esp?.valor_avaliacao ?? 0).toFixed(0)}`;
                           } else if (isAtABA) {
-                            valStr = `Sess. R$ ${Number(esp.valor_sessao ?? 0).toFixed(0)}`;
+                            valStr = `Sess. R$ ${Number(esp?.valor_sessao ?? 0).toFixed(0)}`;
                           } else {
-                            valStr = `Sess. R$ ${Number(esp.valor_sessao ?? 0).toFixed(0)} | Ana. R$ ${Number(esp.valor_avaliacao ?? 0).toFixed(0)}`;
+                            valStr = `Sess. R$ ${Number(esp?.valor_sessao ?? 0).toFixed(0)} | Ana. R$ ${Number(esp?.valor_avaliacao ?? 0).toFixed(0)}`;
                           }
                           return (
                             <div
-                              key={esp.nome}
+                              key={esp?.nome || `esp-${espIdx}`}
                               className="flex justify-between gap-4"
                             >
-                              <span className="font-medium truncate">{esp.nome}:</span>
+                              <span className="font-medium truncate">{esp?.nome || "Especialidade"}:</span>
                               <span className="font-semibold text-foreground shrink-0">{valStr}</span>
                             </div>
                           );
@@ -355,7 +368,7 @@ function ProfissionaisPage() {
                         Valores não configurados
                       </div>
                     )}
-                    {p.valores_config && (p.valores_config as any).especialidades?.length > 2 && (
+                    {p.valores_config && Array.isArray((p.valores_config as any).especialidades) && (p.valores_config as any).especialidades.length > 2 && (
                       <div className="text-[10px] text-muted-foreground/80 italic text-right pt-0.5">
                         + {(p.valores_config as any).especialidades.length - 2} especialidade(s)
                       </div>
@@ -365,12 +378,14 @@ function ProfissionaisPage() {
                   {/* Summary Badges (Pacientes & Descontos & Sessões) */}
                   <div className="flex flex-wrap gap-1.5 pt-1">
                     {(() => {
-                      const acompanhados = pacienteProfissional.filter(
-                        (m: any) => m.profissional_id === p.id,
+                      const acompanhados = (pacienteProfissional || []).filter(
+                        (m: any) => m && m.profissional_id === p.id,
                       );
-                      const descontosCount = p.valores_config && (p.valores_config as any).descontos?.length || 0;
-                      const sessionsCount = agendamentos.filter(
-                        (a: any) => a.profissional_id === p.id && a.status !== "cancelado"
+                      const descontosCount = p.valores_config && Array.isArray((p.valores_config as any).descontos)
+                        ? (p.valores_config as any).descontos.length
+                        : 0;
+                      const sessionsCount = (agendamentos || []).filter(
+                        (a: any) => a && a.profissional_id === p.id && a.status !== "cancelado"
                       ).length;
                       
                       return (
@@ -462,7 +477,10 @@ function ProfForm({ prof, onSaved }: { prof: any; onSaved: () => void }) {
     enabled: !!prof?.id,
   });
 
-  const config = (prof?.valores_config as any) || { especialidades: [], descontos: [] };
+  const config = {
+    especialidades: (prof?.valores_config as any)?.especialidades || [],
+    descontos: (prof?.valores_config as any)?.descontos || [],
+  };
 
   const [form, setForm] = useState(() => {
     const initialSpecs = prof?.especialidade
@@ -471,7 +489,7 @@ function ProfForm({ prof, onSaved }: { prof: any; onSaved: () => void }) {
           .filter(Boolean)
           .map((s: string) => {
             const existing = config.especialidades?.find(
-              (e: any) => e.nome.toLowerCase() === s.toLowerCase(),
+              (e: any) => e && e.nome && e.nome.toLowerCase() === s.toLowerCase(),
             );
             return {
               nome: s,
@@ -511,7 +529,9 @@ function ProfForm({ prof, onSaved }: { prof: any; onSaved: () => void }) {
 
   // Set default specialty for new discount when specialties change
   useEffect(() => {
-    const activeSpecs = form.especialidades.map((e: any) => e.nome.trim()).filter(Boolean);
+    const activeSpecs = form.especialidades
+      .map((e: any) => e?.nome?.trim())
+      .filter(Boolean);
     if (activeSpecs.length > 0 && !activeSpecs.includes(newDesc.especialidade)) {
       setNewDesc((prev) => ({ ...prev, especialidade: activeSpecs[0] }));
     }
@@ -519,37 +539,39 @@ function ProfForm({ prof, onSaved }: { prof: any; onSaved: () => void }) {
 
   const m = useMutation({
     mutationFn: async () => {
-      const activeSpecs = form.especialidades.filter((e: any) => e.nome.trim());
+      const activeSpecs = form.especialidades.filter((e: any) => e && e.nome && e.nome.trim());
 
       const payloadConfig = {
         especialidades: activeSpecs.map((v: any) => {
-          const nomeLower = v.nome.trim().toLowerCase();
+          const nomeLower = v.nome?.trim().toLowerCase() || "";
           const isAP = nomeLower === "ap";
           const isSupervisorABA = nomeLower === "supervisor aba";
           const isAtABA = nomeLower === "at aba";
           return {
-            nome: v.nome.trim(),
+            nome: v.nome?.trim() || "",
             valor_sessao: isAP || isSupervisorABA ? null : parseMoneyValue(v.valor_sessao),
             valor_avaliacao: isAP || isAtABA ? null : parseMoneyValue(v.valor_avaliacao),
             plano_mensal: isAP ? v.plano_mensal || null : null,
           };
         }),
-        descontos: descontos.map((d: any) => {
-          const specLower = d.especialidade?.toLowerCase();
-          const isSupervisorABA = specLower === "supervisor aba";
-          const isAtABA = specLower === "at aba";
-          return {
-            paciente_id: d.paciente_id,
-            especialidade: d.especialidade,
-            valor_sessao: isSupervisorABA ? null : parseMoneyValue(d.valor_sessao),
-            valor_avaliacao: isAtABA ? null : parseMoneyValue(d.valor_avaliacao),
-          };
-        }),
+        descontos: (descontos || [])
+          .filter((d: any) => d && d.paciente_id)
+          .map((d: any) => {
+            const specLower = d.especialidade?.toLowerCase() || "";
+            const isSupervisorABA = specLower === "supervisor aba";
+            const isAtABA = specLower === "at aba";
+            return {
+              paciente_id: d.paciente_id,
+              especialidade: d.especialidade,
+              valor_sessao: isSupervisorABA ? null : parseMoneyValue(d.valor_sessao),
+              valor_avaliacao: isAtABA ? null : parseMoneyValue(d.valor_avaliacao),
+            };
+          }),
       };
 
       const payload: any = {
         nome: form.nome,
-        especialidade: activeSpecs.map((e: any) => e.nome.trim()).join(", ") || null,
+        especialidade: activeSpecs.map((e: any) => e.nome?.trim() || "").filter(Boolean).join(", ") || null,
         email: form.email || null,
         telefone: form.telefone || null,
         cor: form.cor,
@@ -766,7 +788,9 @@ function ProfForm({ prof, onSaved }: { prof: any; onSaved: () => void }) {
   );
 
   const renderDescontosForm = () => {
-    const activeSpecs = form.especialidades.map((e: any) => e.nome.trim()).filter(Boolean);
+    const activeSpecs = form.especialidades
+      .map((e: any) => e?.nome?.trim())
+      .filter(Boolean);
 
     return (
       <div className="space-y-4">
@@ -792,7 +816,7 @@ function ProfForm({ prof, onSaved }: { prof: any; onSaved: () => void }) {
                     <SelectValue placeholder="Selecione..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {pacientes.map((p: any) => (
+                    {(pacientes || []).map((p: any) => (
                       <SelectItem key={p.id} value={p.id}>
                         {p.nome}
                       </SelectItem>
@@ -818,7 +842,7 @@ function ProfForm({ prof, onSaved }: { prof: any; onSaved: () => void }) {
                   </SelectContent>
                 </Select>
               </div>
-              {newDesc.especialidade.toLowerCase() !== "supervisor aba" && (
+              {newDesc.especialidade && newDesc.especialidade.toLowerCase() !== "supervisor aba" && (
                 <div
                   className={`space-y-1.5 ${newDesc.especialidade.toLowerCase() === "at aba" ? "col-span-2" : ""}`}
                 >
@@ -832,7 +856,7 @@ function ProfForm({ prof, onSaved }: { prof: any; onSaved: () => void }) {
                   />
                 </div>
               )}
-              {newDesc.especialidade.toLowerCase() !== "at aba" && (
+              {newDesc.especialidade && newDesc.especialidade.toLowerCase() !== "at aba" && (
                 <div
                   className={`space-y-1.5 ${newDesc.especialidade.toLowerCase() === "supervisor aba" ? "col-span-2" : ""}`}
                 >
@@ -851,16 +875,16 @@ function ProfForm({ prof, onSaved }: { prof: any; onSaved: () => void }) {
                   type="button"
                   size="sm"
                   onClick={() => {
+                    if (!newDesc.paciente_id || !newDesc.especialidade) {
+                      toast.error("Selecione o paciente e a especialidade");
+                      return;
+                    }
                     const specLower = newDesc.especialidade.toLowerCase();
                     const isSupervisorABA = specLower === "supervisor aba";
                     const isAtABA = specLower === "at aba";
                     const needsSession = !isSupervisorABA;
                     const needsAnamnese = !isAtABA;
 
-                    if (!newDesc.paciente_id || !newDesc.especialidade) {
-                      toast.error("Selecione o paciente e a especialidade");
-                      return;
-                    }
                     if (needsSession && !newDesc.valor_sessao) {
                       toast.error("Preencha o valor da sessão");
                       return;
@@ -880,8 +904,9 @@ function ProfForm({ prof, onSaved }: { prof: any; onSaved: () => void }) {
                         ? (parseMoneyValue(newDesc.valor_avaliacao) ?? 0)
                         : null,
                     };
-                    const exists = descontos.some(
+                    const exists = (descontos || []).some(
                       (d: any) =>
+                        d &&
                         d.paciente_id === newRule.paciente_id &&
                         d.especialidade === newRule.especialidade,
                     );
@@ -889,7 +914,7 @@ function ProfForm({ prof, onSaved }: { prof: any; onSaved: () => void }) {
                       toast.error("Já existe desconto para este paciente nesta especialidade");
                       return;
                     }
-                    setDescontos([...descontos, newRule]);
+                    setDescontos([...(descontos || []), newRule]);
                     setNewDesc({
                       paciente_id: "",
                       especialidade: activeSpecs[0] || "",
@@ -915,7 +940,7 @@ function ProfForm({ prof, onSaved }: { prof: any; onSaved: () => void }) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {descontos.length === 0 ? (
+                  {!descontos || descontos.length === 0 ? (
                     <TableRow>
                       <TableCell
                         colSpan={5}
@@ -926,7 +951,8 @@ function ProfForm({ prof, onSaved }: { prof: any; onSaved: () => void }) {
                     </TableRow>
                   ) : (
                     descontos.map((d: any, idx: number) => {
-                      const pac = pacientes.find((p: any) => p.id === d.paciente_id);
+                      if (!d) return null;
+                      const pac = (pacientes || []).find((p: any) => p.id === d.paciente_id);
                       return (
                         <TableRow key={idx}>
                           <TableCell className="font-medium text-xs">
