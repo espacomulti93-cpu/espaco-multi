@@ -152,6 +152,27 @@ function DiretoriaPageContent() {
   const normalizeString = (str: string) =>
     str ? str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() : "";
 
+  const getProfessionalsForFatura = (fatura: any) => {
+    const names = new Set<string>();
+    if (fatura.fatura_itens && Array.isArray(fatura.fatura_itens)) {
+      fatura.fatura_itens.forEach((item: any) => {
+        const ag = item.agendamentos;
+        if (ag) {
+          if (Array.isArray(ag)) {
+            ag.forEach((a: any) => {
+              if (a.profissionais?.nome) {
+                names.add(a.profissionais.nome);
+              }
+            });
+          } else if (ag.profissionais?.nome) {
+            names.add(ag.profissionais.nome);
+          }
+        }
+      });
+    }
+    return Array.from(names);
+  };
+
   // Fetch Patients
   const { data: pacientes = [] } = useQuery({
     queryKey: ["dir-pacientes-min"],
@@ -198,9 +219,29 @@ function DiretoriaPageContent() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("faturas")
-        .select(
-          "id, valor, status, competencia, vencimento, pago_em, metodo, observacoes, paciente_id",
-        )
+        .select(`
+          id,
+          valor,
+          status,
+          competencia,
+          vencimento,
+          pago_em,
+          metodo,
+          observacoes,
+          paciente_id,
+          fatura_itens (
+            id,
+            agendamento_id,
+            agendamentos (
+              id,
+              profissional_id,
+              profissionais (
+                id,
+                nome
+              )
+            )
+          )
+        `)
         .gte("competencia", inicio)
         .lte("competencia", fim)
         .order("competencia", { ascending: true })
@@ -1503,6 +1544,7 @@ Agradecemos a atenção!
                       <TableRow>
                         <TableHead>Paciente</TableHead>
                         <TableHead>Competência</TableHead>
+                        <TableHead>Profissional</TableHead>
                         <TableHead>Vencimento</TableHead>
                         <TableHead>Valor</TableHead>
                         <TableHead>Status</TableHead>
@@ -1525,6 +1567,23 @@ Agradecemos a atenção!
                               {f.competencia
                                 ? format(new Date(f.competencia + "T12:00:00"), "MM/yyyy")
                                 : "—"}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex flex-wrap gap-1 max-w-[150px]">
+                                {getProfessionalsForFatura(f).length > 0 ? (
+                                  getProfessionalsForFatura(f).map((name) => (
+                                    <Badge
+                                      key={name}
+                                      variant="secondary"
+                                      className="text-[10px] px-1.5 py-0.5 font-medium whitespace-nowrap"
+                                    >
+                                      {name}
+                                    </Badge>
+                                  ))
+                                ) : (
+                                  <span className="text-xs text-muted-foreground italic">—</span>
+                                )}
+                              </div>
                             </TableCell>
                             <TableCell>
                               {f.vencimento
@@ -2717,7 +2776,7 @@ Agradecemos a atenção!
             </Button>
           </DialogHeader>
 
-          <div className="py-4">
+            <div className="py-4">
             {patientFaturas.length === 0 ? (
               <div className="p-8 text-center text-sm text-muted-foreground border border-dashed rounded-lg">
                 Nenhuma fatura cadastrada para este paciente no período selecionado.
@@ -2728,6 +2787,7 @@ Agradecemos a atenção!
                   <TableHeader className="bg-muted/40 font-semibold text-foreground">
                     <TableRow>
                       <TableHead>Competência</TableHead>
+                      <TableHead>Profissional</TableHead>
                       <TableHead>Vencimento</TableHead>
                       <TableHead>Valor</TableHead>
                       <TableHead>Status</TableHead>
@@ -2745,6 +2805,23 @@ Agradecemos a atenção!
                             {f.competencia
                               ? format(new Date(f.competencia + "T12:00:00"), "MM/yyyy")
                               : "—"}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-wrap gap-1 max-w-[150px]">
+                              {getProfessionalsForFatura(f).length > 0 ? (
+                                getProfessionalsForFatura(f).map((name) => (
+                                  <Badge
+                                    key={name}
+                                    variant="secondary"
+                                    className="text-[10px] px-1.5 py-0.5 font-medium whitespace-nowrap"
+                                  >
+                                    {name}
+                                  </Badge>
+                                ))
+                              ) : (
+                                <span className="text-xs text-muted-foreground italic">—</span>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell>
                             {f.vencimento
