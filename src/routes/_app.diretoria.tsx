@@ -153,24 +153,8 @@ function DiretoriaPageContent() {
     str ? str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() : "";
 
   const getProfessionalsForFatura = (fatura: any) => {
-    const names = new Set<string>();
-    if (fatura.fatura_itens && Array.isArray(fatura.fatura_itens)) {
-      fatura.fatura_itens.forEach((item: any) => {
-        const ag = item.agendamentos;
-        if (ag) {
-          if (Array.isArray(ag)) {
-            ag.forEach((a: any) => {
-              if (a.profissionais?.nome) {
-                names.add(a.profissionais.nome);
-              }
-            });
-          } else if (ag.profissionais?.nome) {
-            names.add(ag.profissionais.nome);
-          }
-        }
-      });
-    }
-    return Array.from(names);
+    const set = faturaProfessionalsMap.get(fatura.id);
+    return set ? Array.from(set) : [];
   };
 
   // Fetch Patients
@@ -219,29 +203,9 @@ function DiretoriaPageContent() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("faturas")
-        .select(`
-          id,
-          valor,
-          status,
-          competencia,
-          vencimento,
-          pago_em,
-          metodo,
-          observacoes,
-          paciente_id,
-          fatura_itens (
-            id,
-            agendamento_id,
-            agendamentos (
-              id,
-              profissional_id,
-              profissionais (
-                id,
-                nome
-              )
-            )
-          )
-        `)
+        .select(
+          "id, valor, status, competencia, vencimento, pago_em, metodo, observacoes, paciente_id",
+        )
         .gte("competencia", inicio)
         .lte("competencia", fim)
         .order("competencia", { ascending: true })
@@ -495,6 +459,7 @@ function DiretoriaPageContent() {
     queryKey: ["dir-fatura-itens-all"],
     queryFn: async () => {
       const { data, error } = await supabase.from("fatura_itens").select(`
+          fatura_id,
           total,
           valor_unitario,
           agendamento_id,
@@ -520,6 +485,32 @@ function DiretoriaPageContent() {
     });
     return map;
   }, [faturaItens]);
+
+  const agendamentoProfMap = useMemo(() => {
+    const map = new Map<string, string>();
+    (agendamentosRepasses || []).forEach((ag: any) => {
+      if (ag.id && ag.profissionais?.nome) {
+        map.set(ag.id, ag.profissionais.nome);
+      }
+    });
+    return map;
+  }, [agendamentosRepasses]);
+
+  const faturaProfessionalsMap = useMemo(() => {
+    const map = new Map<string, Set<string>>();
+    (faturaItens || []).forEach((item: any) => {
+      const fatId = item.fatura_id || item.faturas?.id;
+      if (!fatId) return;
+
+      const profName = item.agendamento_id ? agendamentoProfMap.get(item.agendamento_id) : null;
+      if (profName) {
+        const set = map.get(fatId) || new Set<string>();
+        set.add(profName);
+        map.set(fatId, set);
+      }
+    });
+    return map;
+  }, [faturaItens, agendamentoProfMap]);
 
   // Helper to resolve specialty of an appointment
   const getAppointmentSpecialty = (a: any) => {
