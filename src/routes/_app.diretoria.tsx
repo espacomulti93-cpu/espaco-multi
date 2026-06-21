@@ -157,6 +157,18 @@ function DiretoriaPageContent() {
     return set ? Array.from(set) : [];
   };
 
+  const getPatientProfessionals = (pacienteId: string) => {
+    const patientFats = (faturas || []).filter((f) => f.paciente_id === pacienteId);
+    const names = new Set<string>();
+    patientFats.forEach((f) => {
+      const pros = faturaProfessionalsMap.get(f.id);
+      if (pros) {
+        pros.forEach((p) => names.add(p));
+      }
+    });
+    return Array.from(names);
+  };
+
   // Fetch Patients
   const { data: pacientes = [] } = useQuery({
     queryKey: ["dir-pacientes-min"],
@@ -1096,6 +1108,7 @@ Agradecemos a atenção!
           <TableHeader className="bg-muted/40 font-semibold text-foreground">
             <TableRow>
               <TableHead>Paciente</TableHead>
+              <TableHead>Profissionais</TableHead>
               <TableHead>Responsável Financeiro</TableHead>
               <TableHead className="text-center">Faturas Pendentes</TableHead>
               <TableHead>Soma Pendente</TableHead>
@@ -1117,6 +1130,23 @@ Agradecemos a atenção!
                 <TableRow key={c.pacienteId} className="hover:bg-muted/30">
                   <TableCell className="font-semibold text-foreground">
                     {c.nome}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-wrap gap-1 max-w-[155px]">
+                      {getPatientProfessionals(c.pacienteId).length > 0 ? (
+                        getPatientProfessionals(c.pacienteId).map((name) => (
+                          <Badge
+                            key={name}
+                            variant="secondary"
+                            className="text-[10px] px-1.5 py-0.5 font-medium whitespace-nowrap"
+                          >
+                            {name}
+                          </Badge>
+                        ))
+                      ) : (
+                        <span className="text-xs text-muted-foreground italic">—</span>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell>
                     {primaryResp ? (
