@@ -826,6 +826,7 @@ function DiretoriaPageContent() {
   // Billing Filters
   const [searchPatient, setSearchPatient] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [paymentTypeFilter, setPaymentTypeFilter] = useState<"all" | "mensal" | "sessao">("all");
   const [subTab, setSubTab] = useState<"consolidado" | "historico">("consolidado");
 
   // Patient Faturas Modal state
@@ -1431,6 +1432,23 @@ Agradecemos a atenção!
                     </SelectContent>
                   </Select>
                 </div>
+                {subTab === "consolidado" && (
+                  <div className="w-[190px]">
+                    <Select
+                      value={paymentTypeFilter}
+                      onValueChange={(val: any) => setPaymentTypeFilter(val)}
+                    >
+                      <SelectTrigger className="h-10">
+                        <SelectValue placeholder="Tipo de Faturamento" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todos os Faturamentos</SelectItem>
+                        <SelectItem value="mensal">Mensal</SelectItem>
+                        <SelectItem value="sessao">Por Sessão</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
               </div>
 
               {subTab === "consolidado" ? (
@@ -1444,25 +1462,29 @@ Agradecemos a atenção!
                   </div>
                 ) : (
                   <div className="space-y-6">
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2 font-semibold text-sm text-foreground bg-muted/40 px-3 py-2 rounded-lg border border-border/50">
-                        <span className="text-primary font-bold">💳 Pagamento Mensal</span>
-                        <span className="text-xs text-muted-foreground">
-                          ({mensalPatients.length} {mensalPatients.length === 1 ? "paciente" : "pacientes"})
-                        </span>
+                    {(paymentTypeFilter === "all" || paymentTypeFilter === "mensal") && (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 font-semibold text-sm text-foreground bg-muted/40 px-3 py-2 rounded-lg border border-border/50">
+                          <span className="text-primary font-bold">💳 Pagamento Mensal</span>
+                          <span className="text-xs text-muted-foreground">
+                            ({mensalPatients.length} {mensalPatients.length === 1 ? "paciente" : "pacientes"})
+                          </span>
+                        </div>
+                        {renderPatientTable(mensalPatients, "Nenhum paciente com faturamento mensal.")}
                       </div>
-                      {renderPatientTable(mensalPatients, "Nenhum paciente com faturamento mensal.")}
-                    </div>
+                    )}
 
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2 font-semibold text-sm text-foreground bg-muted/40 px-3 py-2 rounded-lg border border-border/50">
-                        <span className="text-primary font-bold">📅 Pagamento por Sessão</span>
-                        <span className="text-xs text-muted-foreground">
-                          ({sessaoPatients.length} {sessaoPatients.length === 1 ? "paciente" : "pacientes"})
-                        </span>
+                    {(paymentTypeFilter === "all" || paymentTypeFilter === "sessao") && (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 font-semibold text-sm text-foreground bg-muted/40 px-3 py-2 rounded-lg border border-border/50">
+                          <span className="text-primary font-bold">📅 Pagamento por Sessão</span>
+                          <span className="text-xs text-muted-foreground">
+                            ({sessaoPatients.length} {sessaoPatients.length === 1 ? "paciente" : "pacientes"})
+                          </span>
+                        </div>
+                        {renderPatientTable(sessaoPatients, "Nenhum paciente com faturamento por sessão.")}
                       </div>
-                      {renderPatientTable(sessaoPatients, "Nenhum paciente com faturamento por sessão.")}
-                    </div>
+                    )}
                   </div>
                 )
               ) : /* Histórico de Faturas */
