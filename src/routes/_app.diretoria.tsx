@@ -156,7 +156,7 @@ function DiretoriaPageContent() {
   const { data: pacientes = [] } = useQuery({
     queryKey: ["dir-pacientes-min"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("pacientes").select("id, nome").order("nome");
+      const { data, error } = await supabase.from("pacientes").select("id, nome, valor_mensal").order("nome");
       if (error) throw error;
       return data;
     },
@@ -164,6 +164,10 @@ function DiretoriaPageContent() {
 
   const patientMap = useMemo(() => {
     return new Map<string, string>((pacientes || []).map((p) => [p.id, p.nome]));
+  }, [pacientes]);
+
+  const patientDetailsMap = useMemo(() => {
+    return new Map<string, any>((pacientes || []).map((p) => [p.id, p]));
   }, [pacientes]);
 
   // Fetch all responsaveis to map their contacts
@@ -1031,7 +1035,180 @@ Agradecemos a atenção!
       })
       .sort((a, b) => new Date(a.competencia).getTime() - new Date(b.competencia).getTime());
   }, [faturas, searchPatient, statusFilter, patientMap]);
+  const mensalPatients = useMemo(() => {
+    return filteredConsolidated.filter((c) => {
+      const p = patientDetailsMap.get(c.pacienteId);
+      return p && Number(p.valor_mensal) > 0;
+    });
+  }, [filteredConsolidated, patientDetailsMap]);
 
+  const sessaoPatients = useMemo(() => {
+    return filteredConsolidated.filter((c) => {
+      const p = patientDetailsMap.get(c.pacienteId);
+      return !p || !Number(p.valor_mensal) || Number(p.valor_mensal) === 0;
+    });
+  }, [filteredConsolidated, patientDetailsMap]);
+
+  const renderPatientTable = (list: typeof filteredConsolidated, emptyMessage: string) => {
+    if (list.length === 0) {
+      return (
+        <div className="p-8 text-center text-xs text-muted-foreground border border-dashed rounded-lg bg-card/30">
+          {emptyMessage}
+        </div>
+      );
+    }
+    return (
+      <div className="overflow-x-auto rounded-lg border border-border bg-card">
+        <Table>
+          <TableHeader className="bg-muted/40 font-semibold text-foreground">
+            <TableRow>
+              <TableHead>Paciente</TableHead>
+              <TableHead>Responsável Financeiro</TableHead>
+              <TableHead className="text-center">Faturas Pendentes</TableHead>
+              <TableHead>Soma Pendente</TableHead>
+              <TableHead>Soma Paga</TableHead>
+              <TableHead>Soma Geral</TableHead>
+              <TableHead>Situação</TableHead>
+              <TableHead className="w-[180px] text-right">Ações</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {list.map((c) => {
+              const resps = responsaveisMap.get(c.pacienteId) || [];
+              const primaryResp =
+                resps.find((r) => r.whatsapp) ||
+                resps.find((r) => r.telefone) ||
+                resps[0];
+
+              return (
+                <TableRow key={c.pacienteId} className="hover:bg-muted/30">
+                  <TableCell className="font-semibold text-foreground">
+                    {c.nome}
+                  </TableCell>
+                  <TableCell>
+                    {primaryResp ? (
+                      <div className="flex items-center gap-2">
+                        <div className="text-sm">
+                          <span className="font-semibold text-foreground block leading-tight">
+                            {primaryResp.nome}
+                          </span>
+                          {primaryResp.parentesco && (
+                            <span className="text-muted-foreground text-[11px]">
+                              {primaryResp.parentesco}
+                            </span>
+                          )}
+                        </div>
+                        {(primaryResp.whatsapp || primaryResp.telefone) && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 px-2.5 text-xs text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 border-emerald-500/20 hover:border-emerald-500/40 flex items-center gap-1"
+                            onClick={() =>
+                              handleWhatsAppClick(c.pacienteId, c.totalPendente, c.nome)
+                            }
+                            title={`Chamar no WhatsApp: ${primaryResp.whatsapp || primaryResp.telefone}`}
+                          >
+                            <MessageCircle className="h-3.5 w-3.5 fill-emerald-600/10 shrink-0" />
+                            WhatsApp
+                          </Button>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-xs text-muted-foreground italic">
+                        Nenhum responsável
+                      </span>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-center font-medium">
+                    {c.faturasPendentesCount}
+                  </TableCell>
+                  <TableCell
+                    className={`font-semibold ${c.totalPendente > 0 ? "text-rose-600 dark:text-rose-400" : "text-muted-foreground"}`}
+                  >
+                    {brl(c.totalPendente)}
+                  </TableCell>
+                  <TableCell
+                    className={`font-medium ${c.totalPago > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"}`}
+                  >
+                    {brl(c.totalPago)}
+                  </TableCell>
+                  <TableCell className="font-medium text-foreground">
+                    {brl(c.totalGeral)}
+                  </TableCell>
+                  <TableCell>
+                    <Badge
+                      variant={
+                        c.temAtraso
+                          ? "destructive"
+                          : c.totalPendente > 0
+                            ? "outline"
+                            : c.totalPago > 0
+                              ? "default"
+                              : "secondary"
+                      }
+                      className={
+                        c.temAtraso
+                          ? "bg-rose-500 hover:bg-rose-600 text-white border-transparent"
+                          : c.totalPendente > 0
+                            ? "bg-sky-500 hover:bg-sky-600 text-white border-transparent"
+                            : c.totalPago > 0
+                              ? "bg-emerald-500 hover:bg-emerald-600 text-white border-transparent"
+                              : ""
+                      }
+                    >
+                      {c.temAtraso
+                        ? "Atrasado"
+                        : c.totalPendente > 0
+                          ? "No Prazo"
+                          : c.totalPago > 0
+                            ? "Em Dia"
+                            : "Sem Faturas"}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div
+                      className="flex justify-end gap-1.5"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 gap-1 font-medium"
+                        onClick={() => handleOpenPatientFaturas(c.pacienteId, c.nome)}
+                      >
+                        <Eye className="h-3.5 w-3.5" />
+                        Ver Faturas
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        title="Nova Cobrança para este Paciente"
+                        className="h-8 w-8 text-primary hover:bg-primary/5"
+                        onClick={() => {
+                          setFaturaForm({
+                            paciente_id: c.pacienteId,
+                            competencia: format(startOfMonth(new Date()), "yyyy-MM-dd"),
+                            vencimento: "",
+                            valor: "",
+                            status: "aberta",
+                            pago_em: "",
+                            observacoes: "",
+                          });
+                          setCreateDialog(true);
+                        }}
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </div>
+    );
+  };
   return (
     <div className="space-y-6">
       {/* Date Filter */}
@@ -1266,153 +1443,26 @@ Agradecemos a atenção!
                     Nenhuma cobrança consolidada encontrada para os filtros selecionados.
                   </div>
                 ) : (
-                  <div className="overflow-x-auto rounded-lg border border-border">
-                    <Table>
-                      <TableHeader className="bg-muted/40 font-semibold text-foreground">
-                        <TableRow>
-                          <TableHead>Paciente</TableHead>
-                          <TableHead>Responsável Financeiro</TableHead>
-                          <TableHead className="text-center">Faturas Pendentes</TableHead>
-                          <TableHead>Soma Pendente</TableHead>
-                          <TableHead>Soma Paga</TableHead>
-                          <TableHead>Soma Geral</TableHead>
-                          <TableHead>Situação</TableHead>
-                          <TableHead className="w-[180px] text-right">Ações</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {filteredConsolidated.map((c) => {
-                          const resps = responsaveisMap.get(c.pacienteId) || [];
-                          const primaryResp =
-                            resps.find((r) => r.whatsapp) ||
-                            resps.find((r) => r.telefone) ||
-                            resps[0];
+                  <div className="space-y-6">
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 font-semibold text-sm text-foreground bg-muted/40 px-3 py-2 rounded-lg border border-border/50">
+                        <span className="text-primary font-bold">💳 Pagamento Mensal</span>
+                        <span className="text-xs text-muted-foreground">
+                          ({mensalPatients.length} {mensalPatients.length === 1 ? "paciente" : "pacientes"})
+                        </span>
+                      </div>
+                      {renderPatientTable(mensalPatients, "Nenhum paciente com faturamento mensal.")}
+                    </div>
 
-                          return (
-                            <TableRow key={c.pacienteId} className="hover:bg-muted/30">
-                              <TableCell className="font-semibold text-foreground">
-                                {c.nome}
-                              </TableCell>
-                              <TableCell>
-                                {primaryResp ? (
-                                  <div className="flex items-center gap-2">
-                                    <div className="text-sm">
-                                      <span className="font-semibold text-foreground block leading-tight">
-                                        {primaryResp.nome}
-                                      </span>
-                                      {primaryResp.parentesco && (
-                                        <span className="text-muted-foreground text-[11px]">
-                                          {primaryResp.parentesco}
-                                        </span>
-                                      )}
-                                    </div>
-                                    {(primaryResp.whatsapp || primaryResp.telefone) && (
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        className="h-7 px-2.5 text-xs text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 border-emerald-500/20 hover:border-emerald-500/40 flex items-center gap-1"
-                                        onClick={() =>
-                                          handleWhatsAppClick(c.pacienteId, c.totalPendente, c.nome)
-                                        }
-                                        title={`Chamar no WhatsApp: ${primaryResp.whatsapp || primaryResp.telefone}`}
-                                      >
-                                        <MessageCircle className="h-3.5 w-3.5 fill-emerald-600/10 shrink-0" />
-                                        WhatsApp
-                                      </Button>
-                                    )}
-                                  </div>
-                                ) : (
-                                  <span className="text-xs text-muted-foreground italic">
-                                    Nenhum responsável
-                                  </span>
-                                )}
-                              </TableCell>
-                              <TableCell className="text-center font-medium">
-                                {c.faturasPendentesCount}
-                              </TableCell>
-                              <TableCell
-                                className={`font-semibold ${c.totalPendente > 0 ? "text-rose-600 dark:text-rose-400" : "text-muted-foreground"}`}
-                              >
-                                {brl(c.totalPendente)}
-                              </TableCell>
-                              <TableCell
-                                className={`font-medium ${c.totalPago > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"}`}
-                              >
-                                {brl(c.totalPago)}
-                              </TableCell>
-                              <TableCell className="font-medium text-foreground">
-                                {brl(c.totalGeral)}
-                              </TableCell>
-                              <TableCell>
-                                <Badge
-                                  variant={
-                                    c.temAtraso
-                                      ? "destructive"
-                                      : c.totalPendente > 0
-                                        ? "outline"
-                                        : c.totalPago > 0
-                                          ? "default"
-                                          : "secondary"
-                                  }
-                                  className={
-                                    c.temAtraso
-                                      ? "bg-rose-500 hover:bg-rose-600 text-white border-transparent"
-                                      : c.totalPendente > 0
-                                        ? "bg-sky-500 hover:bg-sky-600 text-white border-transparent"
-                                        : c.totalPago > 0
-                                          ? "bg-emerald-500 hover:bg-emerald-600 text-white border-transparent"
-                                          : ""
-                                  }
-                                >
-                                  {c.temAtraso
-                                    ? "Atrasado"
-                                    : c.totalPendente > 0
-                                      ? "No Prazo"
-                                      : c.totalPago > 0
-                                        ? "Em Dia"
-                                        : "Sem Faturas"}
-                                </Badge>
-                              </TableCell>
-                              <TableCell className="text-right">
-                                <div
-                                  className="flex justify-end gap-1.5"
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="h-8 gap-1 font-medium"
-                                    onClick={() => handleOpenPatientFaturas(c.pacienteId, c.nome)}
-                                  >
-                                    <Eye className="h-3.5 w-3.5" />
-                                    Ver Faturas
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    title="Nova Cobrança para este Paciente"
-                                    className="h-8 w-8 text-primary hover:bg-primary/5"
-                                    onClick={() => {
-                                      setFaturaForm({
-                                        paciente_id: c.pacienteId,
-                                        competencia: format(startOfMonth(new Date()), "yyyy-MM-dd"),
-                                        vencimento: "",
-                                        valor: "",
-                                        status: "aberta",
-                                        observacoes: "",
-                                      });
-                                      setCreateDialog(true);
-                                    }}
-                                  >
-                                    <Plus className="h-4 w-4" />
-                                  </Button>
-                                </div>
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })}
-                      </TableBody>
-                    </Table>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 font-semibold text-sm text-foreground bg-muted/40 px-3 py-2 rounded-lg border border-border/50">
+                        <span className="text-primary font-bold">📅 Pagamento por Sessão</span>
+                        <span className="text-xs text-muted-foreground">
+                          ({sessaoPatients.length} {sessaoPatients.length === 1 ? "paciente" : "pacientes"})
+                        </span>
+                      </div>
+                      {renderPatientTable(sessaoPatients, "Nenhum paciente com faturamento por sessão.")}
+                    </div>
                   </div>
                 )
               ) : /* Histórico de Faturas */
