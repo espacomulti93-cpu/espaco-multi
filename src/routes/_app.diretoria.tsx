@@ -289,9 +289,11 @@ function DiretoriaPageContent() {
           status: updatedFatura.status as any,
           pago_em:
             updatedFatura.status === "paga"
-              ? updatedFatura.pago_em || new Date().toISOString()
+              ? (updatedFatura.pago_em
+                ? new Date(updatedFatura.pago_em + "T12:00:00").toISOString()
+                : new Date().toISOString())
               : null,
-          metodo: updatedFatura.status === "paga" ? (updatedFatura.metodo as any) : null,
+          metodo: updatedFatura.status === "paga" ? (updatedFatura.metodo as any || "pix") : null,
           observacoes: updatedFatura.observacoes || null,
         })
         .eq("id", updatedFatura.id);
@@ -973,6 +975,7 @@ Agradecemos a atenção!
     vencimento: "",
     valor: "",
     status: "aberta",
+    pago_em: "",
     observacoes: "",
   });
 
@@ -992,6 +995,7 @@ Agradecemos a atenção!
       vencimento: fatura.vencimento || "",
       valor: String(fatura.valor),
       status: fatura.status,
+      pago_em: fatura.pago_em ? format(new Date(fatura.pago_em), "yyyy-MM-dd") : "",
       observacoes: fatura.observacoes || "",
     });
     setEditDialog({ open: true, fatura });
@@ -2360,6 +2364,7 @@ Agradecemos a atenção!
                     vencimento: faturaForm.vencimento ? faturaForm.vencimento : null,
                     valor: parseFloat(faturaForm.valor.replace(",", ".")),
                     status: faturaForm.status,
+                    pago_em: faturaForm.status === "paga" && faturaForm.pago_em ? faturaForm.pago_em : null,
                     observacoes: faturaForm.observacoes,
                   },
                   {
@@ -2385,10 +2390,10 @@ Agradecemos a atenção!
               <div className="space-y-1.5">
                 <Label>Mês de Competência</Label>
                 <Input
-                  type="date"
+                  type="month"
                   required
-                  value={faturaForm.competencia}
-                  onChange={(e) => setFaturaForm({ ...faturaForm, competencia: e.target.value })}
+                  value={faturaForm.competencia ? faturaForm.competencia.substring(0, 7) : ""}
+                  onChange={(e) => setFaturaForm({ ...faturaForm, competencia: e.target.value ? e.target.value + "-01" : "" })}
                 />
               </div>
               <div className="space-y-1.5">
@@ -2415,7 +2420,11 @@ Agradecemos a atenção!
                 <Label>Status</Label>
                 <Select
                   value={faturaForm.status}
-                  onValueChange={(val) => setFaturaForm({ ...faturaForm, status: val })}
+                  onValueChange={(val) => setFaturaForm((prev) => ({
+                    ...prev,
+                    status: val,
+                    pago_em: val === "paga" && !prev.pago_em ? format(new Date(), "yyyy-MM-dd") : prev.pago_em
+                  }))}
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -2429,6 +2438,18 @@ Agradecemos a atenção!
                 </Select>
               </div>
             </div>
+
+            {faturaForm.status === "paga" && (
+              <div className="space-y-1.5 animate-in fade-in duration-200">
+                <Label>Data do Pagamento</Label>
+                <Input
+                  type="date"
+                  required
+                  value={faturaForm.pago_em || format(new Date(), "yyyy-MM-dd")}
+                  onChange={(e) => setFaturaForm({ ...faturaForm, pago_em: e.target.value })}
+                />
+              </div>
+            )}
 
             <div className="space-y-1.5">
               <Label>Observações</Label>
@@ -2486,6 +2507,7 @@ Agradecemos a atenção!
                       vencimento: "",
                       valor: "",
                       status: "aberta",
+                      pago_em: "",
                       observacoes: "",
                     });
                   },
